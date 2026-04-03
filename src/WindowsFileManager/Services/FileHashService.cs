@@ -1,0 +1,37 @@
+using System.Security.Cryptography;
+
+namespace WindowsFileManager.Services;
+
+/// <summary>
+/// Computes file content hashes for duplicate detection.
+/// </summary>
+public class FileHashService
+{
+    private readonly IFileSystemService _fileSystem;
+
+    internal FileHashService(IFileSystemService fileSystem)
+    {
+        _fileSystem = fileSystem;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FileHashService"/> class.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+    public FileHashService()
+        : this(new FileSystemService())
+    {
+    }
+
+    /// <summary>
+    /// Computes the SHA256 hash of a file's content.
+    /// </summary>
+    /// <param name="filePath">The file path to hash.</param>
+    /// <returns>Hex string of the SHA256 hash.</returns>
+    public string ComputeHash(string filePath)
+    {
+        using var stream = _fileSystem.OpenRead(filePath);
+        var hashBytes = SHA256.HashData(stream);
+        return Convert.ToHexString(hashBytes);
+    }
+}

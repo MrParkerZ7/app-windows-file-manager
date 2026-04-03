@@ -1,0 +1,31 @@
+# Build
+bin/
+obj/
+publish/
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo
+
+# Coverage
+coverage/
+*.cobertura.xml
+
+# Environment
+.env
+*.pem
+*.key
+*.pfx
+
+# Claude Code
+.claude/
+
+# NuGet
+*.nupkg
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
