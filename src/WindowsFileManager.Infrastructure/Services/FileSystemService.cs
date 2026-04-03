@@ -1,7 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using WindowsFileManager.Core.Services;
 
-namespace WindowsFileManager.Services;
+namespace WindowsFileManager.Infrastructure.Services;
 
 /// <summary>
 /// Real file system implementation.

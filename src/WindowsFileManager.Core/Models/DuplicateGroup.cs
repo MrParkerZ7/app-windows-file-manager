@@ -1,4 +1,4 @@
-namespace WindowsFileManager.Models;
+namespace WindowsFileManager.Core.Models;
 
 /// <summary>
 /// A group of files that share the same content (identical hash).

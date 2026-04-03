@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
+using WindowsFileManager.Core.Services;
 
-namespace WindowsFileManager.Services;
+namespace WindowsFileManager.Application.Services;
 
 /// <summary>
 /// Computes file content hashes for duplicate detection.
@@ -9,18 +10,13 @@ public class FileHashService
 {
     private readonly IFileSystemService _fileSystem;
 
-    internal FileHashService(IFileSystemService fileSystem)
-    {
-        _fileSystem = fileSystem;
-    }
-
     /// <summary>
     /// Initializes a new instance of the <see cref="FileHashService"/> class.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    public FileHashService()
-        : this(new FileSystemService())
+    /// <param name="fileSystem">The file system service.</param>
+    public FileHashService(IFileSystemService fileSystem)
     {
+        _fileSystem = fileSystem;
     }
 
     /// <summary>

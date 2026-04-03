@@ -1,31 +1,28 @@
 using System.Diagnostics;
 using System.IO;
-using WindowsFileManager.Models;
+using WindowsFileManager.Core.Models;
+using WindowsFileManager.Core.Services;
 
-namespace WindowsFileManager.Services;
+namespace WindowsFileManager.Application.Services;
 
 /// <summary>
 /// Scans directories to find duplicate files.
-/// Algorithm: group by size (fast filter) → hash only same-size files → group by hash.
+/// Algorithm: group by size (fast filter) -> hash only same-size files -> group by hash.
 /// </summary>
 public class DuplicateScannerService
 {
     private readonly IFileSystemService _fileSystem;
     private readonly FileHashService _hashService;
 
-    internal DuplicateScannerService(IFileSystemService fileSystem, FileHashService hashService)
-    {
-        _fileSystem = fileSystem;
-        _hashService = hashService;
-    }
-
     /// <summary>
     /// Initializes a new instance of the <see cref="DuplicateScannerService"/> class.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
-    public DuplicateScannerService()
-        : this(new FileSystemService(), new FileHashService())
+    /// <param name="fileSystem">The file system service.</param>
+    /// <param name="hashService">The file hash service.</param>
+    public DuplicateScannerService(IFileSystemService fileSystem, FileHashService hashService)
     {
+        _fileSystem = fileSystem;
+        _hashService = hashService;
     }
 
     /// <summary>
@@ -54,7 +51,8 @@ public class DuplicateScannerService
 
         var searchOption = options.IncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
         var allFiles = options.TargetPaths
-            .SelectMany(path => _fileSystem.EnumerateFiles(path, "*.*", searchOption));
+            .SelectMany(path => _fileSystem.EnumerateFiles(path, "*.*", searchOption))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
 
         // Step 1: Collect file metadata and apply filters
         var scannedFiles = new List<ScannedFile>();

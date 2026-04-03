@@ -2,9 +2,11 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Windows.Input;
+using WindowsFileManager.Application.Services;
+using WindowsFileManager.Core.Models;
+using WindowsFileManager.Core.Services;
 using WindowsFileManager.Helpers;
-using WindowsFileManager.Models;
-using WindowsFileManager.Services;
+using WindowsFileManager.Infrastructure.Services;
 
 namespace WindowsFileManager.ViewModels;
 
@@ -29,7 +31,7 @@ public class MainViewModel : ViewModelBase
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
     /// </summary>
     public MainViewModel()
-        : this(new DuplicateScannerService(), new SettingsService())
+        : this(CreateDefaultScanner(), CreateDefaultSettings())
     {
     }
 
@@ -325,5 +327,20 @@ public class MainViewModel : ViewModelBase
         {
             StatusMessage = $"Failed to delete: {ex.Message}";
         }
+    }
+
+    private static DuplicateScannerService CreateDefaultScanner()
+    {
+        var fs = new FileSystemService();
+        return new DuplicateScannerService(fs, new FileHashService(fs));
+    }
+
+    private static SettingsService CreateDefaultSettings()
+    {
+        var settingsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "WindowsFileManager",
+            "settings.json");
+        return new SettingsService(new FileSystemService(), settingsPath);
     }
 }

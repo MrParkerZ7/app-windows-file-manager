@@ -1,4 +1,4 @@
-namespace WindowsFileManager.Models;
+namespace WindowsFileManager.Core.Models;
 
 /// <summary>
 /// Analytics computed from a scan result.

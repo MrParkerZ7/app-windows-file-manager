@@ -1,6 +1,6 @@
 using System.IO;
 
-namespace WindowsFileManager.Services;
+namespace WindowsFileManager.Core.Services;
 
 /// <summary>
 /// Abstraction over file system operations for testability.

@@ -1,4 +1,4 @@
-namespace WindowsFileManager.Models;
+namespace WindowsFileManager.Core.Models;
 
 /// <summary>
 /// Persisted application settings.

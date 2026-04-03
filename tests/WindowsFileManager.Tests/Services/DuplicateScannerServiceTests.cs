@@ -1,8 +1,9 @@
 using System.Text;
 using FluentAssertions;
 using Moq;
-using WindowsFileManager.Models;
-using WindowsFileManager.Services;
+using WindowsFileManager.Application.Services;
+using WindowsFileManager.Core.Models;
+using WindowsFileManager.Core.Services;
 
 namespace WindowsFileManager.Tests.Services;
 
@@ -294,6 +295,36 @@ public class DuplicateScannerServiceTests
         result.TotalFilesScanned.Should().Be(2);
         result.DuplicateGroups.Should().HaveCount(1);
         result.DuplicateGroups[0].Files.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Scan_OverlappingPaths_ShouldDeduplicateFiles()
+    {
+        // D:\ contains D:\sub, so files under D:\sub appear in both enumerations
+        _mockFileSystem.Setup(fs => fs.DirectoryExists(@"D:\")).Returns(true);
+        _mockFileSystem.Setup(fs => fs.DirectoryExists(@"D:\sub")).Returns(true);
+
+        _mockFileSystem.Setup(fs => fs.EnumerateFiles(@"D:\", "*.*", It.IsAny<SearchOption>()))
+            .Returns(new[] { @"D:\root.txt", @"D:\sub\child.txt" });
+        _mockFileSystem.Setup(fs => fs.EnumerateFiles(@"D:\sub", "*.*", It.IsAny<SearchOption>()))
+            .Returns(new[] { @"D:\sub\child.txt" });
+
+        _mockFileSystem.Setup(fs => fs.GetFileSize(@"D:\root.txt")).Returns(100L);
+        _mockFileSystem.Setup(fs => fs.GetFileSize(@"D:\sub\child.txt")).Returns(100L);
+        _mockFileSystem.Setup(fs => fs.GetFileName(@"D:\root.txt")).Returns("root.txt");
+        _mockFileSystem.Setup(fs => fs.GetFileName(@"D:\sub\child.txt")).Returns("child.txt");
+        _mockFileSystem.Setup(fs => fs.GetLastWriteTime(It.IsAny<string>())).Returns(DateTime.Now);
+        _mockFileSystem.Setup(fs => fs.OpenRead(@"D:\root.txt"))
+            .Returns(() => new MemoryStream(Encoding.UTF8.GetBytes("content A")));
+        _mockFileSystem.Setup(fs => fs.OpenRead(@"D:\sub\child.txt"))
+            .Returns(() => new MemoryStream(Encoding.UTF8.GetBytes("content B")));
+
+        var options = new ScanOptions { TargetPaths = new List<string> { @"D:\", @"D:\sub" } };
+        var result = _service.Scan(options);
+
+        // child.txt should only be counted once despite appearing in both paths
+        result.TotalFilesScanned.Should().Be(2);
+        result.DuplicateGroups.Should().BeEmpty();
     }
 
     [Fact]

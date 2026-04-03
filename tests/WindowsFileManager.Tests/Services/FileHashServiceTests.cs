@@ -1,7 +1,8 @@
 using System.Text;
 using FluentAssertions;
 using Moq;
-using WindowsFileManager.Services;
+using WindowsFileManager.Application.Services;
+using WindowsFileManager.Core.Services;
 
 namespace WindowsFileManager.Tests.Services;
 

@@ -7,15 +7,15 @@
 ## Quick Reference
 
 ```
-BUILD:    dotnet build -c Release          # Full build
-FORMAT:   dotnet format                    # Fix formatting (REQUIRED before commit)
-TEST:     dotnet test -c Release           # Run tests with 100% coverage enforcement
-COVERAGE: 100% line coverage               # Enforced by Coverlet (threshold in .csproj)
+BUILD:    dotnet build -c Release
+FORMAT:   dotnet format
+TEST:     dotnet test --collect:"XPlat Code Coverage" --settings tests/WindowsFileManager.Tests/coverlet.runsettings
+COVERAGE: 100% line coverage (enforced by coverlet.collector + runsettings)
 ```
 
 ---
 
-## Project Structure
+## Project Structure (Modular Monorepo)
 
 ```
 WindowsFileManager/
@@ -24,27 +24,34 @@ WindowsFileManager/
 ├── .editorconfig                  # Code style rules
 ├── stylecop.json                  # StyleCop config
 ├── src/
-│   └── WindowsFileManager/
-│       ├── Models/                # Data models (ScannedFile, DuplicateGroup, etc.)
-│       ├── Services/              # Business logic (DuplicateScannerService, etc.)
-│       ├── ViewModels/            # MVVM ViewModels
-│       ├── Views/                 # WPF XAML views
-│       └── Helpers/               # RelayCommand, Converters
+│   ├── WindowsFileManager.Core/           # Models + Interfaces (zero dependencies)
+│   │   ├── Models/
+│   │   └── Services/IFileSystemService.cs
+│   ├── WindowsFileManager.Application/    # Business logic (depends on Core)
+│   │   └── Services/
+│   ├── WindowsFileManager.Infrastructure/ # Real I/O implementations (depends on Core)
+│   │   └── Services/FileSystemService.cs
+│   └── WindowsFileManager/               # WPF UI (depends on all)
+│       ├── ViewModels/
+│       ├── Views/
+│       └── Helpers/
 └── tests/
     └── WindowsFileManager.Tests/
-        ├── Models/                # Model tests (mirror source structure)
-        ├── Services/              # Service tests with Moq
-        └── Helpers/               # Helper tests
+        ├── Models/                # Core model tests
+        ├── Services/              # Application service tests with Moq
+        └── Helpers/               # UI helper tests
 ```
+
+**Dependency flow:** `UI → Application → Core ← Infrastructure`
 
 ---
 
-## Architecture: MVVM + Services
+## Architecture: Clean Architecture + MVVM
 
-- **Models**: Pure data classes, no dependencies
-- **Services**: Business logic with `IFileSystemService` abstraction for testability
-- **ViewModels**: UI state management, binds to Views via INotifyPropertyChanged
-- **Views**: XAML only, code-behind excluded from coverage
+- **Core**: Pure models + interfaces, no dependencies — shareable across modules
+- **Application**: Business logic services depending only on Core interfaces
+- **Infrastructure**: Real file system implementation, excluded from coverage
+- **UI (WindowsFileManager)**: WPF Views, ViewModels, Helpers — wires everything via DI
 
 ---
 
@@ -54,7 +61,7 @@ WindowsFileManager/
 - **Nullable**: Enabled project-wide (`<Nullable>enable</Nullable>`)
 - **File-scoped namespaces**: Required (`namespace Foo;`)
 - **Testing**: xUnit + Moq + FluentAssertions, AAA pattern
-- **Coverage exclusions**: Views, ViewModels, FileSystemService, generated code
+- **Coverage exclusions**: Views, ViewModels, Infrastructure, generated code (via runsettings Include filter)
 - **Interface abstraction**: All I/O through `IFileSystemService` for mock-friendly testing
 
 ---
@@ -62,5 +69,5 @@ WindowsFileManager/
 ## Quality Gates (CI)
 
 1. `dotnet build -c Release` — Compile + StyleCop + .NET Analyzers
-2. `dotnet test -c Release` — All tests pass + 100% coverage
+2. `dotnet test --collect:"XPlat Code Coverage" --settings tests/WindowsFileManager.Tests/coverlet.runsettings` — All tests pass + 100% coverage
 3. `dotnet format --verify-no-changes` — EditorConfig compliance

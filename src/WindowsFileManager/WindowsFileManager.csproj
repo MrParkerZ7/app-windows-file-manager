@@ -10,7 +10,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="WindowsFileManager.Tests" />
+    <ProjectReference Include="..\WindowsFileManager.Core\WindowsFileManager.Core.csproj" />
+    <ProjectReference Include="..\WindowsFileManager.Application\WindowsFileManager.Application.csproj" />
+    <ProjectReference Include="..\WindowsFileManager.Infrastructure\WindowsFileManager.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

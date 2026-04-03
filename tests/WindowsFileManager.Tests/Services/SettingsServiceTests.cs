@@ -1,7 +1,8 @@
 using FluentAssertions;
 using Moq;
-using WindowsFileManager.Models;
-using WindowsFileManager.Services;
+using WindowsFileManager.Application.Services;
+using WindowsFileManager.Core.Models;
+using WindowsFileManager.Core.Services;
 
 namespace WindowsFileManager.Tests.Services;
 

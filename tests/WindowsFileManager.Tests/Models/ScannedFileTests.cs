@@ -1,5 +1,5 @@
 using FluentAssertions;
-using WindowsFileManager.Models;
+using WindowsFileManager.Core.Models;
 
 namespace WindowsFileManager.Tests.Models;
 

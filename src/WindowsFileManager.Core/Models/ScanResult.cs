@@ -1,4 +1,4 @@
-namespace WindowsFileManager.Models;
+namespace WindowsFileManager.Core.Models;
 
 /// <summary>
 /// The result of a duplicate file scan.
