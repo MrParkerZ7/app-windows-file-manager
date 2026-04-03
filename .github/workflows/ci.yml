@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Format check
+        run: dotnet format --verify-no-changes --no-restore
+
+      - name: Test with coverage
+        run: >
+          dotnet test -c Release --no-build
+          --collect:"XPlat Code Coverage"
+          --settings tests/WindowsFileManager.Tests/coverlet.runsettings
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: tests/**/TestResults/**/coverage.cobertura.xml
