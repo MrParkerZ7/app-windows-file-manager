@@ -273,15 +273,36 @@
                                             HorizontalAlignment="Left"
                                             Visibility="{Binding DataContext.IsMiniPreview, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
                                         <StackPanel Orientation="Horizontal">
-                                            <!-- Image thumbnail (if image, otherwise shows nothing) -->
-                                            <Image x:Name="MiniThumb"
-                                                   Source="{Binding FirstFilePath, Converter={StaticResource MiniPreview}}"
+                                            <!-- Image thumbnail -->
+                                            <Image Source="{Binding FirstFilePath, Converter={StaticResource MiniPreview}}"
                                                    Width="60" Height="60" Stretch="Uniform"
                                                    RenderOptions.BitmapScalingMode="HighQuality"
-                                                   Margin="0,0,8,0" />
-                                            <!-- File type icon -->
+                                                   Margin="0,0,8,0">
+                                                <Image.Style>
+                                                    <Style TargetType="Image">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                        <Style.Triggers>
+                                                            <Trigger Property="Source" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                            </Trigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Image.Style>
+                                            </Image>
+                                            <!-- File type icon (only when no thumbnail) -->
                                             <TextBlock Text="{Binding FirstFilePath, Converter={StaticResource FileTypeIcon}}"
-                                                       FontSize="32" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                       FontSize="32" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding FirstFilePath, Converter={StaticResource MiniPreview}}" Value="{x:Null}">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                             <StackPanel VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding FirstFileName}" FontSize="11" FontWeight="SemiBold"
                                                            TextTrimming="CharacterEllipsis" MaxWidth="300" />

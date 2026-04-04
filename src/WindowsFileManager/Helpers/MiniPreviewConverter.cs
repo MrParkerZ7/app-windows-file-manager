@@ -11,17 +11,25 @@ using System.Windows.Media.Imaging;
 namespace WindowsFileManager.Helpers;
 
 /// <summary>
-/// Converts a file path to a thumbnail using Windows Shell API.
-/// Works for images, videos, documents — anything Windows Explorer can thumbnail.
+/// Converts a file path to a thumbnail image.
+/// Images: direct BitmapImage (fast, reliable).
+/// Video/other: Windows Shell IShellItemImageFactory for real thumbnails.
+/// Based on pinvoke.net and ShellThumbs patterns.
 /// </summary>
 [ExcludeFromCodeCoverage]
 [ValueConversion(typeof(string), typeof(ImageSource))]
 public class MiniPreviewConverter : IValueConverter
 {
-    /// <summary>
-    /// Gets the singleton instance.
-    /// </summary>
-    public static MiniPreviewConverter Instance { get; } = new();
+    private static readonly HashSet<string> DirectLoadExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".jif", ".jfif", ".jpe",
+        ".png", ".bmp", ".dib", ".gif",
+        ".tiff", ".tif", ".ico",
+        ".wdp", ".hdp", ".jxr",
+    };
+
+    // IShellItem GUID — this is what SHCreateItemFromParsingName returns
+    private static readonly Guid ShellItemGuid = new("43826d1e-e718-42ee-bc55-a1e261c37bfe");
 
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
@@ -31,15 +39,16 @@ public class MiniPreviewConverter : IValueConverter
             return null;
         }
 
-        try
+        var ext = Path.GetExtension(filePath).ToLowerInvariant();
+
+        // For native image formats, load directly — fast and reliable
+        if (DirectLoadExtensions.Contains(ext))
         {
-            return GetShellThumbnail(filePath, 80);
+            return LoadBitmapThumbnail(filePath);
         }
-        catch
-        {
-            // Fallback: try WPF BitmapImage for native image formats
-            return TryLoadAsBitmap(filePath);
-        }
+
+        // For everything else (video, docs, etc.), try Shell thumbnail
+        return GetShellThumbnail(filePath);
     }
 
     /// <inheritdoc/>
@@ -48,59 +57,8 @@ public class MiniPreviewConverter : IValueConverter
         throw new NotSupportedException();
     }
 
-    private static ImageSource? GetShellThumbnail(string filePath, int size)
+    private static BitmapImage? LoadBitmapThumbnail(string filePath)
     {
-        var hr = NativeMethods.SHCreateItemFromParsingName(
-            filePath, IntPtr.Zero, typeof(NativeMethods.IShellItemImageFactory).GUID, out var shellItem);
-
-        if (hr != 0 || shellItem == null)
-        {
-            return null;
-        }
-
-        try
-        {
-            var factory = (NativeMethods.IShellItemImageFactory)shellItem;
-            var nativeSize = new NativeMethods.NativeSize { Width = size, Height = size };
-            hr = factory.GetImage(nativeSize, NativeMethods.SIIGBF_THUMBNAILONLY, out var hBitmap);
-
-            if (hr != 0)
-            {
-                // Fallback: allow icon-based thumbnail
-                hr = factory.GetImage(nativeSize, NativeMethods.SIIGBF_BIGGERSIZEOK, out hBitmap);
-            }
-
-            if (hr != 0 || hBitmap == IntPtr.Zero)
-            {
-                return null;
-            }
-
-            try
-            {
-                var source = Imaging.CreateBitmapSourceFromHBitmap(
-                    hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
-                source.Freeze();
-                return source;
-            }
-            finally
-            {
-                NativeMethods.DeleteObject(hBitmap);
-            }
-        }
-        finally
-        {
-            Marshal.ReleaseComObject(shellItem);
-        }
-    }
-
-    private static BitmapImage? TryLoadAsBitmap(string filePath)
-    {
-        var ext = Path.GetExtension(filePath).ToLowerInvariant();
-        if (ext is not (".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".tiff" or ".tif" or ".ico"))
-        {
-            return null;
-        }
-
         try
         {
             var bitmap = new BitmapImage();
@@ -118,36 +76,111 @@ public class MiniPreviewConverter : IValueConverter
         }
     }
 
-    private static class NativeMethods
+    private static BitmapSource? GetShellThumbnail(string filePath)
     {
-        public const int SIIGBF_THUMBNAILONLY = 0x04;
-        public const int SIIGBF_BIGGERSIZEOK = 0x01;
+        IntPtr hBitmap = IntPtr.Zero;
+        IShellItem? nativeShellItem = null;
 
-        [StructLayout(LayoutKind.Sequential)]
-        public struct NativeSize
+        try
         {
-            public int Width;
-            public int Height;
-        }
+            // Step 1: Create IShellItem from file path (using IShellItem GUID)
+            var guid = ShellItemGuid;
+            int hr = SHCreateItemFromParsingName(filePath, IntPtr.Zero, ref guid, out nativeShellItem);
 
-        [ComImport]
-        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        [Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b")]
-        public interface IShellItemImageFactory
+            if (hr != 0 || nativeShellItem == null)
+            {
+                return null;
+            }
+
+            // Step 2: Cast IShellItem to IShellItemImageFactory
+            if (nativeShellItem is not IShellItemImageFactory factory)
+            {
+                return null;
+            }
+
+            // Step 3: Get the thumbnail (flags 0x0 = default)
+            var size = new NativeSize(80, 80);
+            hr = factory.GetImage(size, 0x0, out hBitmap);
+
+            if (hr != 0 || hBitmap == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            // Step 4: Convert HBITMAP to WPF BitmapSource
+            var source = Imaging.CreateBitmapSourceFromHBitmap(
+                hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+            source.Freeze();
+            return source;
+        }
+        catch
         {
-            [PreserveSig]
-            int GetImage(NativeSize size, int flags, out IntPtr phbm);
+            return null;
         }
+        finally
+        {
+            if (hBitmap != IntPtr.Zero)
+            {
+                DeleteObject(hBitmap);
+            }
 
-        [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        public static extern int SHCreateItemFromParsingName(
-            string pszPath, IntPtr pbc, [MarshalAs(UnmanagedType.LPStruct)] Guid riid,
-            [MarshalAs(UnmanagedType.Interface)] out object ppv);
-
-        [DllImport("gdi32.dll")]
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool DeleteObject(IntPtr hObject);
+            if (nativeShellItem != null)
+            {
+                Marshal.ReleaseComObject(nativeShellItem);
+            }
+        }
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeSize
+    {
+        public int Width;
+        public int Height;
+
+        public NativeSize(int width, int height)
+        {
+            Width = width;
+            Height = height;
+        }
+    }
+
+    // IShellItem interface
+    [ComImport]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("43826d1e-e718-42ee-bc55-a1e261c37bfe")]
+    private interface IShellItem
+    {
+        void BindToHandler(IntPtr pbc, [MarshalAs(UnmanagedType.LPStruct)] Guid bhid, [MarshalAs(UnmanagedType.LPStruct)] Guid riid, out IntPtr ppv);
+
+        void GetParent(out IShellItem ppsi);
+
+        void GetDisplayName(uint sigdnName, out IntPtr ppszName);
+
+        void GetAttributes(uint sfgaoMask, out uint psfgaoAttribs);
+
+        void Compare(IShellItem psi, uint hint, out int piOrder);
+    }
+
+    // IShellItemImageFactory interface — obtained by casting IShellItem
+    [ComImport]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b")]
+    private interface IShellItemImageFactory
+    {
+        [PreserveSig]
+        int GetImage(NativeSize size, int flags, out IntPtr phbm);
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern int SHCreateItemFromParsingName(
+        [MarshalAs(UnmanagedType.LPWStr)] string pszPath,
+        IntPtr pbc,
+        ref Guid riid,
+        [MarshalAs(UnmanagedType.Interface)] out IShellItem ppv);
+
+    [DllImport("gdi32.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(IntPtr hObject);
 }
