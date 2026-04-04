@@ -66,6 +66,29 @@ public class PercentToWidthConverter : MarkupExtension, IMultiValueConverter
 }
 
 /// <summary>
+/// Converts a boolean to inverse Visibility (true = Collapsed, false = Visible).
+/// </summary>
+public class InverseBoolToVisibilityConverter : IValueConverter
+{
+    /// <inheritdoc/>
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is bool boolValue)
+        {
+            return boolValue ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        return Visibility.Visible;
+    }
+
+    /// <inheritdoc/>
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return value is Visibility visibility && visibility != Visibility.Visible;
+    }
+}
+
+/// <summary>
 /// Inverts a boolean value.
 /// </summary>
 public class InverseBoolConverter : IValueConverter

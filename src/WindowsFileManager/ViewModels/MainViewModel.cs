@@ -1,7 +1,10 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using WindowsFileManager.Application.Services;
 using WindowsFileManager.Core.Models;
 using WindowsFileManager.Core.Services;
@@ -26,6 +29,133 @@ public class MainViewModel : ViewModelBase
     private ScanAnalytics? _analytics;
     private CancellationTokenSource? _cancellationTokenSource;
     private string _newFolderPath = string.Empty;
+    private string _previewType = "none";
+    private BitmapImage? _previewImage;
+    private Uri? _previewMediaUri;
+    private string? _previewText;
+    private string? _previewFileName;
+    private string? _previewFileSize;
+    private bool _isPreviewVisible;
+    private long _minFileSizeBytes;
+    private string _minFileSizeText = string.Empty;
+    private string _selectedSizeUnit = "KB";
+    private bool _isFilterVisible;
+    private int _filteredGroupCount;
+    private int _totalGroupCount;
+    private bool _isAutoPreview = true;
+    private bool _isAutoPlay;
+    private bool _isMiniPreview = true;
+    private double _mediaVolume = 0.5;
+    private DuplicateGroup? _selectedDuplicateGroup;
+    private string _selectedSortOption = "Size (largest)";
+    private int _minDuplicateCount = 2;
+
+    private static readonly List<string> SortOptionsList = new()
+    {
+        "Size (largest)",
+        "Size (smallest)",
+        "File count (most)",
+        "File count (fewest)",
+        "Wasted space (most)",
+        "Wasted space (least)",
+        "Type (A-Z)",
+        "Type (Z-A)",
+        "Name (A-Z)",
+        "Name (Z-A)",
+    };
+
+    private static readonly HashSet<string> ImageExtensions =
+    [
+        // Common raster
+        ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".tif", ".ico", ".webp",
+        ".jfif", ".jif", ".jpe", ".dib", ".wdp", ".hdp", ".jxr",
+        // Raw camera
+        ".raw", ".cr2", ".cr3", ".nef", ".arw", ".dng", ".orf", ".rw2", ".pef", ".srw", ".raf",
+        // Vector / design
+        ".svg", ".svgz",
+        // Other
+        ".heic", ".heif", ".avif", ".tga", ".pcx", ".pbm", ".pgm", ".ppm", ".pnm",
+        ".exr", ".hdr", ".cur", ".ani",
+    ];
+
+    private static readonly HashSet<string> VideoExtensions =
+    [
+        // Common
+        ".mp4", ".avi", ".mkv", ".wmv", ".mov", ".flv", ".webm", ".m4v", ".mpg", ".mpeg",
+        // Extended
+        ".3gp", ".3g2", ".ts", ".mts", ".m2ts", ".vob", ".ogv", ".divx", ".xvid",
+        ".asf", ".rm", ".rmvb", ".f4v", ".swf", ".amv", ".mxf", ".dv",
+        ".m2v", ".m4p", ".mp2", ".mpe", ".mpv",
+    ];
+
+    private static readonly HashSet<string> AudioExtensions =
+    [
+        // Common
+        ".mp3", ".wav", ".flac", ".aac", ".ogg", ".wma", ".m4a", ".opus",
+        // Extended
+        ".aiff", ".aif", ".aifc", ".alac", ".ape", ".dsf", ".dff",
+        ".mid", ".midi", ".kar", ".mka", ".oga", ".pcm", ".ra", ".ram",
+        ".wv", ".ac3", ".dts", ".amr", ".awb", ".au", ".snd",
+        ".caf", ".tak", ".tta", ".shn", ".spx", ".gsm",
+        ".mp2", ".mpa", ".m3u", ".m3u8", ".pls", ".wpl", ".cue",
+    ];
+
+    private static readonly HashSet<string> TextExtensions =
+    [
+        // Plain text / data
+        ".txt", ".log", ".csv", ".tsv", ".tab", ".json", ".jsonl", ".json5",
+        ".xml", ".xsl", ".xslt", ".xsd", ".dtd",
+        ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".config", ".properties",
+        ".env", ".env.local", ".env.example", ".editorconfig", ".gitignore", ".gitattributes",
+        ".dockerignore", ".npmrc", ".nvmrc", ".eslintrc", ".prettierrc", ".babelrc",
+        // Markdown / docs
+        ".md", ".mdx", ".rst", ".tex", ".latex", ".bib", ".adoc", ".asciidoc", ".textile", ".wiki",
+        ".nfo", ".diz", ".ans",
+        // C / C++ / Obj-C
+        ".c", ".h", ".cpp", ".cxx", ".cc", ".hpp", ".hxx", ".hh", ".m", ".mm",
+        // C# / .NET
+        ".cs", ".csx", ".fs", ".fsx", ".fsi", ".vb", ".xaml", ".cshtml", ".razor", ".csproj", ".sln",
+        ".props", ".targets", ".resx", ".designer.cs",
+        // Java / JVM
+        ".java", ".kt", ".kts", ".groovy", ".gradle", ".scala", ".clj", ".cljs", ".edn",
+        // JavaScript / TypeScript / Web
+        ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte", ".astro",
+        ".html", ".htm", ".xhtml", ".css", ".scss", ".sass", ".less", ".styl", ".stylus",
+        // Python
+        ".py", ".pyw", ".pyi", ".pyx", ".pxd", ".pxi", ".pyproj", ".pip", ".pipfile",
+        // Ruby
+        ".rb", ".erb", ".rake", ".gemspec", ".gemfile",
+        // PHP
+        ".php", ".phtml", ".php3", ".php4", ".php5", ".phps", ".blade.php",
+        // Go
+        ".go", ".mod", ".sum",
+        // Rust
+        ".rs", ".toml",
+        // Swift / Kotlin
+        ".swift", ".playground",
+        // Shell / scripting
+        ".sh", ".bash", ".zsh", ".fish", ".ksh", ".csh", ".tcsh",
+        ".bat", ".cmd", ".ps1", ".psm1", ".psd1",
+        ".awk", ".sed",
+        // SQL / DB
+        ".sql", ".plsql", ".pgsql", ".mysql", ".sqlite", ".ddl", ".dml",
+        // Functional / academic
+        ".hs", ".lhs", ".erl", ".hrl", ".ex", ".exs", ".elm", ".ml", ".mli", ".ocaml",
+        ".lisp", ".cl", ".el", ".scm", ".rkt",
+        // Lua / Perl / R / Julia / Dart
+        ".lua", ".pl", ".pm", ".t", ".r", ".rmd", ".jl", ".dart",
+        // DevOps / config
+        ".tf", ".tfvars", ".hcl", ".vagrant", ".ansible",
+        ".dockerfile", ".makefile", ".cmake", ".ninja",
+        // Data / serialization
+        ".proto", ".thrift", ".avsc", ".graphql", ".gql",
+        ".csv", ".ics", ".vcf", ".ldif",
+        // Assembly / low-level
+        ".asm", ".s", ".nasm", ".masm",
+        // Misc dev
+        ".diff", ".patch", ".reg", ".inf", ".manifest",
+        ".srt", ".sub", ".ssa", ".ass", ".vtt", ".lrc",
+    ];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
@@ -47,6 +177,16 @@ public class MainViewModel : ViewModelBase
         RemoveFolderCommand = new RelayCommand(p => RemoveFolder(p as string), _ => !IsScanning);
         OpenFileLocationCommand = new RelayCommand(p => OpenFileLocation(p as string));
         DeleteFileCommand = new RelayCommand(p => DeleteFile(p as ScannedFile), _ => !IsScanning);
+        DeleteAllInGroupCommand = new RelayCommand(p => DeleteAllInGroup(p as DuplicateGroup), _ => !IsScanning);
+        PreviewFileCommand = new RelayCommand(p => PreviewFile(p as string));
+        ClosePreviewCommand = new RelayCommand(_ => ClosePreview());
+        ShowAllTypesCommand = new RelayCommand(_ => SetAllExtensions(true));
+        ClearAllTypesCommand = new RelayCommand(_ => SetAllExtensions(false));
+        ApplyFileSizeFilterCommand = new RelayCommand(_ => ApplyFilters());
+        ToggleFilterCommand = new RelayCommand(_ => IsFilterVisible = !IsFilterVisible);
+
+        FilteredDuplicateGroups = CollectionViewSource.GetDefaultView(DuplicateGroups);
+        FilteredDuplicateGroups.Filter = FilterDuplicateGroup;
 
         LoadSettings();
     }
@@ -160,6 +300,244 @@ public class MainViewModel : ViewModelBase
     public ICommand DeleteFileCommand { get; }
 
     /// <summary>
+    /// Gets the delete all files in group command.
+    /// </summary>
+    public ICommand DeleteAllInGroupCommand { get; }
+
+    /// <summary>
+    /// Gets the preview file command.
+    /// </summary>
+    public ICommand PreviewFileCommand { get; }
+
+    /// <summary>
+    /// Gets the close preview command.
+    /// </summary>
+    public ICommand ClosePreviewCommand { get; }
+
+    /// <summary>
+    /// Gets the show all types command.
+    /// </summary>
+    public ICommand ShowAllTypesCommand { get; }
+
+    /// <summary>
+    /// Gets the clear all types command.
+    /// </summary>
+    public ICommand ClearAllTypesCommand { get; }
+
+    /// <summary>
+    /// Gets the apply file size filter command.
+    /// </summary>
+    public ICommand ApplyFileSizeFilterCommand { get; }
+
+    /// <summary>
+    /// Gets the toggle filter panel command.
+    /// </summary>
+    public ICommand ToggleFilterCommand { get; }
+
+    /// <summary>
+    /// Gets the filtered view of duplicate groups.
+    /// </summary>
+    public ICollectionView FilteredDuplicateGroups { get; }
+
+    /// <summary>
+    /// Gets the available extension filters.
+    /// </summary>
+    public ObservableCollection<ExtensionFilter> ExtensionFilters { get; } = new();
+
+    /// <summary>
+    /// Gets the available size unit options.
+    /// </summary>
+    public List<string> SizeUnits { get; } = new() { "B", "KB", "MB", "GB" };
+
+    /// <summary>
+    /// Gets or sets whether the filter panel is visible.
+    /// </summary>
+    public bool IsFilterVisible
+    {
+        get => _isFilterVisible;
+        set => SetProperty(ref _isFilterVisible, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the minimum file size text input.
+    /// </summary>
+    public string MinFileSizeText
+    {
+        get => _minFileSizeText;
+        set => SetProperty(ref _minFileSizeText, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the selected size unit.
+    /// </summary>
+    public string SelectedSizeUnit
+    {
+        get => _selectedSizeUnit;
+        set => SetProperty(ref _selectedSizeUnit, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the minimum duplicate count filter.
+    /// </summary>
+    public int MinDuplicateCount
+    {
+        get => _minDuplicateCount;
+        set => SetProperty(ref _minDuplicateCount, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the filtered group count display.
+    /// </summary>
+    public int FilteredGroupCount
+    {
+        get => _filteredGroupCount;
+        set => SetProperty(ref _filteredGroupCount, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the total group count.
+    /// </summary>
+    public int TotalGroupCount
+    {
+        get => _totalGroupCount;
+        set => SetProperty(ref _totalGroupCount, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether preview is enabled on selection.
+    /// </summary>
+    public bool IsAutoPreview
+    {
+        get => _isAutoPreview;
+        set => SetProperty(ref _isAutoPreview, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether mini preview is shown in the list.
+    /// </summary>
+    public bool IsMiniPreview
+    {
+        get => _isMiniPreview;
+        set => SetProperty(ref _isMiniPreview, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether video/audio auto-plays.
+    /// </summary>
+    public bool IsAutoPlay
+    {
+        get => _isAutoPlay;
+        set => SetProperty(ref _isAutoPlay, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the media volume (0.0 to 1.0).
+    /// </summary>
+    public double MediaVolume
+    {
+        get => _mediaVolume;
+        set => SetProperty(ref _mediaVolume, value);
+    }
+
+    /// <summary>
+    /// Gets the sort options list.
+    /// </summary>
+    public List<string> SortOptions => SortOptionsList;
+
+    /// <summary>
+    /// Gets or sets the selected sort option.
+    /// </summary>
+    public string SelectedSortOption
+    {
+        get => _selectedSortOption;
+        set
+        {
+            if (SetProperty(ref _selectedSortOption, value))
+            {
+                ApplySorting();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the selected duplicate group.
+    /// </summary>
+    public DuplicateGroup? SelectedDuplicateGroup
+    {
+        get => _selectedDuplicateGroup;
+        set
+        {
+            if (SetProperty(ref _selectedDuplicateGroup, value) && value != null && IsAutoPreview)
+            {
+                PreviewFile(value.FirstFilePath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets whether the preview panel is visible.
+    /// </summary>
+    public bool IsPreviewVisible
+    {
+        get => _isPreviewVisible;
+        set => SetProperty(ref _isPreviewVisible, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the preview type: "image", "video", "audio", "pdf", "text", or "none".
+    /// </summary>
+    public string PreviewType
+    {
+        get => _previewType;
+        set => SetProperty(ref _previewType, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the preview image source.
+    /// </summary>
+    public BitmapImage? PreviewImage
+    {
+        get => _previewImage;
+        set => SetProperty(ref _previewImage, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the media URI for video/audio preview.
+    /// </summary>
+    public Uri? PreviewMediaUri
+    {
+        get => _previewMediaUri;
+        set => SetProperty(ref _previewMediaUri, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the text content for text file preview.
+    /// </summary>
+    public string? PreviewText
+    {
+        get => _previewText;
+        set => SetProperty(ref _previewText, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the preview file name.
+    /// </summary>
+    public string? PreviewFileName
+    {
+        get => _previewFileName;
+        set => SetProperty(ref _previewFileName, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the preview file size.
+    /// </summary>
+    public string? PreviewFileSize
+    {
+        get => _previewFileSize;
+        set => SetProperty(ref _previewFileSize, value);
+    }
+
+    /// <summary>
     /// Saves current settings to disk. Called on window close.
     /// </summary>
     public void SaveSettings()
@@ -168,6 +546,11 @@ public class MainViewModel : ViewModelBase
         {
             TargetPaths = TargetPaths.ToList(),
             IncludeSubdirectories = IncludeSubdirectories,
+            IsMiniPreview = IsMiniPreview,
+            IsAutoPreview = IsAutoPreview,
+            IsAutoPlay = IsAutoPlay,
+            SelectedSortOption = SelectedSortOption,
+            Volume = MediaVolume,
         };
         _settingsService.Save(settings);
     }
@@ -176,6 +559,11 @@ public class MainViewModel : ViewModelBase
     {
         var settings = _settingsService.Load();
         IncludeSubdirectories = settings.IncludeSubdirectories;
+        IsMiniPreview = settings.IsMiniPreview;
+        IsAutoPreview = settings.IsAutoPreview;
+        IsAutoPlay = settings.IsAutoPlay;
+        SelectedSortOption = settings.SelectedSortOption;
+        MediaVolume = settings.Volume;
         foreach (var path in settings.TargetPaths)
         {
             TargetPaths.Add(path);
@@ -218,6 +606,10 @@ public class MainViewModel : ViewModelBase
             {
                 DuplicateGroups.Add(group);
             }
+
+            BuildExtensionFilters(result.DuplicateGroups);
+            TotalGroupCount = result.DuplicateGroups.Count;
+            FilteredGroupCount = result.DuplicateGroups.Count;
 
             StatusMessage = $"Done — {result.TotalFilesScanned} files scanned, " +
                            $"{result.DuplicateGroups.Count} duplicate groups, " +
@@ -327,6 +719,437 @@ public class MainViewModel : ViewModelBase
         {
             StatusMessage = $"Failed to delete: {ex.Message}";
         }
+    }
+
+    private void DeleteAllInGroup(DuplicateGroup? group)
+    {
+        if (group == null || group.Files.Count == 0)
+        {
+            return;
+        }
+
+        var fileList = string.Join("\n", group.Files.Select(f => f.FilePath));
+        var result = System.Windows.MessageBox.Show(
+            $"Delete ALL {group.Files.Count} files in this group?\n\n{fileList}",
+            "Confirm Delete All",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var deleted = 0;
+        var failed = 0;
+
+        foreach (var file in group.Files.ToList())
+        {
+            try
+            {
+                File.Delete(file.FilePath);
+                deleted++;
+            }
+            catch
+            {
+                failed++;
+            }
+        }
+
+        DuplicateGroups.Remove(group);
+        ClosePreview();
+
+        StatusMessage = failed == 0
+            ? $"Deleted all {deleted} files in group"
+            : $"Deleted {deleted} files, {failed} failed";
+    }
+
+    private void BuildExtensionFilters(IReadOnlyList<DuplicateGroup> groups)
+    {
+        ExtensionFilters.Clear();
+
+        var extStats = groups
+            .GroupBy(g => Path.GetExtension(g.Files[0].FilePath).ToLowerInvariant())
+            .Select(g => new ExtensionFilter
+            {
+                Extension = string.IsNullOrEmpty(g.Key) ? "(no ext)" : g.Key,
+                IsChecked = true,
+                FileCount = g.Count(),
+                TotalSize = g.Sum(x => x.FileSize * x.Count),
+            })
+            .OrderByDescending(e => e.FileCount)
+            .ToList();
+
+        foreach (var ext in extStats)
+        {
+            ext.PropertyChanged += (_, _) => ApplyFilters();
+            ExtensionFilters.Add(ext);
+        }
+    }
+
+    private void SetAllExtensions(bool isChecked)
+    {
+        foreach (var ext in ExtensionFilters)
+        {
+            ext.IsChecked = isChecked;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        // Parse min file size
+        _minFileSizeBytes = 0;
+        if (double.TryParse(MinFileSizeText, out var sizeVal) && sizeVal > 0)
+        {
+            _minFileSizeBytes = SelectedSizeUnit switch
+            {
+                "B" => (long)sizeVal,
+                "KB" => (long)(sizeVal * 1024),
+                "MB" => (long)(sizeVal * 1024 * 1024),
+                "GB" => (long)(sizeVal * 1024 * 1024 * 1024),
+                _ => 0,
+            };
+        }
+
+        FilteredDuplicateGroups.Refresh();
+
+        // Update count
+        var count = 0;
+        foreach (var item in FilteredDuplicateGroups)
+        {
+            count++;
+        }
+
+        FilteredGroupCount = count;
+    }
+
+    private void ApplySorting()
+    {
+        FilteredDuplicateGroups.SortDescriptions.Clear();
+
+        switch (SelectedSortOption)
+        {
+            case "Size (largest)":
+                FilteredDuplicateGroups.SortDescriptions.Add(
+                    new SortDescription(nameof(DuplicateGroup.FileSize), ListSortDirection.Descending));
+                break;
+            case "Size (smallest)":
+                FilteredDuplicateGroups.SortDescriptions.Add(
+                    new SortDescription(nameof(DuplicateGroup.FileSize), ListSortDirection.Ascending));
+                break;
+            case "File count (most)":
+                FilteredDuplicateGroups.SortDescriptions.Add(
+                    new SortDescription(nameof(DuplicateGroup.Count), ListSortDirection.Descending));
+                break;
+            case "File count (fewest)":
+                FilteredDuplicateGroups.SortDescriptions.Add(
+                    new SortDescription(nameof(DuplicateGroup.Count), ListSortDirection.Ascending));
+                break;
+            case "Wasted space (most)":
+                FilteredDuplicateGroups.SortDescriptions.Add(
+                    new SortDescription(nameof(DuplicateGroup.WastedBytes), ListSortDirection.Descending));
+                break;
+            case "Wasted space (least)":
+                FilteredDuplicateGroups.SortDescriptions.Add(
+                    new SortDescription(nameof(DuplicateGroup.WastedBytes), ListSortDirection.Ascending));
+                break;
+            case "Type (A-Z)":
+                FilteredDuplicateGroups.SortDescriptions.Add(
+                    new SortDescription(nameof(DuplicateGroup.FileExtension), ListSortDirection.Ascending));
+                break;
+            case "Type (Z-A)":
+                FilteredDuplicateGroups.SortDescriptions.Add(
+                    new SortDescription(nameof(DuplicateGroup.FileExtension), ListSortDirection.Descending));
+                break;
+            case "Name (A-Z)":
+                FilteredDuplicateGroups.SortDescriptions.Add(
+                    new SortDescription(nameof(DuplicateGroup.FirstFileName), ListSortDirection.Ascending));
+                break;
+            case "Name (Z-A)":
+                FilteredDuplicateGroups.SortDescriptions.Add(
+                    new SortDescription(nameof(DuplicateGroup.FirstFileName), ListSortDirection.Descending));
+                break;
+        }
+
+        FilteredDuplicateGroups.Refresh();
+    }
+
+    private bool FilterDuplicateGroup(object obj)
+    {
+        if (obj is not DuplicateGroup group)
+        {
+            return false;
+        }
+
+        // Check duplicate count filter
+        if (group.Count < _minDuplicateCount)
+        {
+            return false;
+        }
+
+        // Check file size filter
+        if (_minFileSizeBytes > 0 && group.FileSize < _minFileSizeBytes)
+        {
+            return false;
+        }
+
+        // Check extension filter
+        if (ExtensionFilters.Count > 0)
+        {
+            var ext = Path.GetExtension(group.Files[0].FilePath).ToLowerInvariant();
+            if (string.IsNullOrEmpty(ext))
+            {
+                ext = "(no ext)";
+            }
+
+            var filter = ExtensionFilters.FirstOrDefault(f => f.Extension == ext);
+            if (filter != null && !filter.IsChecked)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static readonly HashSet<string> DocumentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // PDF
+        ".pdf",
+        // Microsoft Office
+        ".doc", ".docx", ".docm", ".dot", ".dotx", ".dotm",
+        ".xls", ".xlsx", ".xlsm", ".xlsb", ".xlt", ".xltx", ".xltm",
+        ".ppt", ".pptx", ".pptm", ".pot", ".potx", ".potm", ".pps", ".ppsx",
+        ".one", ".onetoc2", ".vsd", ".vsdx", ".pub", ".mpp",
+        ".accdb", ".accde", ".mdb",
+        // LibreOffice / OpenDocument
+        ".odt", ".ods", ".odp", ".odg", ".odf", ".odb", ".odc",
+        // Apple
+        ".pages", ".numbers", ".keynote",
+        // eBooks
+        ".epub", ".mobi", ".azw", ".azw3", ".fb2", ".djvu", ".cbz", ".cbr",
+        // Other docs
+        ".rtf", ".wps", ".wpd", ".abw", ".xps", ".oxps",
+    };
+
+    private static readonly HashSet<string> ArchiveExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".lz", ".lzma",
+        ".zst", ".br", ".cab", ".iso", ".img", ".dmg", ".vhd", ".vhdx", ".vmdk",
+        ".wim", ".jar", ".war", ".ear", ".apk", ".aab", ".ipa", ".deb", ".rpm",
+        ".snap", ".flatpak", ".appimage", ".msi", ".msix", ".msixbundle",
+        ".nupkg", ".crate", ".gem", ".egg", ".whl",
+        ".pak", ".pkg", ".arc", ".lzh", ".arj", ".ace",
+    };
+
+    private static readonly HashSet<string> FontExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".ttf", ".otf", ".woff", ".woff2", ".eot", ".ttc", ".fon", ".fnt", ".pfb", ".pfm",
+    };
+
+    private static readonly HashSet<string> ExecutableExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exe", ".dll", ".sys", ".drv", ".ocx", ".com", ".scr",
+        ".so", ".dylib", ".a", ".lib", ".o", ".obj",
+        ".class", ".pyc", ".pyo", ".pdb", ".ilk", ".exp",
+    };
+
+    private static readonly HashSet<string> DatabaseExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".db", ".sqlite", ".sqlite3", ".mdf", ".ldf", ".ndf", ".bak", ".dbf",
+        ".fdb", ".gdb", ".ibd", ".frm", ".myd", ".myi",
+    };
+
+    private static readonly HashSet<string> ThreeDModelExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".obj", ".fbx", ".gltf", ".glb", ".stl", ".dae", ".3ds", ".blend", ".max",
+        ".c4d", ".ma", ".mb", ".ply", ".usd", ".usda", ".usdz",
+    };
+
+    private static readonly Dictionary<string, string> CategoryIcons = new()
+    {
+        { "document", "📄" },
+        { "archive", "📦" },
+        { "font", "🔤" },
+        { "executable", "⚙️" },
+        { "database", "🗄️" },
+        { "3dmodel", "🧊" },
+    };
+
+    private void PreviewFile(string? filePath)
+    {
+        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+        {
+            return;
+        }
+
+        // Clear previous preview
+        PreviewImage = null;
+        PreviewMediaUri = null;
+        PreviewText = null;
+
+        var ext = Path.GetExtension(filePath).ToLowerInvariant();
+        var fileInfo = new FileInfo(filePath);
+        PreviewFileName = fileInfo.Name;
+        PreviewFileSize = ScannedFile.FormatFileSize(fileInfo.Length);
+
+        if (ImageExtensions.Contains(ext))
+        {
+            // Only WPF-native image formats can be loaded as BitmapImage
+            if (IsWpfNativeImage(ext))
+            {
+                PreviewType = "image";
+                try
+                {
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(filePath);
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.DecodePixelWidth = 600;
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+                    PreviewImage = bitmap;
+                }
+                catch
+                {
+                    PreviewType = "unsupported";
+                    PreviewText = "Image format not supported by WPF decoder";
+                }
+            }
+            else
+            {
+                SetInfoCardPreview("image", "🖼️", "Image File", ext);
+            }
+        }
+        else if (VideoExtensions.Contains(ext))
+        {
+            PreviewType = "video";
+            PreviewMediaUri = new Uri(filePath);
+        }
+        else if (AudioExtensions.Contains(ext))
+        {
+            PreviewType = "audio";
+            PreviewMediaUri = new Uri(filePath);
+        }
+        else if (DocumentExtensions.Contains(ext))
+        {
+            SetInfoCardPreview("document", CategoryIcons["document"], "Document", ext);
+        }
+        else if (ArchiveExtensions.Contains(ext))
+        {
+            SetInfoCardPreview("archive", CategoryIcons["archive"], "Archive / Package", ext);
+        }
+        else if (FontExtensions.Contains(ext))
+        {
+            SetInfoCardPreview("font", CategoryIcons["font"], "Font File", ext);
+        }
+        else if (ExecutableExtensions.Contains(ext))
+        {
+            SetInfoCardPreview("executable", CategoryIcons["executable"], "Executable / Binary", ext);
+        }
+        else if (DatabaseExtensions.Contains(ext))
+        {
+            SetInfoCardPreview("database", CategoryIcons["database"], "Database File", ext);
+        }
+        else if (ThreeDModelExtensions.Contains(ext))
+        {
+            SetInfoCardPreview("3dmodel", CategoryIcons["3dmodel"], "3D Model", ext);
+        }
+        else if (TextExtensions.Contains(ext) || TryReadAsText(filePath))
+        {
+            PreviewType = "text";
+            if (PreviewText == null)
+            {
+                ReadTextPreview(filePath);
+            }
+        }
+        else
+        {
+            PreviewType = "unsupported";
+        }
+
+        IsPreviewVisible = true;
+    }
+
+    private void SetInfoCardPreview(string type, string icon, string label, string ext)
+    {
+        PreviewType = "infocard";
+        PreviewText = $"{icon}\n{label}\n{ext.ToUpperInvariant()}\nUse 'Open' to view in default app";
+    }
+
+    private static bool IsWpfNativeImage(string ext)
+    {
+        return ext is ".jpg" or ".jpeg" or ".jif" or ".jfif" or ".jpe"
+            or ".png" or ".bmp" or ".dib" or ".gif"
+            or ".tiff" or ".tif" or ".ico" or ".wdp" or ".hdp" or ".jxr";
+    }
+
+    private bool TryReadAsText(string filePath)
+    {
+        // Try to detect if unknown file is actually text
+        try
+        {
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var buffer = new byte[8192];
+            var bytesRead = stream.Read(buffer, 0, buffer.Length);
+            if (bytesRead == 0)
+            {
+                return false;
+            }
+
+            // Check for null bytes (binary indicator)
+            var nullCount = 0;
+            for (var i = 0; i < bytesRead; i++)
+            {
+                if (buffer[i] == 0)
+                {
+                    nullCount++;
+                }
+            }
+
+            // If less than 1% null bytes, likely text
+            if (nullCount * 100 / bytesRead < 1)
+            {
+                ReadTextPreview(filePath);
+                return true;
+            }
+        }
+        catch
+        {
+            // Not readable
+        }
+
+        return false;
+    }
+
+    private void ReadTextPreview(string filePath)
+    {
+        try
+        {
+            using var reader = new StreamReader(filePath);
+            var buffer = new char[50_000];
+            var charsRead = reader.Read(buffer, 0, buffer.Length);
+            PreviewText = new string(buffer, 0, charsRead);
+            if (charsRead == buffer.Length)
+            {
+                PreviewText += "\n\n--- [Preview truncated] ---";
+            }
+        }
+        catch
+        {
+            PreviewText = "[Unable to read file]";
+        }
+    }
+
+    private void ClosePreview()
+    {
+        IsPreviewVisible = false;
+        PreviewType = "none";
+        PreviewImage = null;
+        PreviewMediaUri = null;
+        PreviewText = null;
+        PreviewFileName = null;
+        PreviewFileSize = null;
     }
 
     private static DuplicateScannerService CreateDefaultScanner()

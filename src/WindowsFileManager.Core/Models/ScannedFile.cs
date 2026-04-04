@@ -35,7 +35,10 @@ public class ScannedFile
     /// </summary>
     public string FormattedSize => FormatFileSize(FileSize);
 
-    internal static string FormatFileSize(long bytes)
+    /// <summary>
+    /// Formats a byte count into a human-readable size string.
+    /// </summary>
+    public static string FormatFileSize(long bytes)
     {
         if (bytes < 1024)
         {

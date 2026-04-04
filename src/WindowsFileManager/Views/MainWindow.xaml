@@ -4,8 +4,8 @@
         xmlns:vm="clr-namespace:WindowsFileManager.ViewModels"
         xmlns:helpers="clr-namespace:WindowsFileManager.Helpers"
         Title="Windows File Manager — Duplicate Finder"
-        Height="750" Width="1300"
-        MinHeight="500" MinWidth="900"
+        Height="900" Width="1600"
+        MinHeight="500" MinWidth="1000"
         WindowStartupLocation="CenterScreen">
 
     <Window.DataContext>
@@ -15,12 +15,16 @@
     <Window.Resources>
         <helpers:BoolToVisibilityConverter x:Key="BoolToVisibility" />
         <helpers:InverseBoolConverter x:Key="InverseBool" />
+        <helpers:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
+        <helpers:MiniPreviewConverter x:Key="MiniPreview" />
+        <helpers:FileTypeIconConverter x:Key="FileTypeIcon" />
     </Window.Resources>
 
     <Grid Margin="12">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="400" />
             <ColumnDefinition Width="320" />
+            <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
         <!-- Left Column: Controls + Results -->
@@ -110,6 +114,21 @@
                     <TextBlock Text="{Binding FilesScanned, StringFormat='Files scanned: {0}'}"
                                VerticalAlignment="Center" Margin="16,0,0,0"
                                Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
+
+                    <CheckBox Content="Mini Preview"
+                              IsChecked="{Binding IsMiniPreview}"
+                              VerticalAlignment="Center" Margin="16,0,0,0"
+                              ToolTip="Show inline thumbnail in the duplicate list" />
+
+                    <CheckBox Content="Preview"
+                              IsChecked="{Binding IsAutoPreview}"
+                              VerticalAlignment="Center" Margin="12,0,0,0"
+                              ToolTip="Show full file preview panel when clicking a group" />
+
+                    <CheckBox Content="Auto Play"
+                              IsChecked="{Binding IsAutoPlay}"
+                              VerticalAlignment="Center" Margin="12,0,0,0"
+                              ToolTip="Auto-play video/audio. When off, video shows first frame." />
                 </StackPanel>
 
                 <ProgressBar Height="6" Margin="0,6,0,0"
@@ -117,9 +136,115 @@
                              Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
             </StackPanel>
 
-            <!-- Row 2: Duplicate Groups List -->
-            <GroupBox Grid.Row="2" Header="Duplicate Groups" Padding="4">
-                <ListView ItemsSource="{Binding DuplicateGroups}"
+            <!-- Row 2: Filter Bar + Duplicate Groups List -->
+            <Grid Grid.Row="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Filter Toggle Bar + Sort -->
+                <Border Grid.Row="0" Background="#F0F4FF" CornerRadius="4" Padding="8,4" Margin="0,0,0,4">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="🔽 Filters"
+                                Command="{Binding ToggleFilterCommand}"
+                                Padding="8,3" FontSize="11" Cursor="Hand"
+                                Foreground="#1565C0" Background="Transparent" BorderThickness="0" />
+                        <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   FontSize="11" Foreground="#888888">
+                            <TextBlock.Text>
+                                <MultiBinding StringFormat="Showing {0} of {1} groups">
+                                    <Binding Path="FilteredGroupCount" />
+                                    <Binding Path="TotalGroupCount" />
+                                </MultiBinding>
+                            </TextBlock.Text>
+                        </TextBlock>
+                        <TextBlock Grid.Column="2" Text="Sort by:" VerticalAlignment="Center"
+                                   FontSize="11" Foreground="#666666" Margin="0,0,6,0" />
+                        <ComboBox Grid.Column="3" ItemsSource="{Binding SortOptions}"
+                                  SelectedItem="{Binding SelectedSortOption}"
+                                  Width="155" FontSize="11" VerticalContentAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <!-- Filter Panel (collapsible) -->
+                <Border Grid.Row="1" Background="#F8F9FC" CornerRadius="4" Padding="10" Margin="0,0,0,6"
+                        BorderBrush="#E0E0E0" BorderThickness="1"
+                        Visibility="{Binding IsFilterVisible, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <!-- File Type Filters -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="File Types" FontWeight="SemiBold" FontSize="12"
+                                       Foreground="#333333" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="Select All"
+                                    Command="{Binding ShowAllTypesCommand}"
+                                    Padding="6,2" Margin="0,0,4,0" FontSize="10" Cursor="Hand" />
+                            <Button Grid.Column="2" Content="Clear All"
+                                    Command="{Binding ClearAllTypesCommand}"
+                                    Padding="6,2" FontSize="10" Cursor="Hand" />
+                        </Grid>
+
+                        <ItemsControl ItemsSource="{Binding ExtensionFilters}" Margin="0,0,0,10">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsChecked}" Margin="0,2,12,2" Cursor="Hand">
+                                        <CheckBox.Content>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Extension}" FontWeight="SemiBold"
+                                                           FontSize="11" Foreground="#1565C0" />
+                                                <TextBlock Text="{Binding FileCount, StringFormat=' ({0})'}"
+                                                           FontSize="10" Foreground="#888888" />
+                                            </StackPanel>
+                                        </CheckBox.Content>
+                                    </CheckBox>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Minimum File Size + Min Duplicates Filter -->
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Min file size:" FontWeight="SemiBold" FontSize="12"
+                                       Foreground="#333333" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBox Text="{Binding MinFileSizeText, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="80" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
+                            <ComboBox ItemsSource="{Binding SizeUnits}"
+                                      SelectedItem="{Binding SelectedSizeUnit}"
+                                      Width="55" Margin="4,0,0,0" FontSize="11"
+                                      VerticalContentAlignment="Center" />
+
+                            <TextBlock Text="Min duplicates:" FontWeight="SemiBold" FontSize="12"
+                                       Foreground="#333333" VerticalAlignment="Center" Margin="16,0,8,0" />
+                            <TextBox Text="{Binding MinDuplicateCount, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="45" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
+
+                            <Button Content="Apply" Command="{Binding ApplyFileSizeFilterCommand}"
+                                    Padding="8,3" Margin="8,0,0,0" FontSize="11" Cursor="Hand" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Duplicate Groups List -->
+                <GroupBox Grid.Row="2" Header="Duplicate Groups" Padding="4">
+                <ListView ItemsSource="{Binding FilteredDuplicateGroups}"
+                          SelectedItem="{Binding SelectedDuplicateGroup}"
+                          SelectionChanged="DuplicateGroups_SelectionChanged"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListView.ItemTemplate>
                         <DataTemplate>
@@ -134,7 +259,37 @@
                                         <TextBlock Text=" each — " Foreground="Gray" />
                                         <TextBlock Text="{Binding FormattedWastedSize, StringFormat='wasted: {0}'}"
                                                    Foreground="#C62828" FontWeight="SemiBold" />
+                                        <Button Content="{Binding DeleteAllLabel}"
+                                                Command="{Binding DataContext.DeleteAllInGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"
+                                                Padding="6,2" Margin="12,0,0,0"
+                                                FontSize="11" Cursor="Hand"
+                                                Foreground="#C62828" FontWeight="SemiBold" />
                                     </StackPanel>
+
+                                    <!-- Mini Inline Preview -->
+                                    <Border Margin="16,2,0,6" Padding="6" CornerRadius="4"
+                                            Background="#F5F7FA" BorderBrush="#E8E8E8" BorderThickness="1"
+                                            HorizontalAlignment="Left"
+                                            Visibility="{Binding DataContext.IsMiniPreview, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <!-- Image thumbnail (if image, otherwise shows nothing) -->
+                                            <Image x:Name="MiniThumb"
+                                                   Source="{Binding FirstFilePath, Converter={StaticResource MiniPreview}}"
+                                                   Width="60" Height="60" Stretch="Uniform"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                                   Margin="0,0,8,0" />
+                                            <!-- File type icon -->
+                                            <TextBlock Text="{Binding FirstFilePath, Converter={StaticResource FileTypeIcon}}"
+                                                       FontSize="32" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding FirstFileName}" FontSize="11" FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" MaxWidth="300" />
+                                                <TextBlock Text="{Binding FileExtension}" FontSize="10" Foreground="#1565C0" />
+                                                <TextBlock Text="{Binding FormattedFileSize}" FontSize="10" Foreground="#888888" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
 
                                     <ItemsControl ItemsSource="{Binding Files}" Margin="16,0,0,0">
                                         <ItemsControl.ItemTemplate>
@@ -166,6 +321,7 @@
                     </ListView.ItemTemplate>
                 </ListView>
             </GroupBox>
+            </Grid>
 
             <!-- Row 3: Status Bar -->
             <Border Grid.Row="3" Background="#F5F5F5" Padding="8,4" Margin="0,8,0,0"
@@ -325,6 +481,200 @@
 
                 </StackPanel>
             </ScrollViewer>
+        </Border>
+
+        <!-- Right Column: File Preview Panel -->
+        <Border Grid.Column="2" Background="#FAFAFA" CornerRadius="6"
+                BorderBrush="#E0E0E0" BorderThickness="1" Padding="12" Margin="8,0,0,0"
+                Width="380"
+                Visibility="{Binding IsPreviewVisible, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <Grid Grid.Row="0" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="File Preview" FontSize="16" FontWeight="Bold"
+                               Foreground="#1A237E" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="✕ Close" Padding="8,4"
+                            Command="{Binding ClosePreviewCommand}"
+                            FontSize="11" Cursor="Hand" Foreground="#666666" />
+                </Grid>
+
+                <!-- File Info -->
+                <Border Grid.Row="1" Background="White" CornerRadius="4" Padding="8" Margin="0,0,0,8"
+                        BorderBrush="#E0E0E0" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="{Binding PreviewFileName}" FontWeight="SemiBold" FontSize="12"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding PreviewFileName}" />
+                        <TextBlock Text="{Binding PreviewFileSize}" Foreground="#888888" FontSize="11" Margin="0,2,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Preview Content Area -->
+                <Border Grid.Row="2" Background="White" CornerRadius="4"
+                        BorderBrush="#E0E0E0" BorderThickness="1" Padding="4">
+                    <Grid>
+                        <!-- Image Preview -->
+                        <Image Source="{Binding PreviewImage}" Stretch="Uniform"
+                               VerticalAlignment="Top" HorizontalAlignment="Center"
+                               RenderOptions.BitmapScalingMode="HighQuality">
+                            <Image.Style>
+                                <Style TargetType="Image">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PreviewType}" Value="image">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Image.Style>
+                        </Image>
+
+                        <!-- Video Preview -->
+                        <Grid>
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PreviewType}" Value="video">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <MediaElement Grid.Row="0" x:Name="VideoPlayer"
+                                          Source="{Binding PreviewMediaUri}"
+                                          LoadedBehavior="Manual" UnloadedBehavior="Stop"
+                                          ScrubbingEnabled="True"
+                                          Stretch="Uniform" MediaOpened="MediaElement_MediaOpened" />
+                            <StackPanel Grid.Row="1" Margin="0,6,0,0">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Button Content="▶ Play" Padding="8,4" Margin="0,0,4,0" FontSize="11"
+                                            Click="PlayMedia_Click" Cursor="Hand" />
+                                    <Button Content="⏸ Pause" Padding="8,4" Margin="0,0,4,0" FontSize="11"
+                                            Click="PauseMedia_Click" Cursor="Hand" />
+                                    <Button Content="⏹ Stop" Padding="8,4" FontSize="11"
+                                            Click="StopMedia_Click" Cursor="Hand" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <Button x:Name="VideoMuteButton" Content="🔊" Padding="4,2" FontSize="12"
+                                            Click="VideoMute_Click" Cursor="Hand"
+                                            Background="Transparent" BorderThickness="0"
+                                            ToolTip="Mute / Unmute" />
+                                    <Slider x:Name="VideoVolumeSlider" Width="120" Minimum="0" Maximum="1"
+                                            Value="{Binding MediaVolume}" VerticalAlignment="Center"
+                                            ValueChanged="VideoVolume_Changed"
+                                            ToolTip="Volume" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Audio Preview -->
+                        <Grid>
+                            <Grid.Style>
+                                <Style TargetType="Grid">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PreviewType}" Value="audio">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Grid.Style>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock Text="🎵" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                                <MediaElement x:Name="AudioPlayer"
+                                              Source="{Binding PreviewMediaUri}"
+                                              LoadedBehavior="Manual" UnloadedBehavior="Stop"
+                                              MediaOpened="MediaElement_MediaOpened" />
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+                                    <Button Content="▶ Play" Padding="8,4" Margin="0,0,4,0" FontSize="11"
+                                            Click="PlayAudio_Click" Cursor="Hand" />
+                                    <Button Content="⏸ Pause" Padding="8,4" Margin="0,0,4,0" FontSize="11"
+                                            Click="PauseAudio_Click" Cursor="Hand" />
+                                    <Button Content="⏹ Stop" Padding="8,4" FontSize="11"
+                                            Click="StopAudio_Click" Cursor="Hand" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
+                                    <Button x:Name="AudioMuteButton" Content="🔊" Padding="4,2" FontSize="12"
+                                            Click="AudioMute_Click" Cursor="Hand"
+                                            Background="Transparent" BorderThickness="0"
+                                            ToolTip="Mute / Unmute" />
+                                    <Slider x:Name="AudioVolumeSlider" Width="120" Minimum="0" Maximum="1"
+                                            Value="{Binding MediaVolume}" VerticalAlignment="Center"
+                                            ValueChanged="AudioVolume_Changed"
+                                            ToolTip="Volume" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Info Card Preview (documents, archives, fonts, executables, databases, 3D, non-native images) -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PreviewType}" Value="infocard">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <TextBlock Text="{Binding PreviewText}" FontSize="14"
+                                       HorizontalAlignment="Center" TextAlignment="Center"
+                                       Foreground="#555555" LineHeight="28" />
+                        </StackPanel>
+
+                        <!-- Text Preview -->
+                        <TextBox Text="{Binding PreviewText, Mode=OneWay}" IsReadOnly="True"
+                                 FontFamily="Consolas" FontSize="11"
+                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                 TextWrapping="Wrap" BorderThickness="0"
+                                 Background="Transparent">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PreviewType}" Value="text">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+
+                        <!-- Unsupported Format -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PreviewType}" Value="unsupported">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <TextBlock Text="📄" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                            <TextBlock Text="Preview not available for this file type"
+                                       Foreground="#999999" FontSize="12" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
         </Border>
     </Grid>
 </Window>

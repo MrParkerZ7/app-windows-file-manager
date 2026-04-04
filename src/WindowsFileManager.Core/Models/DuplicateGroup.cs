@@ -26,6 +26,28 @@ public class DuplicateGroup
     public int Count => Files.Count;
 
     /// <summary>
+    /// Gets the file path of the first file in this group (for preview).
+    /// </summary>
+    public string? FirstFilePath => Files.Count > 0 ? Files[0].FilePath : null;
+
+    /// <summary>
+    /// Gets the file name of the first file in this group (for sorting).
+    /// </summary>
+    public string FirstFileName => Files.Count > 0 ? Files[0].FileName : string.Empty;
+
+    /// <summary>
+    /// Gets the delete button label based on count.
+    /// </summary>
+    public string DeleteAllLabel => Count == 2 ? "🗑 Delete Both" : $"🗑 Delete All ({Count})";
+
+    /// <summary>
+    /// Gets the file extension of the first file in this group (for sorting).
+    /// </summary>
+    public string FileExtension => Files.Count > 0
+        ? System.IO.Path.GetExtension(Files[0].FilePath).ToLowerInvariant()
+        : string.Empty;
+
+    /// <summary>
     /// Gets the wasted space (all copies except one).
     /// </summary>
     public long WastedBytes => FileSize * (Count - 1);

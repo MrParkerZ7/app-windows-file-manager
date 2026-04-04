@@ -19,4 +19,29 @@ public class AppSettings
     /// Gets or sets the minimum file size filter.
     /// </summary>
     public long MinimumFileSize { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether mini preview is enabled.
+    /// </summary>
+    public bool IsMiniPreview { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether full preview panel is enabled.
+    /// </summary>
+    public bool IsAutoPreview { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether auto play is enabled.
+    /// </summary>
+    public bool IsAutoPlay { get; set; }
+
+    /// <summary>
+    /// Gets or sets the selected sort option.
+    /// </summary>
+    public string SelectedSortOption { get; set; } = "Size (largest)";
+
+    /// <summary>
+    /// Gets or sets the volume level (0.0 to 1.0).
+    /// </summary>
+    public double Volume { get; set; } = 0.5;
 }
