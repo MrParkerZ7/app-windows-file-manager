@@ -18,107 +18,107 @@
     </Window.Resources>
 
     <Grid Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="400" />
+            <ColumnDefinition Width="320" />
+        </Grid.ColumnDefinitions>
 
-        <!-- Row 0: Target Folders -->
-        <GroupBox Grid.Row="0" Header="Target Folders" Padding="8" Margin="0,0,0,8">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+        <!-- Left Column: Controls + Results -->
+        <Grid Grid.Column="0" Margin="0,0,8,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-                <!-- Path input + buttons -->
-                <Grid Grid.Row="0" Margin="0,0,0,6">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+            <!-- Row 0: Target Folders -->
+            <GroupBox Grid.Row="0" Header="Target Folders" Padding="8" Margin="0,0,0,8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                    <TextBox Grid.Column="0" Text="{Binding NewFolderPath, UpdateSourceTrigger=PropertyChanged}"
-                             Padding="6,4" VerticalContentAlignment="Center"
-                             IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
-                             helpers:TextBoxEnterKeyBehavior.Command="{Binding AddFolderByPathCommand}" />
+                    <!-- Path input + buttons -->
+                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="1" Content="Add"
-                            Command="{Binding AddFolderByPathCommand}"
-                            Padding="12,4" Margin="6,0,0,0"
-                            IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}" />
+                        <TextBox Grid.Column="0" Text="{Binding NewFolderPath, UpdateSourceTrigger=PropertyChanged}"
+                                 Padding="6,4" VerticalContentAlignment="Center"
+                                 IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
+                                 helpers:TextBoxEnterKeyBehavior.Command="{Binding AddFolderByPathCommand}" />
 
-                    <Button Grid.Column="2" Content="Browse..."
-                            Command="{Binding AddFolderCommand}"
-                            Padding="12,4" Margin="6,0,0,0"
-                            IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}" />
+                        <Button Grid.Column="1" Content="Add"
+                                Command="{Binding AddFolderByPathCommand}"
+                                Padding="12,4" Margin="6,0,0,0"
+                                IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}" />
+
+                        <Button Grid.Column="2" Content="Browse..."
+                                Command="{Binding AddFolderCommand}"
+                                Padding="12,4" Margin="6,0,0,0"
+                                IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}" />
+                    </Grid>
+
+                    <!-- Folder list -->
+                    <ItemsControl Grid.Row="1" ItemsSource="{Binding TargetPaths}" Margin="0,0,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <Button Content="✕"
+                                            Command="{Binding DataContext.RemoveFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}"
+                                            Padding="4,1" Margin="0,0,6,0"
+                                            FontSize="10" Foreground="#C62828" Cursor="Hand"
+                                            ToolTip="Remove this folder" />
+                                    <TextBlock Text="{Binding}" VerticalAlignment="Center"
+                                               FontSize="12" Foreground="#333333"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
+                        <CheckBox Content="Include subdirectories"
+                                  IsChecked="{Binding IncludeSubdirectories}"
+                                  IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
+                                  Margin="0,0,16,0" />
+                    </StackPanel>
                 </Grid>
+            </GroupBox>
 
-                <!-- Folder list -->
-                <ItemsControl Grid.Row="1" ItemsSource="{Binding TargetPaths}" Margin="0,0,0,0">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                <Button Content="✕"
-                                        Command="{Binding DataContext.RemoveFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        CommandParameter="{Binding}"
-                                        Padding="4,1" Margin="0,0,6,0"
-                                        FontSize="10" Foreground="#C62828" Cursor="Hand"
-                                        ToolTip="Remove this folder" />
-                                <TextBlock Text="{Binding}" VerticalAlignment="Center"
-                                           FontSize="12" Foreground="#333333"
-                                           TextTrimming="CharacterEllipsis"
-                                           ToolTip="{Binding}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+            <!-- Row 1: Action Buttons + Progress -->
+            <StackPanel Grid.Row="1" Margin="0,0,0,8">
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Scan for Duplicates"
+                            Command="{Binding ScanCommand}"
+                            Padding="16,6" FontWeight="SemiBold"
+                            Margin="0,0,8,0" />
 
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
-                    <CheckBox Content="Include subdirectories"
-                              IsChecked="{Binding IncludeSubdirectories}"
-                              IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
-                              Margin="0,0,16,0" />
+                    <Button Content="Cancel"
+                            Command="{Binding CancelCommand}"
+                            Padding="16,6"
+                            Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
+
+                    <TextBlock Text="{Binding FilesScanned, StringFormat='Files scanned: {0}'}"
+                               VerticalAlignment="Center" Margin="16,0,0,0"
+                               Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
                 </StackPanel>
-            </Grid>
-        </GroupBox>
 
-        <!-- Row 1: Action Buttons + Progress -->
-        <StackPanel Grid.Row="1" Margin="0,0,0,8">
-            <StackPanel Orientation="Horizontal">
-                <Button Content="Scan for Duplicates"
-                        Command="{Binding ScanCommand}"
-                        Padding="16,6" FontWeight="SemiBold"
-                        Margin="0,0,8,0" />
-
-                <Button Content="Cancel"
-                        Command="{Binding CancelCommand}"
-                        Padding="16,6"
-                        Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
-
-                <TextBlock Text="{Binding FilesScanned, StringFormat='Files scanned: {0}'}"
-                           VerticalAlignment="Center" Margin="16,0,0,0"
-                           Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
+                <ProgressBar Height="6" Margin="0,6,0,0"
+                             IsIndeterminate="{Binding IsScanning}"
+                             Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
             </StackPanel>
 
-            <ProgressBar Height="6" Margin="0,6,0,0"
-                         IsIndeterminate="{Binding IsScanning}"
-                         Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
-        </StackPanel>
-
-        <!-- Row 2: Results (left) + Analytics Dashboard (right) -->
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="400" />
-                <ColumnDefinition Width="320" />
-            </Grid.ColumnDefinitions>
-
-            <!-- Left: Duplicate Groups List -->
-            <GroupBox Grid.Column="0" Header="Duplicate Groups" Padding="4" Margin="0,0,8,0">
+            <!-- Row 2: Duplicate Groups List -->
+            <GroupBox Grid.Row="2" Header="Duplicate Groups" Padding="4">
                 <ListView ItemsSource="{Binding DuplicateGroups}"
                           ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListView.ItemTemplate>
@@ -167,164 +167,164 @@
                 </ListView>
             </GroupBox>
 
-            <!-- Right: Analytics Dashboard -->
-            <Border Grid.Column="1" Background="#FAFAFA" CornerRadius="6"
-                    BorderBrush="#E0E0E0" BorderThickness="1" Padding="12">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel DataContext="{Binding Analytics}">
-
-                        <TextBlock Text="Analytics" FontSize="16" FontWeight="Bold"
-                                   Foreground="#1A237E" Margin="0,0,0,12" />
-
-                        <!-- Summary Cards -->
-                        <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
-                                BorderBrush="#E0E0E0" BorderThickness="1">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,8">
-                                    <TextBlock Text="Total Files" Foreground="#999999" FontSize="10" />
-                                    <TextBlock Text="{Binding TotalFiles, StringFormat=N0}" FontSize="20" FontWeight="Bold" Foreground="#333333" />
-                                </StackPanel>
-                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,8">
-                                    <TextBlock Text="Duplicates" Foreground="#999999" FontSize="10" />
-                                    <TextBlock Text="{Binding TotalDuplicates, StringFormat=N0}" FontSize="20" FontWeight="Bold" Foreground="#C62828" />
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,8">
-                                    <TextBlock Text="Groups" Foreground="#999999" FontSize="10" />
-                                    <TextBlock Text="{Binding DuplicateGroups, StringFormat=N0}" FontSize="20" FontWeight="Bold" Foreground="#1565C0" />
-                                </StackPanel>
-                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
-                                    <TextBlock Text="Scan Time" Foreground="#999999" FontSize="10" />
-                                    <TextBlock Text="{Binding Duration, StringFormat='{}{0:mm\\:ss\\.f}'}" FontSize="20" FontWeight="Bold" Foreground="#333333" />
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="2" Grid.Column="0">
-                                    <TextBlock Text="Wasted Space" Foreground="#999999" FontSize="10" />
-                                    <TextBlock Text="{Binding FormattedWastedSize}" FontSize="20" FontWeight="Bold" Foreground="#C62828" />
-                                </StackPanel>
-                                <StackPanel Grid.Row="2" Grid.Column="1">
-                                    <TextBlock Text="Duplicate %" Foreground="#999999" FontSize="10" />
-                                    <TextBlock Text="{Binding DuplicatePercentage, StringFormat='{}{0:F1}%'}" FontSize="20" FontWeight="Bold" Foreground="#E65100" />
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <!-- Wasted Space Bar -->
-                        <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
-                                BorderBrush="#E0E0E0" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="Wasted vs Total" FontWeight="SemiBold" FontSize="11"
-                                           Foreground="#555555" Margin="0,0,0,6" />
-                                <Grid Height="20">
-                                    <Border Background="#E8F5E9" CornerRadius="3" />
-                                    <Border Background="#EF9A9A" CornerRadius="3"
-                                            HorizontalAlignment="Left">
-                                        <Border.Width>
-                                            <MultiBinding Converter="{x:Static helpers:PercentToWidthConverter.Instance}">
-                                                <Binding Path="WastedPercentage" />
-                                                <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}" />
-                                            </MultiBinding>
-                                        </Border.Width>
-                                    </Border>
-                                </Grid>
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                    <Border Width="10" Height="10" Background="#EF9A9A" CornerRadius="2" Margin="0,0,4,0" />
-                                    <TextBlock Text="{Binding FormattedWastedSize, StringFormat='Wasted: {0}'}" FontSize="10" Foreground="#666666" Margin="0,0,12,0" />
-                                    <Border Width="10" Height="10" Background="#E8F5E9" CornerRadius="2" Margin="0,0,4,0" />
-                                    <TextBlock Text="{Binding FormattedTotalSize, StringFormat='Total: {0}'}" FontSize="10" Foreground="#666666" />
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Top Extensions -->
-                        <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
-                                BorderBrush="#E0E0E0" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="Top Duplicate Types" FontWeight="SemiBold" FontSize="11"
-                                           Foreground="#555555" Margin="0,0,0,6" />
-                                <ItemsControl ItemsSource="{Binding TopExtensions}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Margin="0,2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="60" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <Border Grid.Column="0" Background="#E3F2FD" CornerRadius="3"
-                                                        Padding="4,2" HorizontalAlignment="Left">
-                                                    <TextBlock Text="{Binding Extension}" FontSize="10"
-                                                               FontWeight="SemiBold" Foreground="#1565C0" />
-                                                </Border>
-                                                <TextBlock Grid.Column="1" Text="{Binding FileCount, StringFormat='{}{0} files'}"
-                                                           FontSize="10" Foreground="#888888" Margin="8,0,0,0"
-                                                           VerticalAlignment="Center" />
-                                                <TextBlock Grid.Column="2" Text="{Binding FormattedSize}"
-                                                           FontSize="10" Foreground="#666666"
-                                                           HorizontalAlignment="Right" VerticalAlignment="Center" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Size Distribution -->
-                        <Border Background="White" CornerRadius="4" Padding="10"
-                                BorderBrush="#E0E0E0" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="Size Distribution" FontWeight="SemiBold" FontSize="11"
-                                           Foreground="#555555" Margin="0,0,0,6" />
-                                <ItemsControl ItemsSource="{Binding SizeDistribution}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Margin="0,3">
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto" />
-                                                    <RowDefinition Height="Auto" />
-                                                </Grid.RowDefinitions>
-                                                <StackPanel Grid.Row="0" Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding Label}" FontSize="10" Foreground="#666666" />
-                                                    <TextBlock Text="{Binding FileCount, StringFormat=' ({0})'}" FontSize="10" Foreground="#999999" />
-                                                </StackPanel>
-                                                <Grid Grid.Row="1" Height="8" Margin="0,2,0,0">
-                                                    <Border Background="#EEEEEE" CornerRadius="2" />
-                                                    <Border Background="#7986CB" CornerRadius="2"
-                                                            HorizontalAlignment="Left">
-                                                        <Border.Width>
-                                                            <MultiBinding Converter="{x:Static helpers:PercentToWidthConverter.Instance}">
-                                                                <Binding Path="BarWidth" />
-                                                                <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}" />
-                                                            </MultiBinding>
-                                                        </Border.Width>
-                                                    </Border>
-                                                </Grid>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
-
-                    </StackPanel>
-                </ScrollViewer>
+            <!-- Row 3: Status Bar -->
+            <Border Grid.Row="3" Background="#F5F5F5" Padding="8,4" Margin="0,8,0,0"
+                    CornerRadius="4">
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#666666" />
             </Border>
         </Grid>
 
-        <!-- Row 3: Status Bar -->
-        <Border Grid.Row="3" Background="#F5F5F5" Padding="8,4" Margin="0,8,0,0"
-                CornerRadius="4">
-            <TextBlock Text="{Binding StatusMessage}" Foreground="#666666" />
+        <!-- Right Column: Analytics Dashboard (full height) -->
+        <Border Grid.Column="1" Background="#FAFAFA" CornerRadius="6"
+                BorderBrush="#E0E0E0" BorderThickness="1" Padding="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel DataContext="{Binding Analytics}">
+
+                    <TextBlock Text="Analytics" FontSize="16" FontWeight="Bold"
+                               Foreground="#1A237E" Margin="0,0,0,12" />
+
+                    <!-- Summary Cards -->
+                    <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,8">
+                                <TextBlock Text="Total Files" Foreground="#999999" FontSize="10" />
+                                <TextBlock Text="{Binding TotalFiles, StringFormat=N0}" FontSize="20" FontWeight="Bold" Foreground="#333333" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,8">
+                                <TextBlock Text="Duplicates" Foreground="#999999" FontSize="10" />
+                                <TextBlock Text="{Binding TotalDuplicates, StringFormat=N0}" FontSize="20" FontWeight="Bold" Foreground="#C62828" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,8">
+                                <TextBlock Text="Groups" Foreground="#999999" FontSize="10" />
+                                <TextBlock Text="{Binding DuplicateGroups, StringFormat=N0}" FontSize="20" FontWeight="Bold" Foreground="#1565C0" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,8">
+                                <TextBlock Text="Scan Time" Foreground="#999999" FontSize="10" />
+                                <TextBlock Text="{Binding Duration, StringFormat='{}{0:mm\\:ss\\.f}'}" FontSize="20" FontWeight="Bold" Foreground="#333333" />
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="2" Grid.Column="0">
+                                <TextBlock Text="Wasted Space" Foreground="#999999" FontSize="10" />
+                                <TextBlock Text="{Binding FormattedWastedSize}" FontSize="20" FontWeight="Bold" Foreground="#C62828" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="1">
+                                <TextBlock Text="Duplicate %" Foreground="#999999" FontSize="10" />
+                                <TextBlock Text="{Binding DuplicatePercentage, StringFormat='{}{0:F1}%'}" FontSize="20" FontWeight="Bold" Foreground="#E65100" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Wasted Space Bar -->
+                    <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Wasted vs Total" FontWeight="SemiBold" FontSize="11"
+                                       Foreground="#555555" Margin="0,0,0,6" />
+                            <Grid Height="20">
+                                <Border Background="#E8F5E9" CornerRadius="3" />
+                                <Border Background="#EF9A9A" CornerRadius="3"
+                                        HorizontalAlignment="Left">
+                                    <Border.Width>
+                                        <MultiBinding Converter="{x:Static helpers:PercentToWidthConverter.Instance}">
+                                            <Binding Path="WastedPercentage" />
+                                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}" />
+                                        </MultiBinding>
+                                    </Border.Width>
+                                </Border>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <Border Width="10" Height="10" Background="#EF9A9A" CornerRadius="2" Margin="0,0,4,0" />
+                                <TextBlock Text="{Binding FormattedWastedSize, StringFormat='Wasted: {0}'}" FontSize="10" Foreground="#666666" Margin="0,0,12,0" />
+                                <Border Width="10" Height="10" Background="#E8F5E9" CornerRadius="2" Margin="0,0,4,0" />
+                                <TextBlock Text="{Binding FormattedTotalSize, StringFormat='Total: {0}'}" FontSize="10" Foreground="#666666" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Top Extensions -->
+                    <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Top Duplicate Types" FontWeight="SemiBold" FontSize="11"
+                                       Foreground="#555555" Margin="0,0,0,6" />
+                            <ItemsControl ItemsSource="{Binding TopExtensions}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="60" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Background="#E3F2FD" CornerRadius="3"
+                                                    Padding="4,2" HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding Extension}" FontSize="10"
+                                                           FontWeight="SemiBold" Foreground="#1565C0" />
+                                            </Border>
+                                            <TextBlock Grid.Column="1" Text="{Binding FileCount, StringFormat='{}{0} files'}"
+                                                       FontSize="10" Foreground="#888888" Margin="8,0,0,0"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="2" Text="{Binding FormattedSize}"
+                                                       FontSize="10" Foreground="#666666"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Size Distribution -->
+                    <Border Background="White" CornerRadius="4" Padding="10"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Size Distribution" FontWeight="SemiBold" FontSize="11"
+                                       Foreground="#555555" Margin="0,0,0,6" />
+                            <ItemsControl ItemsSource="{Binding SizeDistribution}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,3">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <StackPanel Grid.Row="0" Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Label}" FontSize="10" Foreground="#666666" />
+                                                <TextBlock Text="{Binding FileCount, StringFormat=' ({0})'}" FontSize="10" Foreground="#999999" />
+                                            </StackPanel>
+                                            <Grid Grid.Row="1" Height="8" Margin="0,2,0,0">
+                                                <Border Background="#EEEEEE" CornerRadius="2" />
+                                                <Border Background="#7986CB" CornerRadius="2"
+                                                        HorizontalAlignment="Left">
+                                                    <Border.Width>
+                                                        <MultiBinding Converter="{x:Static helpers:PercentToWidthConverter.Instance}">
+                                                            <Binding Path="BarWidth" />
+                                                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Grid}" />
+                                                        </MultiBinding>
+                                                    </Border.Width>
+                                                </Border>
+                                            </Grid>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
         </Border>
     </Grid>
 </Window>
