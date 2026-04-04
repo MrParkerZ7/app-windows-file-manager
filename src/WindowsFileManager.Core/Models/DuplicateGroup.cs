@@ -1,10 +1,33 @@
+using System.ComponentModel;
+
 namespace WindowsFileManager.Core.Models;
 
 /// <summary>
 /// A group of files that share the same content (identical hash).
 /// </summary>
-public class DuplicateGroup
+public class DuplicateGroup : INotifyPropertyChanged
 {
+    private bool _isSelected;
+
+    /// <inheritdoc/>
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>
+    /// Gets or sets whether this group is selected for bulk actions.
+    /// </summary>
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected != value)
+            {
+                _isSelected = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+            }
+        }
+    }
+
     /// <summary>
     /// Gets or sets the shared hash of all files in this group.
     /// </summary>

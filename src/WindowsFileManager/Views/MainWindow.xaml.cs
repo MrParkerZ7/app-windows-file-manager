@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -123,6 +124,56 @@ public partial class MainWindow : Window
         catch
         {
             // Media elements may not be initialized yet
+        }
+    }
+
+    private void ListViewItem_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        // Skip if clicking on buttons, checkboxes, or sliders
+        var source = e.OriginalSource as DependencyObject;
+        while (source != null && source != sender)
+        {
+            if (source is System.Windows.Controls.Primitives.ButtonBase
+                or System.Windows.Controls.CheckBox
+                or System.Windows.Controls.Slider)
+            {
+                return;
+            }
+
+            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+        }
+
+        if (sender is ListViewItem item && item.DataContext is WindowsFileManager.Core.Models.DuplicateGroup group)
+        {
+            group.IsSelected = !group.IsSelected;
+            if (DataContext is MainViewModel vm)
+            {
+                vm.RefreshSelectedCount();
+            }
+        }
+    }
+
+    private void GroupCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+        {
+            vm.RefreshSelectedCount();
+        }
+    }
+
+    private void SelectAll_Checked(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+        {
+            vm.SelectAllGroups(true);
+        }
+    }
+
+    private void SelectAll_Unchecked(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+        {
+            vm.SelectAllGroups(false);
         }
     }
 }

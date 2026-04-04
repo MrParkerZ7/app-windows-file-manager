@@ -51,6 +51,10 @@ public class MainViewModel : ViewModelBase
     private string _resourceMemory = string.Empty;
     private string _resourceCpu = string.Empty;
     private string _resourceThreads = string.Empty;
+    private int _selectedGroupCount;
+    private bool _isSelectAll;
+    private string _moveTargetPath = string.Empty;
+    private bool _isActionsVisible;
     private readonly DispatcherTimer _resourceTimer;
     private readonly Process _currentProcess;
     private TimeSpan _lastCpuTime;
@@ -193,6 +197,12 @@ public class MainViewModel : ViewModelBase
         ClearAllTypesCommand = new RelayCommand(_ => SetAllExtensions(false));
         ApplyFileSizeFilterCommand = new RelayCommand(_ => ApplyFilters());
         ToggleFilterCommand = new RelayCommand(_ => IsFilterVisible = !IsFilterVisible);
+        ToggleActionsCommand = new RelayCommand(_ => IsActionsVisible = !IsActionsVisible);
+        BulkDeleteKeepNewestCommand = new RelayCommand(_ => BulkDeleteKeepNewest(), _ => SelectedGroupCount > 0);
+        BulkDeleteKeepOldestCommand = new RelayCommand(_ => BulkDeleteKeepOldest(), _ => SelectedGroupCount > 0);
+        BulkDeleteAllCommand = new RelayCommand(_ => BulkDeleteAll(), _ => SelectedGroupCount > 0);
+        BulkMoveToCommand = new RelayCommand(_ => BulkMoveTo(), _ => SelectedGroupCount > 0);
+        BrowseMoveTargetCommand = new RelayCommand(_ => BrowseMoveTarget());
 
         FilteredDuplicateGroups = CollectionViewSource.GetDefaultView(DuplicateGroups);
         FilteredDuplicateGroups.Filter = FilterDuplicateGroup;
@@ -484,6 +494,75 @@ public class MainViewModel : ViewModelBase
         get => _resourceThreads;
         set => SetProperty(ref _resourceThreads, value);
     }
+
+    /// <summary>
+    /// Gets or sets the number of selected groups.
+    /// </summary>
+    public int SelectedGroupCount
+    {
+        get => _selectedGroupCount;
+        set
+        {
+            SetProperty(ref _selectedGroupCount, value);
+            OnPropertyChanged(nameof(HasSelectedGroups));
+        }
+    }
+
+    /// <summary>
+    /// Gets whether any groups are selected.
+    /// </summary>
+    public bool HasSelectedGroups => SelectedGroupCount > 0;
+
+    /// <summary>
+    /// Gets or sets select all state.
+    /// </summary>
+    public bool IsSelectAll
+    {
+        get => _isSelectAll;
+        set => SetProperty(ref _isSelectAll, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the move target path.
+    /// </summary>
+    public string MoveTargetPath
+    {
+        get => _moveTargetPath;
+        set => SetProperty(ref _moveTargetPath, value);
+    }
+
+    /// <summary>
+    /// Gets the selected groups (computed from IsSelected on each group).
+    /// </summary>
+    public List<DuplicateGroup> SelectedGroups =>
+        DuplicateGroups.Where(g => g.IsSelected).ToList();
+
+    /// <summary>
+    /// Gets or sets whether the actions panel is expanded.
+    /// </summary>
+    public bool IsActionsVisible
+    {
+        get => _isActionsVisible;
+        set => SetProperty(ref _isActionsVisible, value);
+    }
+
+    /// <summary>Gets the toggle actions panel command.</summary>
+    public ICommand ToggleActionsCommand { get; }
+
+    /// <summary>Gets the bulk delete keep newest command.</summary>
+    public ICommand BulkDeleteKeepNewestCommand { get; }
+
+    /// <summary>Gets the bulk delete keep oldest command.</summary>
+    public ICommand BulkDeleteKeepOldestCommand { get; }
+
+    /// <summary>Gets the bulk delete all command.</summary>
+    public ICommand BulkDeleteAllCommand { get; }
+
+    /// <summary>Gets the bulk move to command.</summary>
+    public ICommand BulkMoveToCommand { get; }
+
+    /// <summary>Gets the browse move target command.</summary>
+    public ICommand BrowseMoveTargetCommand { get; }
 
     /// <summary>
     /// Gets the sort options list.
@@ -1197,6 +1276,256 @@ public class MainViewModel : ViewModelBase
         PreviewText = null;
         PreviewFileName = null;
         PreviewFileSize = null;
+    }
+
+    private void BulkDeleteKeepNewest()
+    {
+        var groups = SelectedGroups.ToList();
+        if (groups.Count == 0)
+        {
+            return;
+        }
+
+        var totalFiles = groups.Sum(g => g.Count - 1);
+        var result = System.Windows.MessageBox.Show(
+            $"Delete older duplicates in {groups.Count} groups?\n" +
+            $"Will keep the newest file in each group.\n" +
+            $"{totalFiles} files will be deleted.",
+            "Confirm Bulk Delete (Keep Newest)",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var deleted = 0;
+        var failed = 0;
+
+        foreach (var group in groups)
+        {
+            var newest = group.Files.OrderByDescending(f => f.LastModified).First();
+            foreach (var file in group.Files.Where(f => f != newest).ToList())
+            {
+                try
+                {
+                    File.Delete(file.FilePath);
+                    group.Files.Remove(file);
+                    deleted++;
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+
+            if (group.Files.Count <= 1)
+            {
+                DuplicateGroups.Remove(group);
+            }
+        }
+
+        StatusMessage = $"Bulk delete: {deleted} older files removed" + (failed > 0 ? $", {failed} failed" : string.Empty);
+    }
+
+    private void BulkDeleteKeepOldest()
+    {
+        var groups = SelectedGroups.ToList();
+        if (groups.Count == 0)
+        {
+            return;
+        }
+
+        var totalFiles = groups.Sum(g => g.Count - 1);
+        var result = System.Windows.MessageBox.Show(
+            $"Delete newer duplicates in {groups.Count} groups?\n" +
+            $"Will keep the oldest file in each group.\n" +
+            $"{totalFiles} files will be deleted.",
+            "Confirm Bulk Delete (Keep Oldest)",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var deleted = 0;
+        var failed = 0;
+
+        foreach (var group in groups)
+        {
+            var oldest = group.Files.OrderBy(f => f.LastModified).First();
+            foreach (var file in group.Files.Where(f => f != oldest).ToList())
+            {
+                try
+                {
+                    File.Delete(file.FilePath);
+                    group.Files.Remove(file);
+                    deleted++;
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+
+            if (group.Files.Count <= 1)
+            {
+                DuplicateGroups.Remove(group);
+            }
+        }
+
+        StatusMessage = $"Bulk delete: {deleted} newer files removed" + (failed > 0 ? $", {failed} failed" : string.Empty);
+    }
+
+    private void BulkDeleteAll()
+    {
+        var groups = SelectedGroups.ToList();
+        if (groups.Count == 0)
+        {
+            return;
+        }
+
+        var totalFiles = groups.Sum(g => g.Count);
+        var result = System.Windows.MessageBox.Show(
+            $"Delete ALL files in {groups.Count} groups?\n" +
+            $"{totalFiles} files will be permanently deleted!",
+            "Confirm Bulk Delete All",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var deleted = 0;
+        var failed = 0;
+
+        foreach (var group in groups)
+        {
+            foreach (var file in group.Files.ToList())
+            {
+                try
+                {
+                    File.Delete(file.FilePath);
+                    deleted++;
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+
+            DuplicateGroups.Remove(group);
+        }
+
+        ClosePreview();
+        StatusMessage = $"Bulk delete: {deleted} files removed" + (failed > 0 ? $", {failed} failed" : string.Empty);
+    }
+
+    private void BulkMoveTo()
+    {
+        var groups = SelectedGroups.ToList();
+        if (groups.Count == 0 || string.IsNullOrWhiteSpace(MoveTargetPath))
+        {
+            return;
+        }
+
+        if (!Directory.Exists(MoveTargetPath))
+        {
+            try
+            {
+                Directory.CreateDirectory(MoveTargetPath);
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Cannot create target folder: {ex.Message}";
+                return;
+            }
+        }
+
+        var totalFiles = groups.Sum(g => g.Count);
+        var result = System.Windows.MessageBox.Show(
+            $"Move ALL {totalFiles} files from {groups.Count} groups to:\n{MoveTargetPath}",
+            "Confirm Bulk Move",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var moved = 0;
+        var failed = 0;
+
+        foreach (var group in groups)
+        {
+            foreach (var file in group.Files.ToList())
+            {
+                try
+                {
+                    var destPath = Path.Combine(MoveTargetPath, Path.GetFileName(file.FilePath));
+
+                    // Handle name collision
+                    if (File.Exists(destPath))
+                    {
+                        var name = Path.GetFileNameWithoutExtension(file.FilePath);
+                        var ext = Path.GetExtension(file.FilePath);
+                        destPath = Path.Combine(MoveTargetPath, $"{name}_{DateTime.Now:HHmmss}{ext}");
+                    }
+
+                    File.Move(file.FilePath, destPath);
+                    moved++;
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+
+            DuplicateGroups.Remove(group);
+        }
+
+        ClosePreview();
+        StatusMessage = $"Bulk move: {moved} files moved to {MoveTargetPath}" + (failed > 0 ? $", {failed} failed" : string.Empty);
+    }
+
+    private void BrowseMoveTarget()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Select folder to move files to",
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            MoveTargetPath = dialog.FolderName;
+        }
+    }
+
+    /// <summary>
+    /// Refreshes the selected group count from IsSelected flags.
+    /// </summary>
+    public void RefreshSelectedCount()
+    {
+        SelectedGroupCount = DuplicateGroups.Count(g => g.IsSelected);
+    }
+
+    /// <summary>
+    /// Sets IsSelected on all visible groups.
+    /// </summary>
+    public void SelectAllGroups(bool selected)
+    {
+        foreach (DuplicateGroup group in FilteredDuplicateGroups)
+        {
+            group.IsSelected = selected;
+        }
+
+        RefreshSelectedCount();
     }
 
     private void UpdateResourceInfo()
