@@ -11,6 +11,7 @@ BUILD:    dotnet build -c Release
 FORMAT:   dotnet format
 TEST:     dotnet test --collect:"XPlat Code Coverage" --settings tests/WindowsFileManager.Tests/coverlet.runsettings
 COVERAGE: 100% line coverage (enforced by coverlet.collector + runsettings)
+MSIX:     dotnet publish src/WindowsFileManager -c Release -r win-x64 --self-contained -p:WindowsPackageType=MSIX
 ```
 
 ---

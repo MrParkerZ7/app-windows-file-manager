@@ -13,11 +13,18 @@ publish/
 coverage/
 *.cobertura.xml
 
-# Environment
+# Environment & Certificates
 .env
 *.pem
 *.key
 *.pfx
+*.cer
+
+# MSIX
+*.msix
+*.msixbundle
+*.appxupload
+AppPackages/
 
 # Claude Code
 .claude/

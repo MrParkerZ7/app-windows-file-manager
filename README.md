@@ -13,6 +13,16 @@ A .NET 8 WPF desktop application for managing files on Windows. The first featur
 - **Cancellation Support** — Cancel long-running scans at any time
 - **Progress Reporting** — Live file count with throttled UI updates (every 100 files)
 
+## Platform Support
+
+| Architecture | Status |
+|-------------|--------|
+| x64 (64-bit) | Supported |
+| x86 (32-bit) | Supported |
+| ARM64 | Supported |
+
+Built with `AnyCPU` target — runs natively on all Windows architectures. .NET 8 provides ARM64 support out of the box.
+
 ## Prerequisites
 
 - [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) or later
@@ -143,11 +153,67 @@ dotnet test
 
 ## CI/CD
 
-GitHub Actions pipeline (`.github/workflows/ci.yml`) runs on every push and PR to `main`:
+### CI Pipeline (`.github/workflows/ci.yml`)
+
+Runs on every push and PR to `main`:
 
 1. **Build** — `dotnet build -c Release`
 2. **Format Check** — `dotnet format --verify-no-changes`
 3. **Test + Coverage** — All tests with coverlet.collector, coverage report uploaded as artifact
+
+### MSIX Store Pipeline (`.github/workflows/msix-pipeline.yml`)
+
+Runs on every push and PR to `main` (also supports `workflow_dispatch` for manual triggers):
+
+| Job | Runner | Purpose |
+|-----|--------|---------|
+| **security-scan** | `ubuntu-latest` | Semgrep SAST with `p/default` + `p/csharp` rulesets, SARIF uploaded to GitHub Security tab |
+| **build-and-package** | `windows-latest` | Build, test, publish self-contained x64 MSIX, sign with certificate (main branch only) |
+| **wack-validation** | `windows-latest` | Run Windows App Certification Kit, upload report as artifact |
+
+## Microsoft Store Pipeline
+
+### Setup GitHub Secrets
+
+Two secrets are required for code signing (main branch pushes only):
+
+| Secret | Description |
+|--------|-------------|
+| `CERTIFICATE_PFX` | Base64-encoded `.pfx` certificate file |
+| `CERTIFICATE_PASSWORD` | Password for the `.pfx` file |
+
+**Generate a dev certificate for testing:**
+
+```powershell
+# Run from project root (elevated PowerShell)
+.\scripts\New-DevCertificate.ps1
+
+# Encode as base64 for GitHub Secrets
+[Convert]::ToBase64String([IO.File]::ReadAllBytes(".\certificate.pfx")) | Set-Clipboard
+```
+
+**For production (Microsoft Store):** Replace the self-signed certificate with a real code signing certificate from DigiCert, Sectigo, or another trusted CA. The `Publisher` in `Package.appxmanifest` must exactly match the certificate's Subject (e.g., `CN=Your Company Name, O=Your Company, L=City, S=State, C=US`).
+
+### Reading the WACK Report
+
+The WACK report (`wack-report.xml`) is uploaded as a GitHub Actions artifact after each pipeline run. Download it from the Actions tab:
+
+1. Go to **Actions** → select the workflow run → **Artifacts** → download `wack-report`
+2. Open `wack-report.xml` — look for `<TEST>` elements with `RESULT="FAIL"`
+3. Each failed test includes a description and remediation guidance
+
+### Manual Trigger
+
+Go to **Actions** → **MSIX Store Pipeline** → **Run workflow** → select branch → **Run workflow**.
+
+### After MSIX is Ready
+
+1. Download the signed `.msix` artifact from the successful pipeline run
+2. Go to [Microsoft Partner Center](https://partner.microsoft.com/dashboard)
+3. Create or update your app submission
+4. Upload the `.msix` package under **Packages**
+5. Complete the store listing, pricing, and certification options
+6. Submit for certification
 
 ## Code Quality
 

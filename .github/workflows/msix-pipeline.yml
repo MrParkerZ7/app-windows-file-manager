@@ -1,0 +1,178 @@
+name: MSIX Store Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  APP_NAME: WindowsFileManager
+  APP_PROJECT: src/WindowsFileManager/WindowsFileManager.csproj
+  DOTNET_VERSION: 8.0.x
+  RUNTIME_ID: win-x64
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ═══════════════════════════════════════════════════════
+  # Job 1: Security Scan (Semgrep SAST)
+  # ═══════════════════════════════════════════════════════
+  security-scan:
+    name: Security Scan (Semgrep)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep (C# + default rules)
+        run: >
+          semgrep scan
+          --config p/default
+          --config p/csharp
+          --error
+          --sarif
+          --output semgrep-results.sarif
+          .
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-results.sarif
+
+  # ═══════════════════════════════════════════════════════
+  # Job 2: Build, Package, and Sign MSIX
+  # ═══════════════════════════════════════════════════════
+  build-and-package:
+    name: Build & Package MSIX
+    runs-on: windows-latest
+    needs: security-scan
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build -c Release --no-restore
+
+      - name: Run tests
+        run: >
+          dotnet test -c Release --no-build
+          --collect:"XPlat Code Coverage"
+          --settings tests/WindowsFileManager.Tests/coverlet.runsettings
+
+      - name: Publish self-contained MSIX
+        run: >
+          dotnet publish ${{ env.APP_PROJECT }}
+          -c Release
+          -r ${{ env.RUNTIME_ID }}
+          --self-contained true
+          -p:WindowsPackageType=MSIX
+          -p:AppxPackageSigningEnabled=false
+          -p:GenerateAppxPackageOnBuild=true
+
+      - name: Find MSIX package
+        id: find-msix
+        shell: pwsh
+        run: |
+          $msix = Get-ChildItem -Path . -Filter "*.msix" -Recurse | Select-Object -First 1
+          if (-not $msix) {
+            Write-Error "No .msix file found after publish"
+            exit 1
+          }
+          Write-Host "Found MSIX: $($msix.FullName)"
+          echo "MSIX_PATH=$($msix.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Decode signing certificate
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          $bytes = [System.Convert]::FromBase64String("${{ secrets.CERTIFICATE_PFX }}")
+          [System.IO.File]::WriteAllBytes("${{ runner.temp }}\certificate.pfx", $bytes)
+
+      - name: Sign MSIX package
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" `
+            -Filter "signtool.exe" -Recurse `
+            | Where-Object { $_.FullName -like "*\x64\*" } `
+            | Sort-Object FullName -Descending `
+            | Select-Object -First 1
+          if (-not $signtool) {
+            Write-Error "signtool.exe not found"
+            exit 1
+          }
+          Write-Host "Using signtool: $($signtool.FullName)"
+          & $signtool.FullName sign /fd SHA256 `
+            /tr http://timestamp.digicert.com /td SHA256 `
+            /f "${{ runner.temp }}\certificate.pfx" `
+            /p "${{ secrets.CERTIFICATE_PASSWORD }}" `
+            "${{ steps.find-msix.outputs.MSIX_PATH }}"
+
+      - name: Clean up certificate
+        if: always()
+        shell: pwsh
+        run: Remove-Item "${{ runner.temp }}\certificate.pfx" -ErrorAction SilentlyContinue
+
+      - name: Upload MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: msix-package
+          path: ${{ steps.find-msix.outputs.MSIX_PATH }}
+
+  # ═══════════════════════════════════════════════════════
+  # Job 3: WACK Validation
+  # ═══════════════════════════════════════════════════════
+  wack-validation:
+    name: WACK Certification
+    runs-on: windows-latest
+    needs: build-and-package
+
+    steps:
+      - name: Download MSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: msix-package
+          path: msix-output
+
+      - name: Find MSIX package
+        id: find-msix
+        shell: pwsh
+        run: |
+          $msix = Get-ChildItem -Path msix-output -Filter "*.msix" -Recurse | Select-Object -First 1
+          if (-not $msix) {
+            Write-Error "No .msix file found in artifact"
+            exit 1
+          }
+          Write-Host "Found MSIX: $($msix.FullName)"
+          echo "MSIX_PATH=$($msix.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Run Windows App Certification Kit
+        shell: cmd
+        run: >
+          "C:\Program Files (x86)\Windows Kits\10\App Certification Kit\appcert.exe" test
+          -appxpackagepath "${{ steps.find-msix.outputs.MSIX_PATH }}"
+          -reportoutputpath "%GITHUB_WORKSPACE%\wack-report.xml"
+
+      - name: Upload WACK report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wack-report
+          path: wack-report.xml
