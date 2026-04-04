@@ -24,12 +24,16 @@ public static class TextBoxEnterKeyBehavior
     /// <summary>
     /// Gets the command for the specified TextBox.
     /// </summary>
+    /// <param name="obj">The dependency object to read from.</param>
+    /// <returns>The command attached to the object, or null.</returns>
     public static ICommand? GetCommand(DependencyObject obj) =>
         (ICommand?)obj.GetValue(CommandProperty);
 
     /// <summary>
     /// Sets the command for the specified TextBox.
     /// </summary>
+    /// <param name="obj">The dependency object to write to.</param>
+    /// <param name="value">The command to attach.</param>
     public static void SetCommand(DependencyObject obj, ICommand? value) =>
         obj.SetValue(CommandProperty, value);
 
