@@ -132,15 +132,26 @@ jobs:
           echo "MSIX_PATH=$msixPath" >> $env:GITHUB_OUTPUT
         id: create-msix
 
+      - name: Check signing certificate availability
+        id: check-cert
+        shell: pwsh
+        run: |
+          if ("${{ secrets.CERTIFICATE_PFX }}" -ne "") {
+            echo "HAS_CERT=true" >> $env:GITHUB_OUTPUT
+          } else {
+            Write-Host "No signing certificate configured — producing unsigned MSIX"
+            echo "HAS_CERT=false" >> $env:GITHUB_OUTPUT
+          }
+
       - name: Decode signing certificate
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.check-cert.outputs.HAS_CERT == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $bytes = [System.Convert]::FromBase64String("${{ secrets.CERTIFICATE_PFX }}")
           [System.IO.File]::WriteAllBytes("${{ runner.temp }}\certificate.pfx", $bytes)
 
       - name: Sign MSIX package
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.check-cert.outputs.HAS_CERT == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" `
