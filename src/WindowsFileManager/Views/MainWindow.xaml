@@ -245,7 +245,11 @@
                 <ListView ItemsSource="{Binding FilteredDuplicateGroups}"
                           SelectedItem="{Binding SelectedDuplicateGroup}"
                           SelectionChanged="DuplicateGroups_SelectionChanged"
-                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          VirtualizingPanel.VirtualizationMode="Recycling"
+                          VirtualizingPanel.ScrollUnit="Pixel"
+                          ScrollViewer.CanContentScroll="True">
                     <ListView.ItemTemplate>
                         <DataTemplate>
                             <Border BorderBrush="#DDDDDD" BorderThickness="0,0,0,1"
@@ -274,9 +278,10 @@
                                             Visibility="{Binding DataContext.IsMiniPreview, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
                                         <StackPanel Orientation="Horizontal">
                                             <!-- Image thumbnail -->
-                                            <Image Source="{Binding FirstFilePath, Converter={StaticResource MiniPreview}}"
+                                            <Image x:Name="ThumbImg"
+                                                   Source="{Binding FirstFilePath, Converter={StaticResource MiniPreview}}"
                                                    Width="60" Height="60" Stretch="Uniform"
-                                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                                   RenderOptions.BitmapScalingMode="LowQuality"
                                                    Margin="0,0,8,0">
                                                 <Image.Style>
                                                     <Style TargetType="Image">
@@ -296,7 +301,7 @@
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed" />
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding FirstFilePath, Converter={StaticResource MiniPreview}}" Value="{x:Null}">
+                                                            <DataTrigger Binding="{Binding Source, ElementName=ThumbImg}" Value="{x:Null}">
                                                                 <Setter Property="Visibility" Value="Visible" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
@@ -344,10 +349,21 @@
             </GroupBox>
             </Grid>
 
-            <!-- Row 3: Status Bar -->
+            <!-- Row 3: Status Bar + Resource Monitor -->
             <Border Grid.Row="3" Background="#F5F5F5" Padding="8,4" Margin="0,8,0,0"
                     CornerRadius="4">
-                <TextBlock Text="{Binding StatusMessage}" Foreground="#666666" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" Foreground="#666666" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <TextBlock Text="{Binding ResourceMemory}" Foreground="#1565C0" FontSize="11" Margin="0,0,12,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ResourceCpu}" Foreground="#E65100" FontSize="11" Margin="0,0,12,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ResourceThreads}" Foreground="#666666" FontSize="11" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
             </Border>
         </Grid>
 

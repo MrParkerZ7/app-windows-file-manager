@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
@@ -11,15 +12,18 @@ using System.Windows.Media.Imaging;
 namespace WindowsFileManager.Helpers;
 
 /// <summary>
-/// Converts a file path to a thumbnail image.
+/// Converts a file path to a thumbnail image with caching.
 /// Images: direct BitmapImage (fast, reliable).
 /// Video/other: Windows Shell IShellItemImageFactory for real thumbnails.
-/// Based on pinvoke.net and ShellThumbs patterns.
+/// Results are cached to avoid re-computation on scroll.
 /// </summary>
 [ExcludeFromCodeCoverage]
 [ValueConversion(typeof(string), typeof(ImageSource))]
 public class MiniPreviewConverter : IValueConverter
 {
+    // Cache: file path → thumbnail (null entry = tried and failed)
+    private static readonly ConcurrentDictionary<string, ImageSource?> ThumbnailCache = new();
+
     private static readonly HashSet<string> DirectLoadExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".jpg", ".jpeg", ".jif", ".jfif", ".jpe",
@@ -31,6 +35,11 @@ public class MiniPreviewConverter : IValueConverter
     // IShellItem GUID — this is what SHCreateItemFromParsingName returns
     private static readonly Guid ShellItemGuid = new("43826d1e-e718-42ee-bc55-a1e261c37bfe");
 
+    /// <summary>
+    /// Clears the thumbnail cache (call after a new scan).
+    /// </summary>
+    public static void ClearCache() => ThumbnailCache.Clear();
+
     /// <inheritdoc/>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
@@ -39,16 +48,29 @@ public class MiniPreviewConverter : IValueConverter
             return null;
         }
 
+        // Check cache first
+        if (ThumbnailCache.TryGetValue(filePath, out var cached))
+        {
+            return cached;
+        }
+
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
+
+        ImageSource? result;
 
         // For native image formats, load directly — fast and reliable
         if (DirectLoadExtensions.Contains(ext))
         {
-            return LoadBitmapThumbnail(filePath);
+            result = LoadBitmapThumbnail(filePath);
+        }
+        else
+        {
+            // For everything else (video, docs, etc.), try Shell thumbnail
+            result = GetShellThumbnail(filePath);
         }
 
-        // For everything else (video, docs, etc.), try Shell thumbnail
-        return GetShellThumbnail(filePath);
+        ThumbnailCache[filePath] = result;
+        return result;
     }
 
     /// <inheritdoc/>

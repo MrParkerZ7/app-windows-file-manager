@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using WindowsFileManager.Application.Services;
 using WindowsFileManager.Core.Models;
 using WindowsFileManager.Core.Services;
@@ -46,6 +48,13 @@ public class MainViewModel : ViewModelBase
     private bool _isAutoPlay;
     private bool _isMiniPreview = true;
     private double _mediaVolume = 0.5;
+    private string _resourceMemory = string.Empty;
+    private string _resourceCpu = string.Empty;
+    private string _resourceThreads = string.Empty;
+    private readonly DispatcherTimer _resourceTimer;
+    private readonly Process _currentProcess;
+    private TimeSpan _lastCpuTime;
+    private DateTime _lastCheckTime;
     private DuplicateGroup? _selectedDuplicateGroup;
     private string _selectedSortOption = "Size (largest)";
     private int _minDuplicateCount = 2;
@@ -189,6 +198,16 @@ public class MainViewModel : ViewModelBase
         FilteredDuplicateGroups.Filter = FilterDuplicateGroup;
 
         LoadSettings();
+
+        // Resource monitor
+        _currentProcess = Process.GetCurrentProcess();
+        _lastCpuTime = _currentProcess.TotalProcessorTime;
+        _lastCheckTime = DateTime.UtcNow;
+        UpdateResourceInfo();
+
+        _resourceTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _resourceTimer.Tick += (_, _) => UpdateResourceInfo();
+        _resourceTimer.Start();
     }
 
     /// <summary>
@@ -440,6 +459,33 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Gets or sets the memory usage display.
+    /// </summary>
+    public string ResourceMemory
+    {
+        get => _resourceMemory;
+        set => SetProperty(ref _resourceMemory, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the CPU usage display.
+    /// </summary>
+    public string ResourceCpu
+    {
+        get => _resourceCpu;
+        set => SetProperty(ref _resourceCpu, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the thread count display.
+    /// </summary>
+    public string ResourceThreads
+    {
+        get => _resourceThreads;
+        set => SetProperty(ref _resourceThreads, value);
+    }
+
+    /// <summary>
     /// Gets the sort options list.
     /// </summary>
     public List<string> SortOptions => SortOptionsList;
@@ -577,6 +623,7 @@ public class MainViewModel : ViewModelBase
         IsScanning = true;
         FilesScanned = 0;
         DuplicateGroups.Clear();
+        MiniPreviewConverter.ClearCache();
         Analytics = null;
         StatusMessage = "Scanning...";
 
@@ -1150,6 +1197,42 @@ public class MainViewModel : ViewModelBase
         PreviewText = null;
         PreviewFileName = null;
         PreviewFileSize = null;
+    }
+
+    private void UpdateResourceInfo()
+    {
+        try
+        {
+            _currentProcess.Refresh();
+
+            // Memory
+            var memMb = _currentProcess.WorkingSet64 / (1024.0 * 1024.0);
+            ResourceMemory = memMb < 1024
+                ? $"RAM: {memMb:F0} MB"
+                : $"RAM: {memMb / 1024.0:F1} GB";
+
+            // CPU (calculate since last check)
+            var now = DateTime.UtcNow;
+            var cpuTime = _currentProcess.TotalProcessorTime;
+            var elapsed = (now - _lastCheckTime).TotalMilliseconds;
+
+            if (elapsed > 0)
+            {
+                var cpuUsed = (cpuTime - _lastCpuTime).TotalMilliseconds;
+                var cpuPercent = cpuUsed / (Environment.ProcessorCount * elapsed) * 100.0;
+                ResourceCpu = $"CPU: {cpuPercent:F1}%";
+            }
+
+            _lastCpuTime = cpuTime;
+            _lastCheckTime = now;
+
+            // Threads
+            ResourceThreads = $"Threads: {_currentProcess.Threads.Count}";
+        }
+        catch
+        {
+            // Process may have been disposed
+        }
     }
 
     private static DuplicateScannerService CreateDefaultScanner()
