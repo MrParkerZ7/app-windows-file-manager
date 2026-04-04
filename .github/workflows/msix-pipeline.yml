@@ -76,27 +76,61 @@ jobs:
           --collect:"XPlat Code Coverage"
           --settings tests/WindowsFileManager.Tests/coverlet.runsettings
 
-      - name: Publish self-contained MSIX
+      - name: Publish self-contained
         run: >
           dotnet publish ${{ env.APP_PROJECT }}
           -c Release
           -r ${{ env.RUNTIME_ID }}
           --self-contained true
-          -p:WindowsPackageType=MSIX
-          -p:AppxPackageSigningEnabled=false
-          -p:GenerateAppxPackageOnBuild=true
+          -o publish-output
 
-      - name: Find MSIX package
-        id: find-msix
+      - name: Prepare MSIX layout
         shell: pwsh
         run: |
-          $msix = Get-ChildItem -Path . -Filter "*.msix" -Recurse | Select-Object -First 1
-          if (-not $msix) {
-            Write-Error "No .msix file found after publish"
+          $layout = "msix-layout"
+          New-Item -ItemType Directory -Path $layout -Force | Out-Null
+
+          # Copy published binaries
+          Copy-Item -Path "publish-output\*" -Destination $layout -Recurse -Force
+
+          # Copy AppxManifest
+          Copy-Item -Path "src\WindowsFileManager\Package.appxmanifest" -Destination "$layout\AppxManifest.xml" -Force
+
+          # Copy Assets
+          $assetsDir = "$layout\Assets"
+          New-Item -ItemType Directory -Path $assetsDir -Force | Out-Null
+          Copy-Item -Path "src\WindowsFileManager\Assets\*.png" -Destination $assetsDir -Force
+
+          Write-Host "MSIX layout contents:"
+          Get-ChildItem -Path $layout -Recurse | Select-Object FullName
+
+      - name: Create MSIX package with MakeAppx
+        shell: pwsh
+        run: |
+          # Find MakeAppx.exe from Windows SDK
+          $makeappx = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" `
+            -Filter "makeappx.exe" -Recurse `
+            | Where-Object { $_.FullName -like "*\x64\*" } `
+            | Sort-Object FullName -Descending `
+            | Select-Object -First 1
+
+          if (-not $makeappx) {
+            Write-Error "makeappx.exe not found in Windows SDK"
             exit 1
           }
-          Write-Host "Found MSIX: $($msix.FullName)"
-          echo "MSIX_PATH=$($msix.FullName)" >> $env:GITHUB_OUTPUT
+          Write-Host "Using MakeAppx: $($makeappx.FullName)"
+
+          $msixPath = "output\${{ env.APP_NAME }}.msix"
+          New-Item -ItemType Directory -Path "output" -Force | Out-Null
+
+          & $makeappx.FullName pack /d "msix-layout" /p $msixPath /o
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "MakeAppx pack failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+          Write-Host "Created MSIX: $msixPath"
+          echo "MSIX_PATH=$msixPath" >> $env:GITHUB_OUTPUT
+        id: create-msix
 
       - name: Decode signing certificate
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -123,7 +157,7 @@ jobs:
             /tr http://timestamp.digicert.com /td SHA256 `
             /f "${{ runner.temp }}\certificate.pfx" `
             /p "${{ secrets.CERTIFICATE_PASSWORD }}" `
-            "${{ steps.find-msix.outputs.MSIX_PATH }}"
+            "${{ steps.create-msix.outputs.MSIX_PATH }}"
 
       - name: Clean up certificate
         if: always()
@@ -134,7 +168,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: msix-package
-          path: ${{ steps.find-msix.outputs.MSIX_PATH }}
+          path: ${{ steps.create-msix.outputs.MSIX_PATH }}
 
   # ═══════════════════════════════════════════════════════
   # Job 3: WACK Validation
