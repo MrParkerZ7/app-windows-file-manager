@@ -1,10 +1,33 @@
+using System.ComponentModel;
+
 namespace WindowsFileManager.Core.Models;
 
 /// <summary>
 /// Represents a file discovered during scanning.
 /// </summary>
-public class ScannedFile
+public class ScannedFile : INotifyPropertyChanged
 {
+    private bool _isFileSelected;
+
+    /// <inheritdoc/>
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this file is selected for bulk actions.
+    /// </summary>
+    public bool IsFileSelected
+    {
+        get => _isFileSelected;
+        set
+        {
+            if (_isFileSelected != value)
+            {
+                _isFileSelected = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsFileSelected)));
+            }
+        }
+    }
+
     /// <summary>
     /// Gets or sets the full path to the file.
     /// </summary>
@@ -38,6 +61,7 @@ public class ScannedFile
     /// <summary>
     /// Formats a byte count into a human-readable size string.
     /// </summary>
+    /// <returns></returns>
     public static string FormatFileSize(long bytes)
     {
         if (bytes < 1024)
