@@ -266,33 +266,78 @@
                         <!-- Expandable action panel -->
                         <StackPanel Margin="0,6,0,0"
                                     Visibility="{Binding IsActionsVisible, Converter={StaticResource BoolToVisibility}}">
-                            <!-- Action buttons -->
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                <Button Content="🗑 Keep Newest" Command="{Binding BulkDeleteKeepNewestCommand}"
-                                        Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                        ToolTip="Delete older duplicates, keep the newest file in each group" />
-                                <Button Content="🗑 Keep Oldest" Command="{Binding BulkDeleteKeepOldestCommand}"
-                                        Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                        ToolTip="Delete newer duplicates, keep the oldest file in each group" />
-                                <Button Content="🗑 Delete All" Command="{Binding BulkDeleteAllCommand}"
-                                        Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                        Foreground="#C62828"
-                                        ToolTip="Delete every file in selected groups" />
-                            </StackPanel>
 
-                            <!-- Move to path -->
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Move to:" FontSize="11" VerticalAlignment="Center"
-                                           Foreground="#555555" Margin="0,0,6,0" />
-                                <TextBox Text="{Binding MoveTargetPath, UpdateSourceTrigger=PropertyChanged}"
-                                         Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
-                                <Button Content="Browse..." Command="{Binding BrowseMoveTargetCommand}"
-                                        Padding="6,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand" />
-                                <Button Content="📁 Move Selected" Command="{Binding BulkMoveToCommand}"
-                                        Padding="8,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
-                                        Foreground="#1565C0"
-                                        ToolTip="Move all files in selected groups to the target folder" />
-                            </StackPanel>
+                            <!-- DELETE section -->
+                            <Border Background="#FFEBEE" CornerRadius="3" Padding="8,6" Margin="0,0,0,6">
+                                <StackPanel>
+                                    <TextBlock Text="DELETE" FontSize="10" FontWeight="Bold" Foreground="#C62828"
+                                               Margin="0,0,0,4" />
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="🗑 Keep Newest" Command="{Binding BulkDeleteKeepNewestCommand}"
+                                                Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
+                                                ToolTip="Delete older duplicates, keep the newest file in each group" />
+                                        <Button Content="🗑 Keep Oldest" Command="{Binding BulkDeleteKeepOldestCommand}"
+                                                Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
+                                                ToolTip="Delete newer duplicates, keep the oldest file in each group" />
+                                        <Button Content="🗑 Delete All" Command="{Binding BulkDeleteAllCommand}"
+                                                Padding="8,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
+                                                Foreground="#C62828"
+                                                ToolTip="Delete every file in selected groups" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- MOVE section -->
+                            <Border Background="#E3F2FD" CornerRadius="3" Padding="8,6">
+                                <StackPanel>
+                                    <TextBlock Text="MOVE" FontSize="10" FontWeight="Bold" Foreground="#1565C0"
+                                               Margin="0,0,0,4" />
+
+                                    <!-- Target path row -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <TextBlock Text="Target:" FontSize="11" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" Foreground="#1565C0" Margin="0,0,6,0" />
+                                        <TextBox Text="{Binding MoveTargetPath, UpdateSourceTrigger=PropertyChanged}"
+                                                 Width="260" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
+                                        <Button Content="Browse..." Command="{Binding BrowseMoveTargetCommand}"
+                                                Padding="6,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand" />
+                                    </StackPanel>
+
+                                    <!-- Move action buttons -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                        <Button Content="📁 Move All" Command="{Binding BulkMoveToCommand}"
+                                                Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
+                                                Foreground="#1565C0"
+                                                ToolTip="Move all files in selected groups to the target folder" />
+                                        <Button Content="📁 Move Oldest" Command="{Binding BulkMoveOldestCommand}"
+                                                Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
+                                                Foreground="#1565C0"
+                                                ToolTip="Move older duplicates, keep the newest file in each group" />
+                                        <Button Content="📁 Move Newest" Command="{Binding BulkMoveNewestCommand}"
+                                                Padding="8,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
+                                                Foreground="#1565C0"
+                                                ToolTip="Move newer duplicates, keep the oldest file in each group" />
+                                    </StackPanel>
+
+                                    <!-- Filter-based move -->
+                                    <Border BorderBrush="#BBDEFB" BorderThickness="0,1,0,0" Padding="0,6,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Name contain:" FontSize="11" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center" Foreground="#1565C0" Margin="0,0,6,0" />
+                                            <TextBox Text="{Binding MoveFilterText, UpdateSourceTrigger=PropertyChanged}"
+                                                     Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
+                                            <Button Content="📁 by Filename" Command="{Binding BulkMoveByFilenameCommand}"
+                                                    Padding="8,3" Margin="4,0,4,0" FontSize="11" Cursor="Hand"
+                                                    Foreground="#1565C0"
+                                                    ToolTip="Move files whose filename contains the filter text" />
+                                            <Button Content="📁 by Path" Command="{Binding BulkMoveByPathCommand}"
+                                                    Padding="8,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
+                                                    Foreground="#1565C0"
+                                                    ToolTip="Move files whose full path contains the filter text" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </StackPanel>
                 </Border>

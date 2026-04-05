@@ -44,4 +44,9 @@ public class AppSettings
     /// Gets or sets the volume level (0.0 to 1.0).
     /// </summary>
     public double Volume { get; set; } = 0.5;
+
+    /// <summary>
+    /// Gets or sets the move target path.
+    /// </summary>
+    public string MoveTargetPath { get; set; } = string.Empty;
 }

@@ -54,6 +54,7 @@ public class MainViewModel : ViewModelBase
     private int _selectedGroupCount;
     private bool _isSelectAll;
     private string _moveTargetPath = string.Empty;
+    private string _moveFilterText = string.Empty;
     private bool _isActionsVisible;
     private readonly DispatcherTimer _resourceTimer;
     private readonly Process _currentProcess;
@@ -501,6 +502,10 @@ public class MainViewModel : ViewModelBase
         BulkDeleteKeepOldestCommand = new RelayCommand(_ => BulkDeleteKeepOldest(), _ => SelectedGroupCount > 0);
         BulkDeleteAllCommand = new RelayCommand(_ => BulkDeleteAll(), _ => SelectedGroupCount > 0);
         BulkMoveToCommand = new RelayCommand(_ => BulkMoveTo(), _ => SelectedGroupCount > 0);
+        BulkMoveOldestCommand = new RelayCommand(_ => BulkMoveOldest(), _ => SelectedGroupCount > 0);
+        BulkMoveNewestCommand = new RelayCommand(_ => BulkMoveNewest(), _ => SelectedGroupCount > 0);
+        BulkMoveByFilenameCommand = new RelayCommand(_ => BulkMoveByFilename(), _ => SelectedGroupCount > 0);
+        BulkMoveByPathCommand = new RelayCommand(_ => BulkMoveByPath(), _ => SelectedGroupCount > 0);
         BrowseMoveTargetCommand = new RelayCommand(_ => BrowseMoveTarget());
 
         FilteredDuplicateGroups = CollectionViewSource.GetDefaultView(DuplicateGroups);
@@ -860,8 +865,29 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the bulk move to command.</summary>
     public ICommand BulkMoveToCommand { get; }
 
+    /// <summary>Gets the bulk move oldest files command.</summary>
+    public ICommand BulkMoveOldestCommand { get; }
+
+    /// <summary>Gets the bulk move newest files command.</summary>
+    public ICommand BulkMoveNewestCommand { get; }
+
+    /// <summary>Gets the bulk move by filename contains command.</summary>
+    public ICommand BulkMoveByFilenameCommand { get; }
+
+    /// <summary>Gets the bulk move by path contains command.</summary>
+    public ICommand BulkMoveByPathCommand { get; }
+
     /// <summary>Gets the browse move target command.</summary>
     public ICommand BrowseMoveTargetCommand { get; }
+
+    /// <summary>
+    /// Gets or sets the move filter text for filename/path contains filtering.
+    /// </summary>
+    public string MoveFilterText
+    {
+        get => _moveFilterText;
+        set => SetProperty(ref _moveFilterText, value);
+    }
 
     /// <summary>
     /// Gets the sort options list.
@@ -975,6 +1001,7 @@ public class MainViewModel : ViewModelBase
             IsAutoPlay = IsAutoPlay,
             SelectedSortOption = SelectedSortOption,
             Volume = MediaVolume,
+            MoveTargetPath = MoveTargetPath,
         };
         _settingsService.Save(settings);
     }
@@ -988,6 +1015,7 @@ public class MainViewModel : ViewModelBase
         IsAutoPlay = settings.IsAutoPlay;
         SelectedSortOption = settings.SelectedSortOption;
         MediaVolume = settings.Volume;
+        MoveTargetPath = settings.MoveTargetPath;
         foreach (var path in settings.TargetPaths)
         {
             TargetPaths.Add(path);
@@ -1739,17 +1767,9 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        if (!Directory.Exists(MoveTargetPath))
+        if (!EnsureMoveTargetDirectory())
         {
-            try
-            {
-                Directory.CreateDirectory(MoveTargetPath);
-            }
-            catch (Exception ex)
-            {
-                StatusMessage = $"Cannot create target folder: {ex.Message}";
-                return;
-            }
+            return;
         }
 
         var totalFiles = groups.Sum(g => g.Count);
@@ -1771,22 +1791,11 @@ public class MainViewModel : ViewModelBase
         {
             foreach (var file in group.Files.ToList())
             {
-                try
+                if (MoveFileToTarget(file.FilePath))
                 {
-                    var destPath = Path.Combine(MoveTargetPath, Path.GetFileName(file.FilePath));
-
-                    // Handle name collision
-                    if (File.Exists(destPath))
-                    {
-                        var name = Path.GetFileNameWithoutExtension(file.FilePath);
-                        var ext = Path.GetExtension(file.FilePath);
-                        destPath = Path.Combine(MoveTargetPath, $"{name}_{DateTime.Now:HHmmss}{ext}");
-                    }
-
-                    File.Move(file.FilePath, destPath);
                     moved++;
                 }
-                catch
+                else
                 {
                     failed++;
                 }
@@ -1809,6 +1818,283 @@ public class MainViewModel : ViewModelBase
         if (dialog.ShowDialog() == true)
         {
             MoveTargetPath = dialog.FolderName;
+        }
+    }
+
+    private void BulkMoveOldest()
+    {
+        var groups = SelectedGroups.ToList();
+        if (groups.Count == 0 || string.IsNullOrWhiteSpace(MoveTargetPath))
+        {
+            return;
+        }
+
+        if (!EnsureMoveTargetDirectory())
+        {
+            return;
+        }
+
+        var totalFiles = groups.Sum(g => g.Count - 1);
+        var result = System.Windows.MessageBox.Show(
+            $"Move older duplicates from {groups.Count} groups to:\n{MoveTargetPath}\n" +
+            $"Will keep the newest file in each group.\n{totalFiles} files will be moved.",
+            "Confirm Move Oldest",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var moved = 0;
+        var failed = 0;
+
+        foreach (var group in groups)
+        {
+            var newest = group.Files.OrderByDescending(f => f.LastModified).First();
+            foreach (var file in group.Files.Where(f => f != newest).ToList())
+            {
+                if (MoveFileToTarget(file.FilePath))
+                {
+                    group.Files.Remove(file);
+                    moved++;
+                }
+                else
+                {
+                    failed++;
+                }
+            }
+
+            if (group.Files.Count <= 1)
+            {
+                DuplicateGroups.Remove(group);
+            }
+        }
+
+        ClosePreview();
+        StatusMessage = $"Move oldest: {moved} files moved to {MoveTargetPath}" + (failed > 0 ? $", {failed} failed" : string.Empty);
+    }
+
+    private void BulkMoveNewest()
+    {
+        var groups = SelectedGroups.ToList();
+        if (groups.Count == 0 || string.IsNullOrWhiteSpace(MoveTargetPath))
+        {
+            return;
+        }
+
+        if (!EnsureMoveTargetDirectory())
+        {
+            return;
+        }
+
+        var totalFiles = groups.Sum(g => g.Count - 1);
+        var result = System.Windows.MessageBox.Show(
+            $"Move newer duplicates from {groups.Count} groups to:\n{MoveTargetPath}\n" +
+            $"Will keep the oldest file in each group.\n{totalFiles} files will be moved.",
+            "Confirm Move Newest",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var moved = 0;
+        var failed = 0;
+
+        foreach (var group in groups)
+        {
+            var oldest = group.Files.OrderBy(f => f.LastModified).First();
+            foreach (var file in group.Files.Where(f => f != oldest).ToList())
+            {
+                if (MoveFileToTarget(file.FilePath))
+                {
+                    group.Files.Remove(file);
+                    moved++;
+                }
+                else
+                {
+                    failed++;
+                }
+            }
+
+            if (group.Files.Count <= 1)
+            {
+                DuplicateGroups.Remove(group);
+            }
+        }
+
+        ClosePreview();
+        StatusMessage = $"Move newest: {moved} files moved to {MoveTargetPath}" + (failed > 0 ? $", {failed} failed" : string.Empty);
+    }
+
+    private void BulkMoveByFilename()
+    {
+        var groups = SelectedGroups.ToList();
+        if (groups.Count == 0 || string.IsNullOrWhiteSpace(MoveTargetPath) || string.IsNullOrWhiteSpace(MoveFilterText))
+        {
+            StatusMessage = "Enter filter text and move target path first.";
+            return;
+        }
+
+        if (!EnsureMoveTargetDirectory())
+        {
+            return;
+        }
+
+        var filter = MoveFilterText.Trim();
+        var matchingFiles = groups
+            .SelectMany(g => g.Files.Select(f => new { Group = g, File = f }))
+            .Where(x => x.File.FileName.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (matchingFiles.Count == 0)
+        {
+            StatusMessage = $"No files with filename containing \"{filter}\" in selected groups.";
+            return;
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            $"Move {matchingFiles.Count} files with filename containing \"{filter}\" to:\n{MoveTargetPath}",
+            "Confirm Move by Filename",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var moved = 0;
+        var failed = 0;
+
+        foreach (var match in matchingFiles)
+        {
+            if (MoveFileToTarget(match.File.FilePath))
+            {
+                match.Group.Files.Remove(match.File);
+                moved++;
+            }
+            else
+            {
+                failed++;
+            }
+        }
+
+        // Remove empty groups
+        foreach (var group in groups.Where(g => g.Files.Count <= 1).ToList())
+        {
+            DuplicateGroups.Remove(group);
+        }
+
+        ClosePreview();
+        StatusMessage = $"Move by filename: {moved} files moved to {MoveTargetPath}" + (failed > 0 ? $", {failed} failed" : string.Empty);
+    }
+
+    private void BulkMoveByPath()
+    {
+        var groups = SelectedGroups.ToList();
+        if (groups.Count == 0 || string.IsNullOrWhiteSpace(MoveTargetPath) || string.IsNullOrWhiteSpace(MoveFilterText))
+        {
+            StatusMessage = "Enter filter text and move target path first.";
+            return;
+        }
+
+        if (!EnsureMoveTargetDirectory())
+        {
+            return;
+        }
+
+        var filter = MoveFilterText.Trim();
+        var matchingFiles = groups
+            .SelectMany(g => g.Files.Select(f => new { Group = g, File = f }))
+            .Where(x => x.File.FilePath.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (matchingFiles.Count == 0)
+        {
+            StatusMessage = $"No files with path containing \"{filter}\" in selected groups.";
+            return;
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            $"Move {matchingFiles.Count} files with path containing \"{filter}\" to:\n{MoveTargetPath}",
+            "Confirm Move by Path",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var moved = 0;
+        var failed = 0;
+
+        foreach (var match in matchingFiles)
+        {
+            if (MoveFileToTarget(match.File.FilePath))
+            {
+                match.Group.Files.Remove(match.File);
+                moved++;
+            }
+            else
+            {
+                failed++;
+            }
+        }
+
+        // Remove empty groups
+        foreach (var group in groups.Where(g => g.Files.Count <= 1).ToList())
+        {
+            DuplicateGroups.Remove(group);
+        }
+
+        ClosePreview();
+        StatusMessage = $"Move by path: {moved} files moved to {MoveTargetPath}" + (failed > 0 ? $", {failed} failed" : string.Empty);
+    }
+
+    private bool EnsureMoveTargetDirectory()
+    {
+        if (Directory.Exists(MoveTargetPath))
+        {
+            return true;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(MoveTargetPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Cannot create target folder: {ex.Message}";
+            return false;
+        }
+    }
+
+    private bool MoveFileToTarget(string sourcePath)
+    {
+        try
+        {
+            var destPath = Path.Combine(MoveTargetPath, Path.GetFileName(sourcePath));
+
+            if (File.Exists(destPath))
+            {
+                var name = Path.GetFileNameWithoutExtension(sourcePath);
+                var ext = Path.GetExtension(sourcePath);
+                destPath = Path.Combine(MoveTargetPath, $"{name}_{DateTime.Now:HHmmss}{ext}");
+            }
+
+            File.Move(sourcePath, destPath);
+            return true;
+        }
+        catch
+        {
+            return false;
         }
     }
 
