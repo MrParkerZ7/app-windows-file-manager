@@ -120,7 +120,7 @@
                               VerticalAlignment="Center" Margin="16,0,0,0"
                               ToolTip="Show inline thumbnail in the duplicate list" />
 
-                    <CheckBox Content="Preview"
+                    <CheckBox Content="File Preview"
                               IsChecked="{Binding IsAutoPreview}"
                               VerticalAlignment="Center" Margin="12,0,0,0"
                               ToolTip="Show full file preview panel when clicking a group" />

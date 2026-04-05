@@ -13,7 +13,7 @@ public class DuplicateGroup : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>
-    /// Gets or sets whether this group is selected for bulk actions.
+    /// Gets or sets a value indicating whether this group is selected for bulk actions.
     /// </summary>
     public bool IsSelected
     {

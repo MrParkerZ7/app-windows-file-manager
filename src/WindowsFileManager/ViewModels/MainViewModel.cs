@@ -79,95 +79,394 @@ public class MainViewModel : ViewModelBase
 
     private static readonly HashSet<string> ImageExtensions =
     [
+
         // Common raster
-        ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".tif", ".ico", ".webp",
-        ".jfif", ".jif", ".jpe", ".dib", ".wdp", ".hdp", ".jxr",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".bmp",
+        ".gif",
+        ".tiff",
+        ".tif",
+        ".ico",
+        ".webp",
+        ".jfif",
+        ".jif",
+        ".jpe",
+        ".dib",
+        ".wdp",
+        ".hdp",
+        ".jxr",
+
         // Raw camera
-        ".raw", ".cr2", ".cr3", ".nef", ".arw", ".dng", ".orf", ".rw2", ".pef", ".srw", ".raf",
+        ".raw",
+        ".cr2",
+        ".cr3",
+        ".nef",
+        ".arw",
+        ".dng",
+        ".orf",
+        ".rw2",
+        ".pef",
+        ".srw",
+        ".raf",
+
         // Vector / design
-        ".svg", ".svgz",
+        ".svg",
+        ".svgz",
+
         // Other
-        ".heic", ".heif", ".avif", ".tga", ".pcx", ".pbm", ".pgm", ".ppm", ".pnm",
-        ".exr", ".hdr", ".cur", ".ani",
+        ".heic",
+        ".heif",
+        ".avif",
+        ".tga",
+        ".pcx",
+        ".pbm",
+        ".pgm",
+        ".ppm",
+        ".pnm",
+        ".exr",
+        ".hdr",
+        ".cur",
+        ".ani",
     ];
 
     private static readonly HashSet<string> VideoExtensions =
     [
+
         // Common
-        ".mp4", ".avi", ".mkv", ".wmv", ".mov", ".flv", ".webm", ".m4v", ".mpg", ".mpeg",
+        ".mp4",
+        ".avi",
+        ".mkv",
+        ".wmv",
+        ".mov",
+        ".flv",
+        ".webm",
+        ".m4v",
+        ".mpg",
+        ".mpeg",
+
         // Extended
-        ".3gp", ".3g2", ".ts", ".mts", ".m2ts", ".vob", ".ogv", ".divx", ".xvid",
-        ".asf", ".rm", ".rmvb", ".f4v", ".swf", ".amv", ".mxf", ".dv",
-        ".m2v", ".m4p", ".mp2", ".mpe", ".mpv",
+        ".3gp",
+        ".3g2",
+        ".ts",
+        ".mts",
+        ".m2ts",
+        ".vob",
+        ".ogv",
+        ".divx",
+        ".xvid",
+        ".asf",
+        ".rm",
+        ".rmvb",
+        ".f4v",
+        ".swf",
+        ".amv",
+        ".mxf",
+        ".dv",
+        ".m2v",
+        ".m4p",
+        ".mp2",
+        ".mpe",
+        ".mpv",
     ];
 
     private static readonly HashSet<string> AudioExtensions =
     [
+
         // Common
-        ".mp3", ".wav", ".flac", ".aac", ".ogg", ".wma", ".m4a", ".opus",
+        ".mp3",
+        ".wav",
+        ".flac",
+        ".aac",
+        ".ogg",
+        ".wma",
+        ".m4a",
+        ".opus",
+
         // Extended
-        ".aiff", ".aif", ".aifc", ".alac", ".ape", ".dsf", ".dff",
-        ".mid", ".midi", ".kar", ".mka", ".oga", ".pcm", ".ra", ".ram",
-        ".wv", ".ac3", ".dts", ".amr", ".awb", ".au", ".snd",
-        ".caf", ".tak", ".tta", ".shn", ".spx", ".gsm",
-        ".mp2", ".mpa", ".m3u", ".m3u8", ".pls", ".wpl", ".cue",
+        ".aiff",
+        ".aif",
+        ".aifc",
+        ".alac",
+        ".ape",
+        ".dsf",
+        ".dff",
+        ".mid",
+        ".midi",
+        ".kar",
+        ".mka",
+        ".oga",
+        ".pcm",
+        ".ra",
+        ".ram",
+        ".wv",
+        ".ac3",
+        ".dts",
+        ".amr",
+        ".awb",
+        ".au",
+        ".snd",
+        ".caf",
+        ".tak",
+        ".tta",
+        ".shn",
+        ".spx",
+        ".gsm",
+        ".mp2",
+        ".mpa",
+        ".m3u",
+        ".m3u8",
+        ".pls",
+        ".wpl",
+        ".cue",
     ];
 
     private static readonly HashSet<string> TextExtensions =
     [
+
         // Plain text / data
-        ".txt", ".log", ".csv", ".tsv", ".tab", ".json", ".jsonl", ".json5",
-        ".xml", ".xsl", ".xslt", ".xsd", ".dtd",
-        ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".config", ".properties",
-        ".env", ".env.local", ".env.example", ".editorconfig", ".gitignore", ".gitattributes",
-        ".dockerignore", ".npmrc", ".nvmrc", ".eslintrc", ".prettierrc", ".babelrc",
+        ".txt",
+        ".log",
+        ".csv",
+        ".tsv",
+        ".tab",
+        ".json",
+        ".jsonl",
+        ".json5",
+        ".xml",
+        ".xsl",
+        ".xslt",
+        ".xsd",
+        ".dtd",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".ini",
+        ".cfg",
+        ".conf",
+        ".config",
+        ".properties",
+        ".env",
+        ".env.local",
+        ".env.example",
+        ".editorconfig",
+        ".gitignore",
+        ".gitattributes",
+        ".dockerignore",
+        ".npmrc",
+        ".nvmrc",
+        ".eslintrc",
+        ".prettierrc",
+        ".babelrc",
+
         // Markdown / docs
-        ".md", ".mdx", ".rst", ".tex", ".latex", ".bib", ".adoc", ".asciidoc", ".textile", ".wiki",
-        ".nfo", ".diz", ".ans",
+        ".md",
+        ".mdx",
+        ".rst",
+        ".tex",
+        ".latex",
+        ".bib",
+        ".adoc",
+        ".asciidoc",
+        ".textile",
+        ".wiki",
+        ".nfo",
+        ".diz",
+        ".ans",
+
         // C / C++ / Obj-C
-        ".c", ".h", ".cpp", ".cxx", ".cc", ".hpp", ".hxx", ".hh", ".m", ".mm",
+        ".c",
+        ".h",
+        ".cpp",
+        ".cxx",
+        ".cc",
+        ".hpp",
+        ".hxx",
+        ".hh",
+        ".m",
+        ".mm",
+
         // C# / .NET
-        ".cs", ".csx", ".fs", ".fsx", ".fsi", ".vb", ".xaml", ".cshtml", ".razor", ".csproj", ".sln",
-        ".props", ".targets", ".resx", ".designer.cs",
+        ".cs",
+        ".csx",
+        ".fs",
+        ".fsx",
+        ".fsi",
+        ".vb",
+        ".xaml",
+        ".cshtml",
+        ".razor",
+        ".csproj",
+        ".sln",
+        ".props",
+        ".targets",
+        ".resx",
+        ".designer.cs",
+
         // Java / JVM
-        ".java", ".kt", ".kts", ".groovy", ".gradle", ".scala", ".clj", ".cljs", ".edn",
+        ".java",
+        ".kt",
+        ".kts",
+        ".groovy",
+        ".gradle",
+        ".scala",
+        ".clj",
+        ".cljs",
+        ".edn",
+
         // JavaScript / TypeScript / Web
-        ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte", ".astro",
-        ".html", ".htm", ".xhtml", ".css", ".scss", ".sass", ".less", ".styl", ".stylus",
+        ".js",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".mjs",
+        ".cjs",
+        ".vue",
+        ".svelte",
+        ".astro",
+        ".html",
+        ".htm",
+        ".xhtml",
+        ".css",
+        ".scss",
+        ".sass",
+        ".less",
+        ".styl",
+        ".stylus",
+
         // Python
-        ".py", ".pyw", ".pyi", ".pyx", ".pxd", ".pxi", ".pyproj", ".pip", ".pipfile",
+        ".py",
+        ".pyw",
+        ".pyi",
+        ".pyx",
+        ".pxd",
+        ".pxi",
+        ".pyproj",
+        ".pip",
+        ".pipfile",
+
         // Ruby
-        ".rb", ".erb", ".rake", ".gemspec", ".gemfile",
+        ".rb",
+        ".erb",
+        ".rake",
+        ".gemspec",
+        ".gemfile",
+
         // PHP
-        ".php", ".phtml", ".php3", ".php4", ".php5", ".phps", ".blade.php",
+        ".php",
+        ".phtml",
+        ".php3",
+        ".php4",
+        ".php5",
+        ".phps",
+        ".blade.php",
+
         // Go
-        ".go", ".mod", ".sum",
+        ".go",
+        ".mod",
+        ".sum",
+
         // Rust
-        ".rs", ".toml",
+        ".rs",
+        ".toml",
+
         // Swift / Kotlin
-        ".swift", ".playground",
+        ".swift",
+        ".playground",
+
         // Shell / scripting
-        ".sh", ".bash", ".zsh", ".fish", ".ksh", ".csh", ".tcsh",
-        ".bat", ".cmd", ".ps1", ".psm1", ".psd1",
-        ".awk", ".sed",
+        ".sh",
+        ".bash",
+        ".zsh",
+        ".fish",
+        ".ksh",
+        ".csh",
+        ".tcsh",
+        ".bat",
+        ".cmd",
+        ".ps1",
+        ".psm1",
+        ".psd1",
+        ".awk",
+        ".sed",
+
         // SQL / DB
-        ".sql", ".plsql", ".pgsql", ".mysql", ".sqlite", ".ddl", ".dml",
+        ".sql",
+        ".plsql",
+        ".pgsql",
+        ".mysql",
+        ".sqlite",
+        ".ddl",
+        ".dml",
+
         // Functional / academic
-        ".hs", ".lhs", ".erl", ".hrl", ".ex", ".exs", ".elm", ".ml", ".mli", ".ocaml",
-        ".lisp", ".cl", ".el", ".scm", ".rkt",
+        ".hs",
+        ".lhs",
+        ".erl",
+        ".hrl",
+        ".ex",
+        ".exs",
+        ".elm",
+        ".ml",
+        ".mli",
+        ".ocaml",
+        ".lisp",
+        ".cl",
+        ".el",
+        ".scm",
+        ".rkt",
+
         // Lua / Perl / R / Julia / Dart
-        ".lua", ".pl", ".pm", ".t", ".r", ".rmd", ".jl", ".dart",
+        ".lua",
+        ".pl",
+        ".pm",
+        ".t",
+        ".r",
+        ".rmd",
+        ".jl",
+        ".dart",
+
         // DevOps / config
-        ".tf", ".tfvars", ".hcl", ".vagrant", ".ansible",
-        ".dockerfile", ".makefile", ".cmake", ".ninja",
+        ".tf",
+        ".tfvars",
+        ".hcl",
+        ".vagrant",
+        ".ansible",
+        ".dockerfile",
+        ".makefile",
+        ".cmake",
+        ".ninja",
+
         // Data / serialization
-        ".proto", ".thrift", ".avsc", ".graphql", ".gql",
-        ".csv", ".ics", ".vcf", ".ldif",
+        ".proto",
+        ".thrift",
+        ".avsc",
+        ".graphql",
+        ".gql",
+        ".csv",
+        ".ics",
+        ".vcf",
+        ".ldif",
+
         // Assembly / low-level
-        ".asm", ".s", ".nasm", ".masm",
+        ".asm",
+        ".s",
+        ".nasm",
+        ".masm",
+
         // Misc dev
-        ".diff", ".patch", ".reg", ".inf", ".manifest",
-        ".srt", ".sub", ".ssa", ".ass", ".vtt", ".lrc",
+        ".diff",
+        ".patch",
+        ".reg",
+        ".inf",
+        ".manifest",
+        ".srt",
+        ".sub",
+        ".ssa",
+        ".ass",
+        ".vtt",
+        ".lrc",
     ];
 
     /// <summary>
@@ -379,7 +678,7 @@ public class MainViewModel : ViewModelBase
     public List<string> SizeUnits { get; } = new() { "B", "KB", "MB", "GB" };
 
     /// <summary>
-    /// Gets or sets whether the filter panel is visible.
+    /// Gets or sets a value indicating whether the filter panel is visible.
     /// </summary>
     public bool IsFilterVisible
     {
@@ -433,7 +732,7 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Gets or sets whether preview is enabled on selection.
+    /// Gets or sets a value indicating whether preview is enabled on selection.
     /// </summary>
     public bool IsAutoPreview
     {
@@ -442,7 +741,7 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Gets or sets whether mini preview is shown in the list.
+    /// Gets or sets a value indicating whether mini preview is shown in the list.
     /// </summary>
     public bool IsMiniPreview
     {
@@ -451,7 +750,7 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Gets or sets whether video/audio auto-plays.
+    /// Gets or sets a value indicating whether video/audio auto-plays.
     /// </summary>
     public bool IsAutoPlay
     {
@@ -509,12 +808,12 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Gets whether any groups are selected.
+    /// Gets a value indicating whether any groups are selected.
     /// </summary>
     public bool HasSelectedGroups => SelectedGroupCount > 0;
 
     /// <summary>
-    /// Gets or sets select all state.
+    /// Gets or sets a value indicating whether select all is active.
     /// </summary>
     public bool IsSelectAll
     {
@@ -538,7 +837,7 @@ public class MainViewModel : ViewModelBase
         DuplicateGroups.Where(g => g.IsSelected).ToList();
 
     /// <summary>
-    /// Gets or sets whether the actions panel is expanded.
+    /// Gets or sets a value indicating whether the actions panel is expanded.
     /// </summary>
     public bool IsActionsVisible
     {
@@ -600,7 +899,7 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Gets or sets whether the preview panel is visible.
+    /// Gets or sets a value indicating whether the preview panel is visible.
     /// </summary>
     public bool IsPreviewVisible
     {
@@ -1042,18 +1341,23 @@ public class MainViewModel : ViewModelBase
     {
         // PDF
         ".pdf",
+
         // Microsoft Office
         ".doc", ".docx", ".docm", ".dot", ".dotx", ".dotm",
         ".xls", ".xlsx", ".xlsm", ".xlsb", ".xlt", ".xltx", ".xltm",
         ".ppt", ".pptx", ".pptm", ".pot", ".potx", ".potm", ".pps", ".ppsx",
         ".one", ".onetoc2", ".vsd", ".vsdx", ".pub", ".mpp",
         ".accdb", ".accde", ".mdb",
+
         // LibreOffice / OpenDocument
         ".odt", ".ods", ".odp", ".odg", ".odf", ".odb", ".odc",
+
         // Apple
         ".pages", ".numbers", ".keynote",
+
         // eBooks
         ".epub", ".mobi", ".azw", ".azw3", ".fb2", ".djvu", ".cbz", ".cbr",
+
         // Other docs
         ".rtf", ".wps", ".wpd", ".abw", ".xps", ".oxps",
     };
@@ -1270,6 +1574,7 @@ public class MainViewModel : ViewModelBase
     private void ClosePreview()
     {
         IsPreviewVisible = false;
+        IsAutoPreview = false;
         PreviewType = "none";
         PreviewImage = null;
         PreviewMediaUri = null;
