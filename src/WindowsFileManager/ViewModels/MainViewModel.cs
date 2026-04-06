@@ -58,6 +58,12 @@ public class MainViewModel : ViewModelBase
     private string _filepathFilterText = string.Empty;
     private bool _isFilepathRegex;
     private bool _isFilepathIgnoreCase = true;
+    private string _ignoreFilenameFilterText = string.Empty;
+    private bool _isIgnoreFilenameRegex;
+    private bool _isIgnoreFilenameIgnoreCase = true;
+    private string _ignoreFilepathFilterText = string.Empty;
+    private bool _isIgnoreFilepathRegex;
+    private bool _isIgnoreFilepathIgnoreCase = true;
     private int _selectedFileCount;
     private bool _isActionsVisible;
     private readonly DispatcherTimer _resourceTimer;
@@ -510,6 +516,10 @@ public class MainViewModel : ViewModelBase
         SelectByPathCommand = new RelayCommand(_ => SelectByPath(), _ => DuplicateGroups.Count > 0);
         ClearFilenameFilterCommand = new RelayCommand(_ => FilenameFilterText = string.Empty);
         ClearFilepathFilterCommand = new RelayCommand(_ => FilepathFilterText = string.Empty);
+        IgnoreByFilenameCommand = new RelayCommand(_ => IgnoreByFilename(), _ => DuplicateGroups.Count > 0);
+        IgnoreByFilepathCommand = new RelayCommand(_ => IgnoreByFilepath(), _ => DuplicateGroups.Count > 0);
+        ClearIgnoreFilenameFilterCommand = new RelayCommand(_ => IgnoreFilenameFilterText = string.Empty);
+        ClearIgnoreFilepathFilterCommand = new RelayCommand(_ => IgnoreFilepathFilterText = string.Empty);
         ClearFileSelectionCommand = new RelayCommand(_ => ClearFileSelection());
         DeleteSelectedFilesCommand = new RelayCommand(_ => DeleteSelectedFiles(), _ => SelectedFileCount > 0);
         MoveSelectedFilesCommand = new RelayCommand(_ => MoveSelectedFiles(), _ => SelectedFileCount > 0);
@@ -852,6 +862,18 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the clear filepath filter text command.</summary>
     public ICommand ClearFilepathFilterCommand { get; }
 
+    /// <summary>Gets the ignore by filename contains command.</summary>
+    public ICommand IgnoreByFilenameCommand { get; }
+
+    /// <summary>Gets the ignore by filepath contains command.</summary>
+    public ICommand IgnoreByFilepathCommand { get; }
+
+    /// <summary>Gets the clear ignore filename filter text command.</summary>
+    public ICommand ClearIgnoreFilenameFilterCommand { get; }
+
+    /// <summary>Gets the clear ignore filepath filter text command.</summary>
+    public ICommand ClearIgnoreFilepathFilterCommand { get; }
+
     /// <summary>Gets the clear file selection command.</summary>
     public ICommand ClearFileSelectionCommand { get; }
 
@@ -924,6 +946,60 @@ public class MainViewModel : ViewModelBase
     {
         get => _isFilepathIgnoreCase;
         set => SetProperty(ref _isFilepathIgnoreCase, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the ignore filename filter text.
+    /// </summary>
+    public string IgnoreFilenameFilterText
+    {
+        get => _ignoreFilenameFilterText;
+        set => SetProperty(ref _ignoreFilenameFilterText, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether regex mode is enabled for ignore filename filter.
+    /// </summary>
+    public bool IsIgnoreFilenameRegex
+    {
+        get => _isIgnoreFilenameRegex;
+        set => SetProperty(ref _isIgnoreFilenameRegex, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether ignore case is enabled for ignore filename filter.
+    /// </summary>
+    public bool IsIgnoreFilenameIgnoreCase
+    {
+        get => _isIgnoreFilenameIgnoreCase;
+        set => SetProperty(ref _isIgnoreFilenameIgnoreCase, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the ignore filepath filter text.
+    /// </summary>
+    public string IgnoreFilepathFilterText
+    {
+        get => _ignoreFilepathFilterText;
+        set => SetProperty(ref _ignoreFilepathFilterText, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether regex mode is enabled for ignore filepath filter.
+    /// </summary>
+    public bool IsIgnoreFilepathRegex
+    {
+        get => _isIgnoreFilepathRegex;
+        set => SetProperty(ref _isIgnoreFilepathRegex, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether ignore case is enabled for ignore filepath filter.
+    /// </summary>
+    public bool IsIgnoreFilepathIgnoreCase
+    {
+        get => _isIgnoreFilepathIgnoreCase;
+        set => SetProperty(ref _isIgnoreFilepathIgnoreCase, value);
     }
 
     /// <summary>
@@ -1789,6 +1865,64 @@ public class MainViewModel : ViewModelBase
         StatusMessage = selected > 0
             ? $"Selected {selected} files with path matching \"{filter}\"."
             : $"No files with path matching \"{filter}\".";
+    }
+
+    private void IgnoreByFilename()
+    {
+        if (string.IsNullOrWhiteSpace(IgnoreFilenameFilterText))
+        {
+            StatusMessage = "Enter ignore filename filter text first.";
+            return;
+        }
+
+        var filter = IgnoreFilenameFilterText.Trim();
+        var deselected = 0;
+
+        foreach (var group in DuplicateGroups)
+        {
+            foreach (var file in group.Files)
+            {
+                if (file.IsFileSelected && MatchesFilter(file.FileName, filter, IsIgnoreFilenameRegex, IsIgnoreFilenameIgnoreCase))
+                {
+                    file.IsFileSelected = false;
+                    deselected++;
+                }
+            }
+        }
+
+        RefreshSelectedFileCount();
+        StatusMessage = deselected > 0
+            ? $"Deselected {deselected} files with filename matching \"{filter}\"."
+            : $"No selected files with filename matching \"{filter}\".";
+    }
+
+    private void IgnoreByFilepath()
+    {
+        if (string.IsNullOrWhiteSpace(IgnoreFilepathFilterText))
+        {
+            StatusMessage = "Enter ignore filepath filter text first.";
+            return;
+        }
+
+        var filter = IgnoreFilepathFilterText.Trim();
+        var deselected = 0;
+
+        foreach (var group in DuplicateGroups)
+        {
+            foreach (var file in group.Files)
+            {
+                if (file.IsFileSelected && MatchesFilter(file.FilePath, filter, IsIgnoreFilepathRegex, IsIgnoreFilepathIgnoreCase))
+                {
+                    file.IsFileSelected = false;
+                    deselected++;
+                }
+            }
+        }
+
+        RefreshSelectedFileCount();
+        StatusMessage = deselected > 0
+            ? $"Deselected {deselected} files with path matching \"{filter}\"."
+            : $"No selected files with path matching \"{filter}\".";
     }
 
     private static bool MatchesFilter(string input, string filter, bool useRegex, bool ignoreCase)
