@@ -61,7 +61,8 @@ public class ScannedFile : INotifyPropertyChanged
     /// <summary>
     /// Formats a byte count into a human-readable size string.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="bytes">The number of bytes to format.</param>
+    /// <returns>A human-readable size string (e.g., "1.23 MB").</returns>
     public static string FormatFileSize(long bytes)
     {
         if (bytes < 1024)

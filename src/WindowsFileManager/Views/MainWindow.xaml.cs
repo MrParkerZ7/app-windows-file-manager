@@ -13,6 +13,9 @@ namespace WindowsFileManager.Views;
 [ExcludeFromCodeCoverage]
 public partial class MainWindow : Window
 {
+    private double _videoVolumeBeforeMute = 0.5;
+    private double _audioVolumeBeforeMute = 0.5;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MainWindow"/> class.
     /// </summary>
@@ -71,9 +74,6 @@ public partial class MainWindow : Window
     private void PauseAudio_Click(object sender, RoutedEventArgs e) => AudioPlayer.Pause();
 
     private void StopAudio_Click(object sender, RoutedEventArgs e) => AudioPlayer.Stop();
-
-    private double _videoVolumeBeforeMute = 0.5;
-    private double _audioVolumeBeforeMute = 0.5;
 
     private void VideoVolume_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
     {

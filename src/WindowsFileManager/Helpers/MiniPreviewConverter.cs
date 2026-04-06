@@ -35,6 +35,33 @@ public class MiniPreviewConverter : IValueConverter
     // IShellItem GUID — this is what SHCreateItemFromParsingName returns
     private static readonly Guid ShellItemGuid = new("43826d1e-e718-42ee-bc55-a1e261c37bfe");
 
+    // IShellItem interface
+    [ComImport]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("43826d1e-e718-42ee-bc55-a1e261c37bfe")]
+    private interface IShellItem
+    {
+        void BindToHandler(IntPtr pbc, [MarshalAs(UnmanagedType.LPStruct)] Guid bhid, [MarshalAs(UnmanagedType.LPStruct)] Guid riid, out IntPtr ppv);
+
+        void GetParent(out IShellItem ppsi);
+
+        void GetDisplayName(uint sigdnName, out IntPtr ppszName);
+
+        void GetAttributes(uint sfgaoMask, out uint psfgaoAttribs);
+
+        void Compare(IShellItem psi, uint hint, out int piOrder);
+    }
+
+    // IShellItemImageFactory interface — obtained by casting IShellItem
+    [ComImport]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b")]
+    private interface IShellItemImageFactory
+    {
+        [PreserveSig]
+        int GetImage(NativeSize size, int flags, out IntPtr phbm);
+    }
+
     /// <summary>
     /// Clears the thumbnail cache (call after a new scan).
     /// </summary>
@@ -78,6 +105,19 @@ public class MiniPreviewConverter : IValueConverter
     {
         throw new NotSupportedException();
     }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern int SHCreateItemFromParsingName(
+        [MarshalAs(UnmanagedType.LPWStr)] string pszPath,
+        IntPtr pbc,
+        ref Guid riid,
+        [MarshalAs(UnmanagedType.Interface)] out IShellItem ppv);
+
+    [DllImport("gdi32.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteObject(IntPtr hObject);
 
     private static BitmapImage? LoadBitmapThumbnail(string filePath)
     {
@@ -165,44 +205,4 @@ public class MiniPreviewConverter : IValueConverter
             Height = height;
         }
     }
-
-    // IShellItem interface
-    [ComImport]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    [Guid("43826d1e-e718-42ee-bc55-a1e261c37bfe")]
-    private interface IShellItem
-    {
-        void BindToHandler(IntPtr pbc, [MarshalAs(UnmanagedType.LPStruct)] Guid bhid, [MarshalAs(UnmanagedType.LPStruct)] Guid riid, out IntPtr ppv);
-
-        void GetParent(out IShellItem ppsi);
-
-        void GetDisplayName(uint sigdnName, out IntPtr ppszName);
-
-        void GetAttributes(uint sfgaoMask, out uint psfgaoAttribs);
-
-        void Compare(IShellItem psi, uint hint, out int piOrder);
-    }
-
-    // IShellItemImageFactory interface — obtained by casting IShellItem
-    [ComImport]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    [Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b")]
-    private interface IShellItemImageFactory
-    {
-        [PreserveSig]
-        int GetImage(NativeSize size, int flags, out IntPtr phbm);
-    }
-
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    private static extern int SHCreateItemFromParsingName(
-        [MarshalAs(UnmanagedType.LPWStr)] string pszPath,
-        IntPtr pbc,
-        ref Guid riid,
-        [MarshalAs(UnmanagedType.Interface)] out IShellItem ppv);
-
-    [DllImport("gdi32.dll")]
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool DeleteObject(IntPtr hObject);
 }

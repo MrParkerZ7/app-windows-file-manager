@@ -23,6 +23,8 @@ public class MainViewModel : ViewModelBase
 {
     private readonly DuplicateScannerService _scannerService;
     private readonly SettingsService _settingsService;
+    private readonly DispatcherTimer _resourceTimer;
+    private readonly Process _currentProcess;
     private bool _includeSubdirectories = true;
     private bool _isScanning;
     private int _filesScanned;
@@ -66,8 +68,6 @@ public class MainViewModel : ViewModelBase
     private bool _isIgnoreFilepathIgnoreCase = true;
     private int _selectedFileCount;
     private bool _isActionsVisible;
-    private readonly DispatcherTimer _resourceTimer;
-    private readonly Process _currentProcess;
     private TimeSpan _lastCpuTime;
     private DateTime _lastCheckTime;
     private DuplicateGroup? _selectedDuplicateGroup;
@@ -479,6 +479,75 @@ public class MainViewModel : ViewModelBase
         ".vtt",
         ".lrc",
     ];
+
+    private static readonly HashSet<string> DocumentExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // PDF
+        ".pdf",
+
+        // Microsoft Office
+        ".doc", ".docx", ".docm", ".dot", ".dotx", ".dotm",
+        ".xls", ".xlsx", ".xlsm", ".xlsb", ".xlt", ".xltx", ".xltm",
+        ".ppt", ".pptx", ".pptm", ".pot", ".potx", ".potm", ".pps", ".ppsx",
+        ".one", ".onetoc2", ".vsd", ".vsdx", ".pub", ".mpp",
+        ".accdb", ".accde", ".mdb",
+
+        // LibreOffice / OpenDocument
+        ".odt", ".ods", ".odp", ".odg", ".odf", ".odb", ".odc",
+
+        // Apple
+        ".pages", ".numbers", ".keynote",
+
+        // eBooks
+        ".epub", ".mobi", ".azw", ".azw3", ".fb2", ".djvu", ".cbz", ".cbr",
+
+        // Other docs
+        ".rtf", ".wps", ".wpd", ".abw", ".xps", ".oxps",
+    };
+
+    private static readonly HashSet<string> ArchiveExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".lz", ".lzma",
+        ".zst", ".br", ".cab", ".iso", ".img", ".dmg", ".vhd", ".vhdx", ".vmdk",
+        ".wim", ".jar", ".war", ".ear", ".apk", ".aab", ".ipa", ".deb", ".rpm",
+        ".snap", ".flatpak", ".appimage", ".msi", ".msix", ".msixbundle",
+        ".nupkg", ".crate", ".gem", ".egg", ".whl",
+        ".pak", ".pkg", ".arc", ".lzh", ".arj", ".ace",
+    };
+
+    private static readonly HashSet<string> FontExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".ttf", ".otf", ".woff", ".woff2", ".eot", ".ttc", ".fon", ".fnt", ".pfb", ".pfm",
+    };
+
+    private static readonly HashSet<string> ExecutableExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exe", ".dll", ".sys", ".drv", ".ocx", ".com", ".scr",
+        ".so", ".dylib", ".a", ".lib", ".o", ".obj",
+        ".class", ".pyc", ".pyo", ".pdb", ".ilk", ".exp",
+    };
+
+    private static readonly HashSet<string> DatabaseExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".db", ".sqlite", ".sqlite3", ".mdf", ".ldf", ".ndf", ".bak", ".dbf",
+        ".fdb", ".gdb", ".ibd", ".frm", ".myd", ".myi",
+    };
+
+    private static readonly HashSet<string> ThreeDModelExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".obj", ".fbx", ".gltf", ".glb", ".stl", ".dae", ".3ds", ".blend", ".max",
+        ".c4d", ".ma", ".mb", ".ply", ".usd", ".usda", ".usdz",
+    };
+
+    private static readonly Dictionary<string, string> CategoryIcons = new()
+    {
+        { "document", "📄" },
+        { "archive", "📦" },
+        { "font", "🔤" },
+        { "executable", "⚙️" },
+        { "database", "🗄️" },
+        { "3dmodel", "🧊" },
+    };
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
@@ -1498,75 +1567,6 @@ public class MainViewModel : ViewModelBase
         return true;
     }
 
-    private static readonly HashSet<string> DocumentExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        // PDF
-        ".pdf",
-
-        // Microsoft Office
-        ".doc", ".docx", ".docm", ".dot", ".dotx", ".dotm",
-        ".xls", ".xlsx", ".xlsm", ".xlsb", ".xlt", ".xltx", ".xltm",
-        ".ppt", ".pptx", ".pptm", ".pot", ".potx", ".potm", ".pps", ".ppsx",
-        ".one", ".onetoc2", ".vsd", ".vsdx", ".pub", ".mpp",
-        ".accdb", ".accde", ".mdb",
-
-        // LibreOffice / OpenDocument
-        ".odt", ".ods", ".odp", ".odg", ".odf", ".odb", ".odc",
-
-        // Apple
-        ".pages", ".numbers", ".keynote",
-
-        // eBooks
-        ".epub", ".mobi", ".azw", ".azw3", ".fb2", ".djvu", ".cbz", ".cbr",
-
-        // Other docs
-        ".rtf", ".wps", ".wpd", ".abw", ".xps", ".oxps",
-    };
-
-    private static readonly HashSet<string> ArchiveExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".lz", ".lzma",
-        ".zst", ".br", ".cab", ".iso", ".img", ".dmg", ".vhd", ".vhdx", ".vmdk",
-        ".wim", ".jar", ".war", ".ear", ".apk", ".aab", ".ipa", ".deb", ".rpm",
-        ".snap", ".flatpak", ".appimage", ".msi", ".msix", ".msixbundle",
-        ".nupkg", ".crate", ".gem", ".egg", ".whl",
-        ".pak", ".pkg", ".arc", ".lzh", ".arj", ".ace",
-    };
-
-    private static readonly HashSet<string> FontExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".ttf", ".otf", ".woff", ".woff2", ".eot", ".ttc", ".fon", ".fnt", ".pfb", ".pfm",
-    };
-
-    private static readonly HashSet<string> ExecutableExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".exe", ".dll", ".sys", ".drv", ".ocx", ".com", ".scr",
-        ".so", ".dylib", ".a", ".lib", ".o", ".obj",
-        ".class", ".pyc", ".pyo", ".pdb", ".ilk", ".exp",
-    };
-
-    private static readonly HashSet<string> DatabaseExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".db", ".sqlite", ".sqlite3", ".mdf", ".ldf", ".ndf", ".bak", ".dbf",
-        ".fdb", ".gdb", ".ibd", ".frm", ".myd", ".myi",
-    };
-
-    private static readonly HashSet<string> ThreeDModelExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".obj", ".fbx", ".gltf", ".glb", ".stl", ".dae", ".3ds", ".blend", ".max",
-        ".c4d", ".ma", ".mb", ".ply", ".usd", ".usda", ".usdz",
-    };
-
-    private static readonly Dictionary<string, string> CategoryIcons = new()
-    {
-        { "document", "📄" },
-        { "archive", "📦" },
-        { "font", "🔤" },
-        { "executable", "⚙️" },
-        { "database", "🗄️" },
-        { "3dmodel", "🧊" },
-    };
-
     private void PreviewFile(string? filePath)
     {
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
@@ -1934,7 +1934,7 @@ public class MainViewModel : ViewModelBase
                 var options = ignoreCase
                     ? System.Text.RegularExpressions.RegexOptions.IgnoreCase
                     : System.Text.RegularExpressions.RegexOptions.None;
-                return System.Text.RegularExpressions.Regex.IsMatch(input, filter, options);
+                return System.Text.RegularExpressions.Regex.IsMatch(input, filter, options, TimeSpan.FromSeconds(1));
             }
             catch
             {
