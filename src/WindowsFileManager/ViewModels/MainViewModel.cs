@@ -68,6 +68,8 @@ public class MainViewModel : ViewModelBase
     private bool _isIgnoreFilepathIgnoreCase = true;
     private int _selectedFileCount;
     private bool _isActionsVisible;
+    private bool _isContainSectionVisible = true;
+    private bool _isIgnoreSectionVisible = true;
     private TimeSpan _lastCpuTime;
     private DateTime _lastCheckTime;
     private DuplicateGroup? _selectedDuplicateGroup;
@@ -577,6 +579,8 @@ public class MainViewModel : ViewModelBase
         ApplyFileSizeFilterCommand = new RelayCommand(_ => ApplyFilters());
         ToggleFilterCommand = new RelayCommand(_ => IsFilterVisible = !IsFilterVisible);
         ToggleActionsCommand = new RelayCommand(_ => IsActionsVisible = !IsActionsVisible);
+        ToggleContainSectionCommand = new RelayCommand(_ => IsContainSectionVisible = !IsContainSectionVisible);
+        ToggleIgnoreSectionCommand = new RelayCommand(_ => IsIgnoreSectionVisible = !IsIgnoreSectionVisible);
 
         SelectAllFilesCommand = new RelayCommand(_ => SelectAllFiles(), _ => DuplicateGroups.Count > 0);
         SelectNewerFilesCommand = new RelayCommand(_ => SelectNewerFiles(), _ => DuplicateGroups.Count > 0);
@@ -590,6 +594,7 @@ public class MainViewModel : ViewModelBase
         ClearIgnoreFilenameFilterCommand = new RelayCommand(_ => IgnoreFilenameFilterText = string.Empty);
         ClearIgnoreFilepathFilterCommand = new RelayCommand(_ => IgnoreFilepathFilterText = string.Empty);
         ClearFileSelectionCommand = new RelayCommand(_ => ClearFileSelection());
+        ClearAllRulesCommand = new RelayCommand(_ => ClearAllRules());
         DeleteSelectedFilesCommand = new RelayCommand(_ => DeleteSelectedFiles(), _ => SelectedFileCount > 0);
         MoveSelectedFilesCommand = new RelayCommand(_ => MoveSelectedFiles(), _ => SelectedFileCount > 0);
         BrowseMoveTargetCommand = new RelayCommand(_ => BrowseMoveTarget());
@@ -908,6 +913,30 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the toggle actions panel command.</summary>
     public ICommand ToggleActionsCommand { get; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether the contain filter section is visible.
+    /// </summary>
+    public bool IsContainSectionVisible
+    {
+        get => _isContainSectionVisible;
+        set => SetProperty(ref _isContainSectionVisible, value);
+    }
+
+    /// <summary>Gets the toggle contain section command.</summary>
+    public ICommand ToggleContainSectionCommand { get; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the ignore filter section is visible.
+    /// </summary>
+    public bool IsIgnoreSectionVisible
+    {
+        get => _isIgnoreSectionVisible;
+        set => SetProperty(ref _isIgnoreSectionVisible, value);
+    }
+
+    /// <summary>Gets the toggle ignore section command.</summary>
+    public ICommand ToggleIgnoreSectionCommand { get; }
+
     // -- Selection commands --
 
     /// <summary>Gets the select all files command.</summary>
@@ -945,6 +974,9 @@ public class MainViewModel : ViewModelBase
 
     /// <summary>Gets the clear file selection command.</summary>
     public ICommand ClearFileSelectionCommand { get; }
+
+    /// <summary>Gets the clear all rules command.</summary>
+    public ICommand ClearAllRulesCommand { get; }
 
     // -- Action commands --
 
@@ -1204,6 +1236,20 @@ public class MainViewModel : ViewModelBase
             SelectedSortOption = SelectedSortOption,
             Volume = MediaVolume,
             MoveTargetPath = MoveTargetPath,
+            FilenameFilterText = FilenameFilterText,
+            IsFilenameRegex = IsFilenameRegex,
+            IsFilenameIgnoreCase = IsFilenameIgnoreCase,
+            FilepathFilterText = FilepathFilterText,
+            IsFilepathRegex = IsFilepathRegex,
+            IsFilepathIgnoreCase = IsFilepathIgnoreCase,
+            IgnoreFilenameFilterText = IgnoreFilenameFilterText,
+            IsIgnoreFilenameRegex = IsIgnoreFilenameRegex,
+            IsIgnoreFilenameIgnoreCase = IsIgnoreFilenameIgnoreCase,
+            IgnoreFilepathFilterText = IgnoreFilepathFilterText,
+            IsIgnoreFilepathRegex = IsIgnoreFilepathRegex,
+            IsIgnoreFilepathIgnoreCase = IsIgnoreFilepathIgnoreCase,
+            IsContainSectionVisible = IsContainSectionVisible,
+            IsIgnoreSectionVisible = IsIgnoreSectionVisible,
         };
         _settingsService.Save(settings);
     }
@@ -1218,6 +1264,20 @@ public class MainViewModel : ViewModelBase
         SelectedSortOption = settings.SelectedSortOption;
         MediaVolume = settings.Volume;
         MoveTargetPath = settings.MoveTargetPath;
+        FilenameFilterText = settings.FilenameFilterText;
+        IsFilenameRegex = settings.IsFilenameRegex;
+        IsFilenameIgnoreCase = settings.IsFilenameIgnoreCase;
+        FilepathFilterText = settings.FilepathFilterText;
+        IsFilepathRegex = settings.IsFilepathRegex;
+        IsFilepathIgnoreCase = settings.IsFilepathIgnoreCase;
+        IgnoreFilenameFilterText = settings.IgnoreFilenameFilterText;
+        IsIgnoreFilenameRegex = settings.IsIgnoreFilenameRegex;
+        IsIgnoreFilenameIgnoreCase = settings.IsIgnoreFilenameIgnoreCase;
+        IgnoreFilepathFilterText = settings.IgnoreFilepathFilterText;
+        IsIgnoreFilepathRegex = settings.IsIgnoreFilepathRegex;
+        IsIgnoreFilepathIgnoreCase = settings.IsIgnoreFilepathIgnoreCase;
+        IsContainSectionVisible = settings.IsContainSectionVisible;
+        IsIgnoreSectionVisible = settings.IsIgnoreSectionVisible;
         foreach (var path in settings.TargetPaths)
         {
             TargetPaths.Add(path);
@@ -1959,6 +2019,23 @@ public class MainViewModel : ViewModelBase
         }
 
         RefreshSelectedFileCount();
+    }
+
+    private void ClearAllRules()
+    {
+        FilenameFilterText = string.Empty;
+        IsFilenameRegex = false;
+        IsFilenameIgnoreCase = true;
+        FilepathFilterText = string.Empty;
+        IsFilepathRegex = false;
+        IsFilepathIgnoreCase = true;
+        IgnoreFilenameFilterText = string.Empty;
+        IsIgnoreFilenameRegex = false;
+        IsIgnoreFilenameIgnoreCase = true;
+        IgnoreFilepathFilterText = string.Empty;
+        IsIgnoreFilepathRegex = false;
+        IsIgnoreFilepathIgnoreCase = true;
+        StatusMessage = "All filter rules cleared.";
     }
 
     // ── ACTION METHODS ──

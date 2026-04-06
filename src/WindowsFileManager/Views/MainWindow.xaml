@@ -262,7 +262,7 @@
                             <Border Background="#E8F5E9" CornerRadius="3" Padding="8,6" Margin="0,0,0,6">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                        <TextBlock Text="SELECT" FontSize="10" FontWeight="Bold" Foreground="#2E7D32" />
+                                        <TextBlock Text="SELECT" FontSize="12" FontWeight="Bold" Foreground="#2E7D32" />
                                         <TextBlock FontSize="10" Foreground="#555555" Margin="8,0,0,0"
                                                    VerticalAlignment="Center">
                                             <TextBlock.Text>
@@ -282,17 +282,51 @@
                                         <Button Content="✓ Select Older" Command="{Binding SelectOlderFilesCommand}"
                                                 Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
                                                 ToolTip="Select older duplicates (keep newest unselected)" />
-                                        <Button Content="✕ Clear All" Command="{Binding ClearFileSelectionCommand}"
-                                                Padding="8,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
+                                        <Button Content="✕ Clear All Selected" Command="{Binding ClearFileSelectionCommand}"
+                                                Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
                                                 Foreground="#888888"
                                                 ToolTip="Clear all file selections" />
+                                        <Button Content="✕ Clear Rules" Command="{Binding ClearAllRulesCommand}"
+                                                Padding="8,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
+                                                Foreground="#888888"
+                                                ToolTip="Clear all contain and ignore filter fields" />
                                     </StackPanel>
 
-                                    <!-- Custom selection: filename contain -->
-                                    <Border BorderBrush="#C8E6C9" BorderThickness="0,1,0,0" Padding="0,4,0,0">
+                                    <!-- Contain filters sub-section -->
+                                    <Border Background="#F1F8E9" CornerRadius="3" Padding="8,6" Margin="0,4,0,0">
                                         <StackPanel>
+                                            <ToggleButton IsChecked="{Binding IsContainSectionVisible}" Cursor="Hand" Margin="0,0,0,2">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border Background="Transparent" Padding="0,2">
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <TextBlock FontSize="11.5" FontWeight="Bold" Foreground="#999999" VerticalAlignment="Center" Width="12">
+                                                                                <TextBlock.Style>
+                                                                                    <Style TargetType="TextBlock">
+                                                                                        <Setter Property="Text" Value="+" />
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                                                                                <Setter Property="Text" Value="-" />
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </TextBlock.Style>
+                                                                            </TextBlock>
+                                                                            <TextBlock Text="Contain Filters" FontSize="11.5" FontWeight="Bold" Foreground="#2E7D32" />
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                            <StackPanel Visibility="{Binding IsContainSectionVisible, Converter={StaticResource BoolToVisibility}}">
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                                <TextBlock FontSize="11" FontWeight="SemiBold"
+                                                <TextBlock FontSize="10.5"
                                                            VerticalAlignment="Center" Margin="0,0,6,0" Width="105">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
@@ -421,7 +455,7 @@
 
                                             <!-- Custom selection: filepath contain -->
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock FontSize="11" FontWeight="SemiBold"
+                                                <TextBlock FontSize="10.5"
                                                            VerticalAlignment="Center" Margin="0,0,6,0" Width="105">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
@@ -547,10 +581,45 @@
                                                     </ToggleButton.Style>
                                                 </ToggleButton>
                                             </StackPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
 
-                                            <!-- Ignore filename contain -->
-                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                <TextBlock FontSize="11" FontWeight="SemiBold"
+                                    <!-- Ignore filters sub-section -->
+                                    <Border Background="#FBE9E7" CornerRadius="3" Padding="8,6" Margin="0,4,0,0">
+                                        <StackPanel>
+                                            <ToggleButton IsChecked="{Binding IsIgnoreSectionVisible}" Cursor="Hand" Margin="0,0,0,2">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border Background="Transparent" Padding="0,2">
+                                                                        <StackPanel Orientation="Horizontal">
+                                                                            <TextBlock FontSize="11.5" FontWeight="Bold" Foreground="#999999" VerticalAlignment="Center" Width="12">
+                                                                                <TextBlock.Style>
+                                                                                    <Style TargetType="TextBlock">
+                                                                                        <Setter Property="Text" Value="+" />
+                                                                                        <Style.Triggers>
+                                                                                            <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                                                                                <Setter Property="Text" Value="-" />
+                                                                                            </DataTrigger>
+                                                                                        </Style.Triggers>
+                                                                                    </Style>
+                                                                                </TextBlock.Style>
+                                                                            </TextBlock>
+                                                                            <TextBlock Text="Ignore Filters" FontSize="11.5" FontWeight="Bold" Foreground="#C62828" />
+                                                                        </StackPanel>
+                                                                    </Border>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                            <StackPanel Visibility="{Binding IsIgnoreSectionVisible, Converter={StaticResource BoolToVisibility}}">
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                                                <TextBlock FontSize="10.5"
                                                            VerticalAlignment="Center" Margin="0,0,6,0" Width="105">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
@@ -679,7 +748,7 @@
 
                                             <!-- Ignore filepath contain -->
                                             <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                <TextBlock FontSize="11" FontWeight="SemiBold"
+                                                <TextBlock FontSize="10.5"
                                                            VerticalAlignment="Center" Margin="0,0,6,0" Width="105">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
@@ -805,6 +874,7 @@
                                                     </ToggleButton.Style>
                                                 </ToggleButton>
                                             </StackPanel>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -813,7 +883,7 @@
                             <!-- ACTION section -->
                             <Border Background="#FFF3E0" CornerRadius="3" Padding="8,6">
                                 <StackPanel>
-                                    <TextBlock Text="ACTION" FontSize="10" FontWeight="Bold" Foreground="#E65100"
+                                    <TextBlock Text="ACTION" FontSize="12" FontWeight="Bold" Foreground="#E65100"
                                                Margin="0,0,0,4" />
                                     <StackPanel Orientation="Horizontal">
                                         <Button Content="🗑 Delete" Command="{Binding DeleteSelectedFilesCommand}"

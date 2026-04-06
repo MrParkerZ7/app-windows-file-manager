@@ -49,4 +49,74 @@ public class AppSettings
     /// Gets or sets the move target path.
     /// </summary>
     public string MoveTargetPath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the filename contain filter text.
+    /// </summary>
+    public string FilenameFilterText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether filename filter uses regex.
+    /// </summary>
+    public bool IsFilenameRegex { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether filename filter ignores case.
+    /// </summary>
+    public bool IsFilenameIgnoreCase { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the filepath contain filter text.
+    /// </summary>
+    public string FilepathFilterText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether filepath filter uses regex.
+    /// </summary>
+    public bool IsFilepathRegex { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether filepath filter ignores case.
+    /// </summary>
+    public bool IsFilepathIgnoreCase { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the ignore filename filter text.
+    /// </summary>
+    public string IgnoreFilenameFilterText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether ignore filename filter uses regex.
+    /// </summary>
+    public bool IsIgnoreFilenameRegex { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether ignore filename filter ignores case.
+    /// </summary>
+    public bool IsIgnoreFilenameIgnoreCase { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the ignore filepath filter text.
+    /// </summary>
+    public string IgnoreFilepathFilterText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether ignore filepath filter uses regex.
+    /// </summary>
+    public bool IsIgnoreFilepathRegex { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether ignore filepath filter ignores case.
+    /// </summary>
+    public bool IsIgnoreFilepathIgnoreCase { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the contain filter section is visible.
+    /// </summary>
+    public bool IsContainSectionVisible { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the ignore filter section is visible.
+    /// </summary>
+    public bool IsIgnoreSectionVisible { get; set; } = true;
 }

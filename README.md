@@ -4,12 +4,39 @@ A .NET 8 WPF desktop application for managing files on Windows. The first featur
 
 ## Features
 
-- **Duplicate File Detection** — SHA256 content hashing with a three-stage filter (size grouping → hash computation → duplicate confirmation) for fast scanning
-- **Multi-Folder Scanning** — Add folders by typing paths or browsing, scan across multiple directories simultaneously, detect cross-folder duplicates
+### Duplicate Detection
+- **SHA256 Content Hashing** — Three-stage filter (size grouping → hash computation → duplicate confirmation) for fast scanning
+- **Multi-Folder Scanning** — Add folders by typing paths or browsing, scan across multiple directories, detect cross-folder duplicates
 - **Overlapping Path Deduplication** — Adding both `D:\` and `D:\subfolder` won't produce false duplicates
-- **Analytics Dashboard** — Real-time statistics: total files, duplicates found, groups, scan time, wasted space %, top duplicate extensions, size distribution chart
-- **File Actions** — Open file location in Explorer or delete duplicates with confirmation dialog
-- **Settings Persistence** — Target folders, subdirectory preference, and settings saved to `%APPDATA%/WindowsFileManager/settings.json` and restored on startup
+
+### Filtering & Sorting
+- **Extension Filters** — Show/hide file types with per-extension toggle, show all / clear all
+- **Minimum File Size Filter** — Filter by size with selectable unit (B, KB, MB, GB)
+- **Minimum Duplicate Count** — Only show groups with N+ duplicates
+- **Sort Options** — Sort by size, file count, wasted space, type, or name (ascending/descending)
+
+### Selection & Actions
+- **Smart Selection** — Select all, select newer, select older duplicates (keep best copy unselected)
+- **Contain Filters** — Select files by filename or filepath pattern, with independent regex and ignore-case toggles
+- **Ignore Filters** — Deselect files by filename or filepath pattern, with independent regex and ignore-case toggles
+- **Collapsible Filter Sections** — Contain and Ignore filter panels collapse/expand independently
+- **Move Files** — Move selected duplicates to a target folder (browse or type path)
+- **Delete Files** — Delete individual files or all files in a group with confirmation
+- **Open in Explorer** — Open file location in Windows Explorer
+- **Per-Group Selection** — Select All / Clear buttons per duplicate group
+
+### Preview
+- **File Preview Panel** — Preview images, video, audio, and text files inline
+- **Mini Preview** — Thumbnail previews in the file list (Shell thumbnail for video/docs, direct load for images)
+- **Auto Preview** — Automatically preview selected files
+- **Media Playback** — Play/pause/stop controls with volume slider for video and audio
+
+### Analytics & Monitoring
+- **Analytics Dashboard** — Total files, duplicates found, groups, scan time, wasted space %, top extensions, size distribution
+- **Resource Monitor** — Live CPU, memory, and thread count display
+
+### General
+- **Settings Persistence** — All preferences saved to `%APPDATA%/WindowsFileManager/settings.json` — target folders, filters, sort options, filter text, regex/ignore-case toggles, section visibility
 - **Cancellation Support** — Cancel long-running scans at any time
 - **Progress Reporting** — Live file count with throttled UI updates (every 100 files)
 
@@ -83,6 +110,8 @@ WindowsFileManager/
 │       └── Helpers/
 │           ├── RelayCommand.cs            # ICommand implementation
 │           ├── Converters.cs              # Bool/Visibility, Percent/Width converters
+│           ├── FileTypeIconConverter.cs   # File extension → category icon converter
+│           ├── MiniPreviewConverter.cs    # File path → thumbnail (Shell + direct load)
 │           └── TextBoxEnterKeyBehavior.cs # Enter key attached behavior
 │
 ├── tests/
