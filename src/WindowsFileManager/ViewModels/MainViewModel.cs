@@ -54,8 +54,10 @@ public class MainViewModel : ViewModelBase
     private string _moveTargetPath = string.Empty;
     private string _filenameFilterText = string.Empty;
     private bool _isFilenameRegex;
+    private bool _isFilenameIgnoreCase = true;
     private string _filepathFilterText = string.Empty;
     private bool _isFilepathRegex;
+    private bool _isFilepathIgnoreCase = true;
     private int _selectedFileCount;
     private bool _isActionsVisible;
     private readonly DispatcherTimer _resourceTimer;
@@ -506,6 +508,8 @@ public class MainViewModel : ViewModelBase
         SelectOlderFilesCommand = new RelayCommand(_ => SelectOlderFiles(), _ => DuplicateGroups.Count > 0);
         SelectByFilenameCommand = new RelayCommand(_ => SelectByFilename(), _ => DuplicateGroups.Count > 0);
         SelectByPathCommand = new RelayCommand(_ => SelectByPath(), _ => DuplicateGroups.Count > 0);
+        ClearFilenameFilterCommand = new RelayCommand(_ => FilenameFilterText = string.Empty);
+        ClearFilepathFilterCommand = new RelayCommand(_ => FilepathFilterText = string.Empty);
         ClearFileSelectionCommand = new RelayCommand(_ => ClearFileSelection());
         DeleteSelectedFilesCommand = new RelayCommand(_ => DeleteSelectedFiles(), _ => SelectedFileCount > 0);
         MoveSelectedFilesCommand = new RelayCommand(_ => MoveSelectedFiles(), _ => SelectedFileCount > 0);
@@ -842,6 +846,12 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the select by path contains command.</summary>
     public ICommand SelectByPathCommand { get; }
 
+    /// <summary>Gets the clear filename filter text command.</summary>
+    public ICommand ClearFilenameFilterCommand { get; }
+
+    /// <summary>Gets the clear filepath filter text command.</summary>
+    public ICommand ClearFilepathFilterCommand { get; }
+
     /// <summary>Gets the clear file selection command.</summary>
     public ICommand ClearFileSelectionCommand { get; }
 
@@ -881,6 +891,15 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Gets or sets a value indicating whether ignore case is enabled for filename filter.
+    /// </summary>
+    public bool IsFilenameIgnoreCase
+    {
+        get => _isFilenameIgnoreCase;
+        set => SetProperty(ref _isFilenameIgnoreCase, value);
+    }
+
+    /// <summary>
     /// Gets or sets the filepath filter text.
     /// </summary>
     public string FilepathFilterText
@@ -896,6 +915,15 @@ public class MainViewModel : ViewModelBase
     {
         get => _isFilepathRegex;
         set => SetProperty(ref _isFilepathRegex, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether ignore case is enabled for filepath filter.
+    /// </summary>
+    public bool IsFilepathIgnoreCase
+    {
+        get => _isFilepathIgnoreCase;
+        set => SetProperty(ref _isFilepathIgnoreCase, value);
     }
 
     /// <summary>
@@ -1719,7 +1747,7 @@ public class MainViewModel : ViewModelBase
         {
             foreach (var file in group.Files)
             {
-                if (MatchesFilter(file.FileName, filter, IsFilenameRegex))
+                if (MatchesFilter(file.FileName, filter, IsFilenameRegex, IsFilenameIgnoreCase))
                 {
                     file.IsFileSelected = true;
                     selected++;
@@ -1749,7 +1777,7 @@ public class MainViewModel : ViewModelBase
         {
             foreach (var file in group.Files)
             {
-                if (MatchesFilter(file.FilePath, filter, IsFilepathRegex))
+                if (MatchesFilter(file.FilePath, filter, IsFilepathRegex, IsFilepathIgnoreCase))
                 {
                     file.IsFileSelected = true;
                     selected++;
@@ -1763,14 +1791,16 @@ public class MainViewModel : ViewModelBase
             : $"No files with path matching \"{filter}\".";
     }
 
-    private static bool MatchesFilter(string input, string filter, bool useRegex)
+    private static bool MatchesFilter(string input, string filter, bool useRegex, bool ignoreCase)
     {
         if (useRegex)
         {
             try
             {
-                return System.Text.RegularExpressions.Regex.IsMatch(
-                    input, filter, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                var options = ignoreCase
+                    ? System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                    : System.Text.RegularExpressions.RegexOptions.None;
+                return System.Text.RegularExpressions.Regex.IsMatch(input, filter, options);
             }
             catch
             {
@@ -1778,7 +1808,10 @@ public class MainViewModel : ViewModelBase
             }
         }
 
-        return input.Contains(filter, StringComparison.OrdinalIgnoreCase);
+        var comparison = ignoreCase
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        return input.Contains(filter, comparison);
     }
 
     private void ClearFileSelection()

@@ -74,7 +74,7 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                    <Button Content="✕"
+                                    <Button Content="✕ Clear"
                                             Command="{Binding DataContext.RemoveFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding}"
                                             Padding="4,1" Margin="0,0,6,0"
@@ -292,30 +292,260 @@
                                     <Border BorderBrush="#C8E6C9" BorderThickness="0,1,0,0" Padding="0,4,0,0">
                                         <StackPanel>
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                                <TextBlock Text="Filename contain:" FontSize="11" FontWeight="SemiBold"
-                                                           VerticalAlignment="Center" Foreground="#2E7D32" Margin="0,0,6,0" Width="105" />
+                                                <TextBlock FontSize="11" FontWeight="SemiBold"
+                                                           VerticalAlignment="Center" Margin="0,0,6,0" Width="105">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="Filename contain:" />
+                                                            <Setter Property="Foreground" Value="#2E7D32" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsFilenameRegex}" Value="True">
+                                                                    <Setter Property="Text" Value="Filename regex:" />
+                                                                    <Setter Property="Foreground" Value="#1565C0" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                                 <TextBox Text="{Binding FilenameFilterText, UpdateSourceTrigger=PropertyChanged}"
-                                                         Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
+                                                         Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center">
+                                                    <TextBox.Style>
+                                                        <Style TargetType="TextBox">
+                                                            <Setter Property="BorderBrush" Value="#AAAAAA" />
+                                                            <Setter Property="Background" Value="White" />
+                                                            <Setter Property="FontFamily" Value="Segoe UI" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsFilenameRegex}" Value="True">
+                                                                    <Setter Property="BorderBrush" Value="#42A5F5" />
+                                                                    <Setter Property="Background" Value="#E1F5FE" />
+                                                                    <Setter Property="FontFamily" Value="Consolas" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBox.Style>
+                                                </TextBox>
                                                 <Button Content="✓ Select" Command="{Binding SelectByFilenameCommand}"
-                                                        Padding="8,3" Margin="4,0,4,0" FontSize="11" Cursor="Hand"
+                                                        Padding="8,3" Margin="4,0,2,0" FontSize="11" Cursor="Hand"
                                                         ToolTip="Select files whose filename matches the filter" />
-                                                <CheckBox Content="Regex" IsChecked="{Binding IsFilenameRegex}"
-                                                          VerticalAlignment="Center" FontSize="10" Foreground="#555555"
-                                                          ToolTip="Enable regular expression matching for filename" />
+                                                <Button Content="✕ Clear" Command="{Binding ClearFilenameFilterCommand}"
+                                                        Padding="4,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
+                                                        Foreground="#999999" ToolTip="Clear filename filter" />
+                                                <ToggleButton IsChecked="{Binding IsFilenameRegex}"
+                                                              VerticalAlignment="Center" FontSize="10" Padding="6,2" Cursor="Hand"
+                                                              ToolTip="Enable regular expression matching for filename">
+                                                    <ToggleButton.Style>
+                                                        <Style TargetType="ToggleButton">
+                                                            <Setter Property="Content" Value="Regex" />
+                                                            <Setter Property="Foreground" Value="#555555" />
+                                                            <Setter Property="Background" Value="#F5F5F5" />
+                                                            <Setter Property="BorderBrush" Value="#CCCCCC" />
+                                                            <Setter Property="BorderThickness" Value="1" />
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="ToggleButton">
+                                                                        <Border Background="{TemplateBinding Background}"
+                                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                                CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsChecked" Value="True">
+                                                                    <Setter Property="Content" Value="✦ Regex" />
+                                                                    <Setter Property="Foreground" Value="White" />
+                                                                    <Setter Property="Background" Value="#1565C0" />
+                                                                    <Setter Property="BorderBrush" Value="#0D47A1" />
+                                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#E3F2FD" />
+                                                                </Trigger>
+                                                                <MultiTrigger>
+                                                                    <MultiTrigger.Conditions>
+                                                                        <Condition Property="IsChecked" Value="True" />
+                                                                        <Condition Property="IsMouseOver" Value="True" />
+                                                                    </MultiTrigger.Conditions>
+                                                                    <Setter Property="Background" Value="#1976D2" />
+                                                                </MultiTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ToggleButton.Style>
+                                                </ToggleButton>
+                                                <ToggleButton IsChecked="{Binding IsFilenameIgnoreCase}"
+                                                              VerticalAlignment="Center" FontSize="10" Padding="6,2" Margin="4,0,0,0" Cursor="Hand"
+                                                              ToolTip="Ignore case when matching filename">
+                                                    <ToggleButton.Style>
+                                                        <Style TargetType="ToggleButton">
+                                                            <Setter Property="Content" Value="Ignore Case" />
+                                                            <Setter Property="Foreground" Value="#555555" />
+                                                            <Setter Property="Background" Value="#F5F5F5" />
+                                                            <Setter Property="BorderBrush" Value="#CCCCCC" />
+                                                            <Setter Property="BorderThickness" Value="1" />
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="ToggleButton">
+                                                                        <Border Background="{TemplateBinding Background}"
+                                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                                CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsChecked" Value="True">
+                                                                    <Setter Property="Foreground" Value="White" />
+                                                                    <Setter Property="Background" Value="#E65100" />
+                                                                    <Setter Property="BorderBrush" Value="#BF360C" />
+                                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#FFF3E0" />
+                                                                </Trigger>
+                                                                <MultiTrigger>
+                                                                    <MultiTrigger.Conditions>
+                                                                        <Condition Property="IsChecked" Value="True" />
+                                                                        <Condition Property="IsMouseOver" Value="True" />
+                                                                    </MultiTrigger.Conditions>
+                                                                    <Setter Property="Background" Value="#F4511E" />
+                                                                </MultiTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ToggleButton.Style>
+                                                </ToggleButton>
                                             </StackPanel>
 
                                             <!-- Custom selection: filepath contain -->
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="Filepath contain:" FontSize="11" FontWeight="SemiBold"
-                                                           VerticalAlignment="Center" Foreground="#2E7D32" Margin="0,0,6,0" Width="105" />
+                                                <TextBlock FontSize="11" FontWeight="SemiBold"
+                                                           VerticalAlignment="Center" Margin="0,0,6,0" Width="105">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="Filepath contain:" />
+                                                            <Setter Property="Foreground" Value="#2E7D32" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsFilepathRegex}" Value="True">
+                                                                    <Setter Property="Text" Value="Filepath regex:" />
+                                                                    <Setter Property="Foreground" Value="#1565C0" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                                 <TextBox Text="{Binding FilepathFilterText, UpdateSourceTrigger=PropertyChanged}"
-                                                         Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
+                                                         Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center">
+                                                    <TextBox.Style>
+                                                        <Style TargetType="TextBox">
+                                                            <Setter Property="BorderBrush" Value="#AAAAAA" />
+                                                            <Setter Property="Background" Value="White" />
+                                                            <Setter Property="FontFamily" Value="Segoe UI" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsFilepathRegex}" Value="True">
+                                                                    <Setter Property="BorderBrush" Value="#42A5F5" />
+                                                                    <Setter Property="Background" Value="#E1F5FE" />
+                                                                    <Setter Property="FontFamily" Value="Consolas" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBox.Style>
+                                                </TextBox>
                                                 <Button Content="✓ Select" Command="{Binding SelectByPathCommand}"
-                                                        Padding="8,3" Margin="4,0,4,0" FontSize="11" Cursor="Hand"
+                                                        Padding="8,3" Margin="4,0,2,0" FontSize="11" Cursor="Hand"
                                                         ToolTip="Select files whose full path matches the filter" />
-                                                <CheckBox Content="Regex" IsChecked="{Binding IsFilepathRegex}"
-                                                          VerticalAlignment="Center" FontSize="10" Foreground="#555555"
-                                                          ToolTip="Enable regular expression matching for filepath" />
+                                                <Button Content="✕ Clear" Command="{Binding ClearFilepathFilterCommand}"
+                                                        Padding="4,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
+                                                        Foreground="#999999" ToolTip="Clear filepath filter" />
+                                                <ToggleButton IsChecked="{Binding IsFilepathRegex}"
+                                                              VerticalAlignment="Center" FontSize="10" Padding="6,2" Cursor="Hand"
+                                                              ToolTip="Enable regular expression matching for filepath">
+                                                    <ToggleButton.Style>
+                                                        <Style TargetType="ToggleButton">
+                                                            <Setter Property="Content" Value="Regex" />
+                                                            <Setter Property="Foreground" Value="#555555" />
+                                                            <Setter Property="Background" Value="#F5F5F5" />
+                                                            <Setter Property="BorderBrush" Value="#CCCCCC" />
+                                                            <Setter Property="BorderThickness" Value="1" />
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="ToggleButton">
+                                                                        <Border Background="{TemplateBinding Background}"
+                                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                                CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsChecked" Value="True">
+                                                                    <Setter Property="Content" Value="✦ Regex" />
+                                                                    <Setter Property="Foreground" Value="White" />
+                                                                    <Setter Property="Background" Value="#1565C0" />
+                                                                    <Setter Property="BorderBrush" Value="#0D47A1" />
+                                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#E3F2FD" />
+                                                                </Trigger>
+                                                                <MultiTrigger>
+                                                                    <MultiTrigger.Conditions>
+                                                                        <Condition Property="IsChecked" Value="True" />
+                                                                        <Condition Property="IsMouseOver" Value="True" />
+                                                                    </MultiTrigger.Conditions>
+                                                                    <Setter Property="Background" Value="#1976D2" />
+                                                                </MultiTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ToggleButton.Style>
+                                                </ToggleButton>
+                                                <ToggleButton IsChecked="{Binding IsFilepathIgnoreCase}"
+                                                              VerticalAlignment="Center" FontSize="10" Padding="6,2" Margin="4,0,0,0" Cursor="Hand"
+                                                              ToolTip="Ignore case when matching filepath">
+                                                    <ToggleButton.Style>
+                                                        <Style TargetType="ToggleButton">
+                                                            <Setter Property="Content" Value="Ignore Case" />
+                                                            <Setter Property="Foreground" Value="#555555" />
+                                                            <Setter Property="Background" Value="#F5F5F5" />
+                                                            <Setter Property="BorderBrush" Value="#CCCCCC" />
+                                                            <Setter Property="BorderThickness" Value="1" />
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="ToggleButton">
+                                                                        <Border Background="{TemplateBinding Background}"
+                                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                                                CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsChecked" Value="True">
+                                                                    <Setter Property="Foreground" Value="White" />
+                                                                    <Setter Property="Background" Value="#E65100" />
+                                                                    <Setter Property="BorderBrush" Value="#BF360C" />
+                                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="#FFF3E0" />
+                                                                </Trigger>
+                                                                <MultiTrigger>
+                                                                    <MultiTrigger.Conditions>
+                                                                        <Condition Property="IsChecked" Value="True" />
+                                                                        <Condition Property="IsMouseOver" Value="True" />
+                                                                    </MultiTrigger.Conditions>
+                                                                    <Setter Property="Background" Value="#F4511E" />
+                                                                </MultiTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </ToggleButton.Style>
+                                                </ToggleButton>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
