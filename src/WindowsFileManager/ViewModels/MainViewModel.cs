@@ -51,8 +51,6 @@ public class MainViewModel : ViewModelBase
     private string _resourceMemory = string.Empty;
     private string _resourceCpu = string.Empty;
     private string _resourceThreads = string.Empty;
-    private int _selectedGroupCount;
-    private bool _isSelectAll;
     private string _moveTargetPath = string.Empty;
     private string _filenameFilterText = string.Empty;
     private bool _isFilenameRegex;
@@ -503,15 +501,17 @@ public class MainViewModel : ViewModelBase
         ToggleFilterCommand = new RelayCommand(_ => IsFilterVisible = !IsFilterVisible);
         ToggleActionsCommand = new RelayCommand(_ => IsActionsVisible = !IsActionsVisible);
 
-        SelectAllFilesCommand = new RelayCommand(_ => SelectAllFiles(), _ => SelectedGroupCount > 0);
-        SelectNewerFilesCommand = new RelayCommand(_ => SelectNewerFiles(), _ => SelectedGroupCount > 0);
-        SelectOlderFilesCommand = new RelayCommand(_ => SelectOlderFiles(), _ => SelectedGroupCount > 0);
-        SelectByFilenameCommand = new RelayCommand(_ => SelectByFilename(), _ => SelectedGroupCount > 0);
-        SelectByPathCommand = new RelayCommand(_ => SelectByPath(), _ => SelectedGroupCount > 0);
+        SelectAllFilesCommand = new RelayCommand(_ => SelectAllFiles(), _ => DuplicateGroups.Count > 0);
+        SelectNewerFilesCommand = new RelayCommand(_ => SelectNewerFiles(), _ => DuplicateGroups.Count > 0);
+        SelectOlderFilesCommand = new RelayCommand(_ => SelectOlderFiles(), _ => DuplicateGroups.Count > 0);
+        SelectByFilenameCommand = new RelayCommand(_ => SelectByFilename(), _ => DuplicateGroups.Count > 0);
+        SelectByPathCommand = new RelayCommand(_ => SelectByPath(), _ => DuplicateGroups.Count > 0);
         ClearFileSelectionCommand = new RelayCommand(_ => ClearFileSelection());
         DeleteSelectedFilesCommand = new RelayCommand(_ => DeleteSelectedFiles(), _ => SelectedFileCount > 0);
         MoveSelectedFilesCommand = new RelayCommand(_ => MoveSelectedFiles(), _ => SelectedFileCount > 0);
         BrowseMoveTargetCommand = new RelayCommand(_ => BrowseMoveTarget());
+        SelectAllInGroupCommand = new RelayCommand(p => SelectAllInGroup(p as DuplicateGroup));
+        ClearSelectionInGroupCommand = new RelayCommand(p => ClearSelectionInGroup(p as DuplicateGroup));
 
         FilteredDuplicateGroups = CollectionViewSource.GetDefaultView(DuplicateGroups);
         FilteredDuplicateGroups.Filter = FilterDuplicateGroup;
@@ -805,33 +805,6 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Gets or sets the number of selected groups.
-    /// </summary>
-    public int SelectedGroupCount
-    {
-        get => _selectedGroupCount;
-        set
-        {
-            SetProperty(ref _selectedGroupCount, value);
-            OnPropertyChanged(nameof(HasSelectedGroups));
-        }
-    }
-
-    /// <summary>
-    /// Gets a value indicating whether any groups are selected.
-    /// </summary>
-    public bool HasSelectedGroups => SelectedGroupCount > 0;
-
-    /// <summary>
-    /// Gets or sets a value indicating whether select all is active.
-    /// </summary>
-    public bool IsSelectAll
-    {
-        get => _isSelectAll;
-        set => SetProperty(ref _isSelectAll, value);
-    }
-
-    /// <summary>
     /// Gets or sets the move target path.
     /// </summary>
     public string MoveTargetPath
@@ -839,12 +812,6 @@ public class MainViewModel : ViewModelBase
         get => _moveTargetPath;
         set => SetProperty(ref _moveTargetPath, value);
     }
-
-    /// <summary>
-    /// Gets the selected groups (computed from IsSelected on each group).
-    /// </summary>
-    public List<DuplicateGroup> SelectedGroups =>
-        DuplicateGroups.Where(g => g.IsSelected).ToList();
 
     /// <summary>
     /// Gets or sets a value indicating whether the actions panel is expanded.
@@ -888,6 +855,12 @@ public class MainViewModel : ViewModelBase
 
     /// <summary>Gets the browse move target command.</summary>
     public ICommand BrowseMoveTargetCommand { get; }
+
+    /// <summary>Gets the select all files in a single group command.</summary>
+    public ICommand SelectAllInGroupCommand { get; }
+
+    /// <summary>Gets the clear file selection in a single group command.</summary>
+    public ICommand ClearSelectionInGroupCommand { get; }
 
     /// <summary>
     /// Gets or sets the filename filter text.
@@ -1670,8 +1643,7 @@ public class MainViewModel : ViewModelBase
     // ── SELECTION METHODS ──
     private void SelectAllFiles()
     {
-        var groups = SelectedGroups.ToList();
-        foreach (var group in groups)
+        foreach (var group in DuplicateGroups)
         {
             foreach (var file in group.Files)
             {
@@ -1680,16 +1652,15 @@ public class MainViewModel : ViewModelBase
         }
 
         RefreshSelectedFileCount();
-        StatusMessage = $"Selected all {SelectedFileCount} files in {groups.Count} groups.";
+        StatusMessage = $"Selected all {SelectedFileCount} files in {DuplicateGroups.Count} groups.";
     }
 
     private void SelectNewerFiles()
     {
         ClearFileSelection();
-        var groups = SelectedGroups.ToList();
         var selected = 0;
 
-        foreach (var group in groups)
+        foreach (var group in DuplicateGroups)
         {
             if (group.Files.Count <= 1)
             {
@@ -1711,10 +1682,9 @@ public class MainViewModel : ViewModelBase
     private void SelectOlderFiles()
     {
         ClearFileSelection();
-        var groups = SelectedGroups.ToList();
         var selected = 0;
 
-        foreach (var group in groups)
+        foreach (var group in DuplicateGroups)
         {
             if (group.Files.Count <= 1)
             {
@@ -1742,11 +1712,10 @@ public class MainViewModel : ViewModelBase
         }
 
         ClearFileSelection();
-        var groups = SelectedGroups.ToList();
         var filter = FilenameFilterText.Trim();
         var selected = 0;
 
-        foreach (var group in groups)
+        foreach (var group in DuplicateGroups)
         {
             foreach (var file in group.Files)
             {
@@ -1773,11 +1742,10 @@ public class MainViewModel : ViewModelBase
         }
 
         ClearFileSelection();
-        var groups = SelectedGroups.ToList();
         var filter = FilepathFilterText.Trim();
         var selected = 0;
 
-        foreach (var group in groups)
+        foreach (var group in DuplicateGroups)
         {
             foreach (var file in group.Files)
             {
@@ -1992,14 +1960,6 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Refreshes the selected group count from IsSelected flags.
-    /// </summary>
-    public void RefreshSelectedCount()
-    {
-        SelectedGroupCount = DuplicateGroups.Count(g => g.IsSelected);
-    }
-
-    /// <summary>
     /// Refreshes the selected file count from IsFileSelected flags.
     /// </summary>
     public void RefreshSelectedFileCount()
@@ -2009,17 +1969,34 @@ public class MainViewModel : ViewModelBase
             .Count(f => f.IsFileSelected);
     }
 
-    /// <summary>
-    /// Sets IsSelected on all visible groups.
-    /// </summary>
-    public void SelectAllGroups(bool selected)
+    private void SelectAllInGroup(DuplicateGroup? group)
     {
-        foreach (DuplicateGroup group in FilteredDuplicateGroups)
+        if (group == null)
         {
-            group.IsSelected = selected;
+            return;
         }
 
-        RefreshSelectedCount();
+        foreach (var file in group.Files)
+        {
+            file.IsFileSelected = true;
+        }
+
+        RefreshSelectedFileCount();
+    }
+
+    private void ClearSelectionInGroup(DuplicateGroup? group)
+    {
+        if (group == null)
+        {
+            return;
+        }
+
+        foreach (var file in group.Files)
+        {
+            file.IsFileSelected = false;
+        }
+
+        RefreshSelectedFileCount();
     }
 
     private void UpdateResourceInfo()

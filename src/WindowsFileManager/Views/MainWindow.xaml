@@ -246,21 +246,12 @@
                 <Border Grid.Row="2" Background="#FFF8E1" CornerRadius="4" Padding="8,4" Margin="0,0,0,4"
                         BorderBrush="#FFE082" BorderThickness="1">
                     <StackPanel>
-                        <!-- Toggle bar (always visible when selected) -->
+                        <!-- Toggle bar (always visible) -->
                         <StackPanel Orientation="Horizontal">
                             <Button Content="🔽 Actions"
                                     Command="{Binding ToggleActionsCommand}"
                                     Padding="8,3" FontSize="11" Cursor="Hand"
                                     Foreground="#E65100" Background="Transparent" BorderThickness="0" />
-                            <CheckBox Content="Select All" IsChecked="{Binding IsSelectAll}"
-                                      VerticalAlignment="Center" Margin="12,0,12,0"
-                                      Checked="SelectAll_Checked" Unchecked="SelectAll_Unchecked" />
-                            <TextBlock VerticalAlignment="Center"
-                                       FontWeight="SemiBold" FontSize="12" Foreground="#E65100">
-                                <TextBlock.Text>
-                                    <Binding Path="SelectedGroupCount" StringFormat="{}{0} groups selected" />
-                                </TextBlock.Text>
-                            </TextBlock>
                         </StackPanel>
 
                         <!-- Expandable action panel -->
@@ -371,7 +362,6 @@
                           ScrollViewer.CanContentScroll="True">
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
-                            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="ListViewItem_Click" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                         </Style>
                     </ListView.ItemContainerStyle>
@@ -381,9 +371,6 @@
                                     Padding="4,8" Margin="0,0,0,4">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                        <CheckBox IsChecked="{Binding IsSelected}"
-                                                  VerticalAlignment="Center" Margin="0,0,8,0"
-                                                  Checked="GroupCheckBox_Changed" Unchecked="GroupCheckBox_Changed" />
                                         <TextBlock FontWeight="SemiBold"
                                                    Text="{Binding Count, StringFormat='{}{0} files'}" />
                                         <TextBlock Text=" — " Foreground="Gray" />
@@ -391,10 +378,22 @@
                                         <TextBlock Text=" each — " Foreground="Gray" />
                                         <TextBlock Text="{Binding FormattedWastedSize, StringFormat='wasted: {0}'}"
                                                    Foreground="#C62828" FontWeight="SemiBold" />
+                                        <Button Content="✓ Select All"
+                                                Command="{Binding DataContext.SelectAllInGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"
+                                                Padding="6,2" Margin="12,0,4,0"
+                                                FontSize="11" Cursor="Hand"
+                                                Foreground="#2E7D32" />
+                                        <Button Content="✕ Clear"
+                                                Command="{Binding DataContext.ClearSelectionInGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"
+                                                Padding="6,2" Margin="0,0,4,0"
+                                                FontSize="11" Cursor="Hand"
+                                                Foreground="#888888" />
                                         <Button Content="{Binding DeleteAllLabel}"
                                                 Command="{Binding DataContext.DeleteAllInGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 CommandParameter="{Binding}"
-                                                Padding="6,2" Margin="12,0,0,0"
+                                                Padding="6,2" Margin="4,0,0,0"
                                                 FontSize="11" Cursor="Hand"
                                                 Foreground="#C62828" FontWeight="SemiBold" />
                                     </StackPanel>
