@@ -835,7 +835,13 @@ public class MainViewModel : ViewModelBase
     public bool IsAutoPreview
     {
         get => _isAutoPreview;
-        set => SetProperty(ref _isAutoPreview, value);
+        set
+        {
+            if (SetProperty(ref _isAutoPreview, value))
+            {
+                IsPreviewVisible = value;
+            }
+        }
     }
 
     /// <summary>
@@ -1260,6 +1266,7 @@ public class MainViewModel : ViewModelBase
         IncludeSubdirectories = settings.IncludeSubdirectories;
         IsMiniPreview = settings.IsMiniPreview;
         IsAutoPreview = settings.IsAutoPreview;
+        IsPreviewVisible = IsAutoPreview;
         IsAutoPlay = settings.IsAutoPlay;
         SelectedSortOption = settings.SelectedSortOption;
         MediaVolume = settings.Volume;
@@ -1794,7 +1801,6 @@ public class MainViewModel : ViewModelBase
 
     private void ClosePreview()
     {
-        IsPreviewVisible = false;
         IsAutoPreview = false;
         PreviewType = "none";
         PreviewImage = null;

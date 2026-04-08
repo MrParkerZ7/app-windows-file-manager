@@ -166,20 +166,140 @@
                     <ToggleButton Style="{StaticResource HelpButtonStyle}" Margin="16,0,0,0"
                                   Tag="&lt;h&gt;SCAN &amp; DISPLAY OPTIONS&lt;/h&gt;&#x0a;&#x0a;&lt;b&gt;Mini Preview&lt;/b&gt; = show small thumbnails inline in the list&#x0a;&lt;b&gt;File Preview&lt;/b&gt; = show full preview panel when clicking a file&#x0a;&lt;b&gt;Auto Play&lt;/b&gt; = auto-play video/audio in preview&#x0a;&#x0a;After scanning, use &lt;b&gt;Filters&lt;/b&gt; to narrow results and &lt;b&gt;Actions&lt;/b&gt; to select files for deletion or moving." />
 
-                    <CheckBox Content="Mini Preview"
-                              IsChecked="{Binding IsMiniPreview}"
-                              VerticalAlignment="Center" Margin="16,0,0,0"
-                              ToolTip="Show inline thumbnail in the duplicate list" />
+                    <ToggleButton IsChecked="{Binding IsMiniPreview}"
+                                  VerticalAlignment="Center" FontSize="11" Padding="8,3" Margin="16,0,0,0" Cursor="Hand"
+                                  ToolTip="Show inline thumbnail in the duplicate list">
+                        <ToggleButton.Style>
+                            <Style TargetType="ToggleButton">
+                                <Setter Property="Content" Value="Mini Preview" />
+                                <Setter Property="Foreground" Value="#555555" />
+                                <Setter Property="Background" Value="#F5F5F5" />
+                                <Setter Property="BorderBrush" Value="#CCCCCC" />
+                                <Setter Property="BorderThickness" Value="1" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter Property="Content" Value="✦ Mini Preview" />
+                                        <Setter Property="Foreground" Value="White" />
+                                        <Setter Property="Background" Value="#0277BD" />
+                                        <Setter Property="BorderBrush" Value="#01579B" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#E1F5FE" />
+                                    </Trigger>
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="IsChecked" Value="True" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter Property="Background" Value="#0288D1" />
+                                    </MultiTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ToggleButton.Style>
+                    </ToggleButton>
 
-                    <CheckBox Content="File Preview"
-                              IsChecked="{Binding IsAutoPreview}"
-                              VerticalAlignment="Center" Margin="12,0,0,0"
-                              ToolTip="Show full file preview panel when clicking a group" />
+                    <ToggleButton IsChecked="{Binding IsAutoPreview}"
+                                  VerticalAlignment="Center" FontSize="11" Padding="8,3" Margin="4,0,0,0" Cursor="Hand"
+                                  ToolTip="Show full file preview panel when clicking a group">
+                        <ToggleButton.Style>
+                            <Style TargetType="ToggleButton">
+                                <Setter Property="Content" Value="File Preview" />
+                                <Setter Property="Foreground" Value="#555555" />
+                                <Setter Property="Background" Value="#F5F5F5" />
+                                <Setter Property="BorderBrush" Value="#CCCCCC" />
+                                <Setter Property="BorderThickness" Value="1" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter Property="Content" Value="✦ File Preview" />
+                                        <Setter Property="Foreground" Value="White" />
+                                        <Setter Property="Background" Value="#0277BD" />
+                                        <Setter Property="BorderBrush" Value="#01579B" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#E1F5FE" />
+                                    </Trigger>
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="IsChecked" Value="True" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter Property="Background" Value="#0288D1" />
+                                    </MultiTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ToggleButton.Style>
+                    </ToggleButton>
 
-                    <CheckBox Content="Auto Play"
-                              IsChecked="{Binding IsAutoPlay}"
-                              VerticalAlignment="Center" Margin="12,0,0,0"
-                              ToolTip="Auto-play video/audio. When off, video shows first frame." />
+                    <ToggleButton IsChecked="{Binding IsAutoPlay}"
+                                  VerticalAlignment="Center" FontSize="11" Padding="8,3" Margin="4,0,0,0" Cursor="Hand"
+                                  ToolTip="Auto-play video/audio. When off, video shows first frame.">
+                        <ToggleButton.Style>
+                            <Style TargetType="ToggleButton">
+                                <Setter Property="Content" Value="Auto Play" />
+                                <Setter Property="Foreground" Value="#555555" />
+                                <Setter Property="Background" Value="#F5F5F5" />
+                                <Setter Property="BorderBrush" Value="#CCCCCC" />
+                                <Setter Property="BorderThickness" Value="1" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter Property="Content" Value="✦ Auto Play" />
+                                        <Setter Property="Foreground" Value="White" />
+                                        <Setter Property="Background" Value="#0277BD" />
+                                        <Setter Property="BorderBrush" Value="#01579B" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#E1F5FE" />
+                                    </Trigger>
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="IsChecked" Value="True" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter Property="Background" Value="#0288D1" />
+                                    </MultiTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ToggleButton.Style>
+                    </ToggleButton>
                 </StackPanel>
 
                 <ProgressBar Height="6" Margin="0,6,0,0"
@@ -1298,9 +1418,19 @@
                             FontSize="11" Cursor="Hand" Foreground="#666666" />
                 </Grid>
 
-                <!-- File Info -->
+                <!-- File Info (hidden when no file selected) -->
                 <Border Grid.Row="1" Background="White" CornerRadius="4" Padding="8" Margin="0,0,0,8"
                         BorderBrush="#E0E0E0" BorderThickness="1">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding PreviewFileName}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
                     <StackPanel>
                         <TextBlock Text="{Binding PreviewFileName}" FontWeight="SemiBold" FontSize="12"
                                    TextTrimming="CharacterEllipsis"
@@ -1313,6 +1443,24 @@
                 <Border Grid.Row="2" Background="White" CornerRadius="4"
                         BorderBrush="#E0E0E0" BorderThickness="1" Padding="4">
                     <Grid>
+                        <!-- Empty State (no file selected) -->
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PreviewType}" Value="none">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <TextBlock Text="📄" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                            <TextBlock Text="No file selected" FontSize="13" Foreground="#AAAAAA"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="Click a file in the list to preview" FontSize="11" Foreground="#CCCCCC"
+                                       HorizontalAlignment="Center" Margin="0,4,0,0" />
+                        </StackPanel>
                         <!-- Image Preview -->
                         <Image Source="{Binding PreviewImage}" Stretch="Uniform"
                                VerticalAlignment="Top" HorizontalAlignment="Center"
