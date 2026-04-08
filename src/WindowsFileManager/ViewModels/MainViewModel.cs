@@ -1891,9 +1891,12 @@ public class MainViewModel : ViewModelBase
             }
         }
 
+        var ignored = ApplyIgnoreFilters();
+        selected -= ignored;
+
         RefreshSelectedFileCount();
         StatusMessage = selected > 0
-            ? $"Selected {selected} files with filename matching \"{filter}\"."
+            ? $"Selected {selected} files with filename matching \"{filter}\"{(ignored > 0 ? $" ({ignored} excluded by ignore filters)" : string.Empty)}."
             : $"No files with filename matching \"{filter}\".";
     }
 
@@ -1921,9 +1924,12 @@ public class MainViewModel : ViewModelBase
             }
         }
 
+        var ignored = ApplyIgnoreFilters();
+        selected -= ignored;
+
         RefreshSelectedFileCount();
         StatusMessage = selected > 0
-            ? $"Selected {selected} files with path matching \"{filter}\"."
+            ? $"Selected {selected} files with path matching \"{filter}\"{(ignored > 0 ? $" ({ignored} excluded by ignore filters)" : string.Empty)}."
             : $"No files with path matching \"{filter}\".";
     }
 
@@ -1935,24 +1941,12 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        var filter = IgnoreFilenameFilterText.Trim();
-        var deselected = 0;
-
-        foreach (var group in DuplicateGroups)
-        {
-            foreach (var file in group.Files)
-            {
-                if (file.IsFileSelected && MatchesFilter(file.FileName, filter, IsIgnoreFilenameRegex, IsIgnoreFilenameIgnoreCase))
-                {
-                    file.IsFileSelected = false;
-                    deselected++;
-                }
-            }
-        }
+        var deselected = ApplyIgnoreFilters();
 
         RefreshSelectedFileCount();
+        var filter = IgnoreFilenameFilterText.Trim();
         StatusMessage = deselected > 0
-            ? $"Deselected {deselected} files with filename matching \"{filter}\"."
+            ? $"Deselected {deselected} files by ignore filters."
             : $"No selected files with filename matching \"{filter}\".";
     }
 
@@ -1964,14 +1958,44 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        var deselected = ApplyIgnoreFilters();
+
+        RefreshSelectedFileCount();
         var filter = IgnoreFilepathFilterText.Trim();
+        StatusMessage = deselected > 0
+            ? $"Deselected {deselected} files by ignore filters."
+            : $"No selected files with path matching \"{filter}\".";
+    }
+
+    private int ApplyIgnoreFilters()
+    {
         var deselected = 0;
+        var hasIgnoreFilename = !string.IsNullOrWhiteSpace(IgnoreFilenameFilterText);
+        var hasIgnoreFilepath = !string.IsNullOrWhiteSpace(IgnoreFilepathFilterText);
+
+        if (!hasIgnoreFilename && !hasIgnoreFilepath)
+        {
+            return 0;
+        }
+
+        var ignoreNameFilter = hasIgnoreFilename ? IgnoreFilenameFilterText.Trim() : string.Empty;
+        var ignorePathFilter = hasIgnoreFilepath ? IgnoreFilepathFilterText.Trim() : string.Empty;
 
         foreach (var group in DuplicateGroups)
         {
             foreach (var file in group.Files)
             {
-                if (file.IsFileSelected && MatchesFilter(file.FilePath, filter, IsIgnoreFilepathRegex, IsIgnoreFilepathIgnoreCase))
+                if (!file.IsFileSelected)
+                {
+                    continue;
+                }
+
+                var matchesIgnoreName = hasIgnoreFilename &&
+                    MatchesFilter(file.FileName, ignoreNameFilter, IsIgnoreFilenameRegex, IsIgnoreFilenameIgnoreCase);
+                var matchesIgnorePath = hasIgnoreFilepath &&
+                    MatchesFilter(file.FilePath, ignorePathFilter, IsIgnoreFilepathRegex, IsIgnoreFilepathIgnoreCase);
+
+                if (matchesIgnoreName || matchesIgnorePath)
                 {
                     file.IsFileSelected = false;
                     deselected++;
@@ -1979,10 +2003,7 @@ public class MainViewModel : ViewModelBase
             }
         }
 
-        RefreshSelectedFileCount();
-        StatusMessage = deselected > 0
-            ? $"Deselected {deselected} files with path matching \"{filter}\"."
-            : $"No selected files with path matching \"{filter}\".";
+        return deselected;
     }
 
     private static bool MatchesFilter(string input, string filter, bool useRegex, bool ignoreCase)

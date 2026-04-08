@@ -18,6 +18,52 @@
         <helpers:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility" />
         <helpers:MiniPreviewConverter x:Key="MiniPreview" />
         <helpers:FileTypeIconConverter x:Key="FileTypeIcon" />
+
+        <!-- Help Button Style: small ? circle that shows a popup on click -->
+        <Style x:Key="HelpButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#1565C0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="4,0,0,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid>
+                            <Border x:Name="Circle" Width="16" Height="16" CornerRadius="8"
+                                    Background="#E3F2FD" BorderBrush="#90CAF9" BorderThickness="1">
+                                <TextBlock Text="?" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           FontSize="10" FontWeight="Bold" Foreground="#1565C0" Margin="0,-1,0,0" />
+                            </Border>
+                            <Popup x:Name="HelpPopup" IsOpen="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}"
+                                   StaysOpen="False" Placement="Bottom" AllowsTransparency="True" PopupAnimation="Fade">
+                                <Border Background="#FFFDE7" BorderBrush="#FFD54F" BorderThickness="1"
+                                        CornerRadius="6" Padding="12,10" MaxWidth="380">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" Opacity="0.15" BlurRadius="8" ShadowDepth="2" />
+                                    </Border.Effect>
+                                    <TextBlock TextWrapping="Wrap" FontSize="11.5" FontWeight="Normal"
+                                               Foreground="#333333" LineHeight="18"
+                                               helpers:FormattedTextBehavior.FormattedText="{TemplateBinding Tag}" />
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Circle" Property="Background" Value="#BBDEFB" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Circle" Property="Background" Value="#1565C0" />
+                                <Setter TargetName="Circle" Property="BorderBrush" Value="#0D47A1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="12">
@@ -94,6 +140,8 @@
                                   IsChecked="{Binding IncludeSubdirectories}"
                                   IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
                                   Margin="0,0,16,0" />
+                        <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                      Tag="&lt;h&gt;WHERE TO SCAN&lt;/h&gt;&#x0a;Add folders that may contain duplicate files.&#x0a;&#x0a;&lt;b&gt;Include subdirectories&lt;/b&gt; = scan all nested folders too&#x0a;&lt;b&gt;Multiple folders&lt;/b&gt; = compare files across different locations&#x0a;&#x0a;&lt;h&gt;How it works:&lt;/h&gt; Files are compared by &lt;b&gt;content hash (SHA-256)&lt;/b&gt;, not by name. Two files with different names but identical content are detected as duplicates." />
                     </StackPanel>
                 </Grid>
             </GroupBox>
@@ -114,6 +162,9 @@
                     <TextBlock Text="{Binding FilesScanned, StringFormat='Files scanned: {0}'}"
                                VerticalAlignment="Center" Margin="16,0,0,0"
                                Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
+
+                    <ToggleButton Style="{StaticResource HelpButtonStyle}" Margin="16,0,0,0"
+                                  Tag="&lt;h&gt;SCAN &amp; DISPLAY OPTIONS&lt;/h&gt;&#x0a;&#x0a;&lt;b&gt;Mini Preview&lt;/b&gt; = show small thumbnails inline in the list&#x0a;&lt;b&gt;File Preview&lt;/b&gt; = show full preview panel when clicking a file&#x0a;&lt;b&gt;Auto Play&lt;/b&gt; = auto-play video/audio in preview&#x0a;&#x0a;After scanning, use &lt;b&gt;Filters&lt;/b&gt; to narrow results and &lt;b&gt;Actions&lt;/b&gt; to select files for deletion or moving." />
 
                     <CheckBox Content="Mini Preview"
                               IsChecked="{Binding IsMiniPreview}"
@@ -187,8 +238,12 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="File Types" FontWeight="SemiBold" FontSize="12"
-                                       Foreground="#333333" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <TextBlock Text="File Types" FontWeight="SemiBold" FontSize="12"
+                                           Foreground="#333333" VerticalAlignment="Center" />
+                                <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                              Tag="&lt;h&gt;FILTER BY FILE TYPE&lt;/h&gt;&#x0a;Show or hide duplicate groups by their file extension.&#x0a;&#x0a;&lt;b&gt;Checked&lt;/b&gt; = shown in results&#x0a;&lt;b&gt;Unchecked&lt;/b&gt; = hidden from results&#x0a;&#x0a;&lt;h&gt;Tip:&lt;/h&gt; Use this to focus on one type at a time (e.g. only images, only documents)." />
+                            </StackPanel>
                             <Button Grid.Column="1" Content="Select All"
                                     Command="{Binding ShowAllTypesCommand}"
                                     Padding="6,2" Margin="0,0,4,0" FontSize="10" Cursor="Hand" />
@@ -222,7 +277,9 @@
                         <!-- Minimum File Size + Min Duplicates Filter -->
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Min file size:" FontWeight="SemiBold" FontSize="12"
-                                       Foreground="#333333" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                       Foreground="#333333" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <ToggleButton Style="{StaticResource HelpButtonStyle}" Margin="0,0,4,0"
+                                          Tag="&lt;h&gt;FILTER BY SIZE &amp; COUNT&lt;/h&gt;&#x0a;&#x0a;&lt;b&gt;Min file size&lt;/b&gt;&#x0a;Hide files below this threshold. Useful to skip tiny duplicates and focus on large files wasting disk space.&#x0a;&#x0a;&lt;b&gt;Min duplicates&lt;/b&gt;&#x0a;Hide groups with fewer than N copies. Default = 2. Increase to find files with many copies (e.g. 5+ scattered across folders)." />
                             <TextBox Text="{Binding MinFileSizeText, UpdateSourceTrigger=PropertyChanged}"
                                      Width="80" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
                             <ComboBox ItemsSource="{Binding SizeUnits}"
@@ -263,6 +320,8 @@
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                         <TextBlock Text="SELECT" FontSize="12" FontWeight="Bold" Foreground="#2E7D32" />
+                                        <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                                      Tag="&lt;h&gt;SELECTING FILES FOR ACTION&lt;/h&gt;&#x0a;Check files you want to delete or move.&#x0a;&#x0a;&lt;b&gt;Quick select:&lt;/b&gt;&#x0a;Select All = check every file&#x0a;Select Newer = keep oldest, check the rest&#x0a;Select Older = keep newest, check the rest&#x0a;&#x0a;&lt;b&gt;Precise select:&lt;/b&gt;&#x0a;Contain Filters = check files matching a pattern&#x0a;Ignore Filters = uncheck files matching a pattern&#x0a;&#x0a;&lt;w&gt;Ignore always overrides Contain.&lt;/w&gt; If a file matches both, it stays unchecked (protected)." />
                                         <TextBlock FontSize="10" Foreground="#555555" Margin="8,0,0,0"
                                                    VerticalAlignment="Center">
                                             <TextBlock.Text>
@@ -316,6 +375,8 @@
                                                                                 </TextBlock.Style>
                                                                             </TextBlock>
                                                                             <TextBlock Text="Contain Filters" FontSize="11.5" FontWeight="Bold" Foreground="#2E7D32" />
+                                                                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                                                                          Tag="&lt;h&gt;CONTAIN = SELECT files matching a pattern&lt;/h&gt;&#x0a;&#x0a;&lt;b&gt;Filename contain&lt;/b&gt; &#x2014; matches against the file name only&#x0a;&lt;b&gt;Filepath contain&lt;/b&gt; &#x2014; matches against the full path&#x0a;&#x0a;&lt;h&gt;Options:&lt;/h&gt;&#x0a;&lt;b&gt;Regex&lt;/b&gt; = use regular expressions (e.g. &lt;b&gt;\d{4}&lt;/b&gt; for 4 digits)&#x0a;&lt;b&gt;Ignore Case&lt;/b&gt; = case-insensitive matching (on by default)&#x0a;&#x0a;Click &lt;b&gt;Select&lt;/b&gt; to apply. Any active Ignore filters are automatically applied after, removing protected files from the selection." />
                                                                         </StackPanel>
                                                                     </Border>
                                                                 </ControlTemplate>
@@ -609,6 +670,8 @@
                                                                                 </TextBlock.Style>
                                                                             </TextBlock>
                                                                             <TextBlock Text="Ignore Filters" FontSize="11.5" FontWeight="Bold" Foreground="#C62828" />
+                                                                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                                                                          Tag="&lt;h&gt;IGNORE = PROTECT files from being selected&lt;/h&gt;&#x0a;&#x0a;Files matching an ignore pattern are &lt;b&gt;always unchecked&lt;/b&gt;, even if a Contain filter selected them.&#x0a;&#x0a;&lt;h&gt;Example workflow:&lt;/h&gt;&#x0a;1. Contain filename &lt;b&gt;photo&lt;/b&gt; &#x2192; selects all photo files&#x0a;2. Ignore filepath &lt;b&gt;important&lt;/b&gt; &#x2192; protects files in 'important' folder&#x0a;&#x0a;&lt;w&gt;Ignore ALWAYS wins over Contain.&lt;/w&gt; Use this to safeguard files you never want to accidentally delete." />
                                                                         </StackPanel>
                                                                     </Border>
                                                                 </ControlTemplate>
@@ -883,8 +946,11 @@
                             <!-- ACTION section -->
                             <Border Background="#FFF3E0" CornerRadius="3" Padding="8,6">
                                 <StackPanel>
-                                    <TextBlock Text="ACTION" FontSize="12" FontWeight="Bold" Foreground="#E65100"
-                                               Margin="0,0,0,4" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="ACTION" FontSize="12" FontWeight="Bold" Foreground="#E65100" />
+                                        <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                                      Tag="&lt;h&gt;TAKE ACTION on selected files&lt;/h&gt;&#x0a;&#x0a;&lt;b&gt;Delete&lt;/b&gt;&#x0a;Permanently removes checked files from disk.&#x0a;&lt;w&gt;No Recycle Bin &#x2014; cannot be undone.&lt;/w&gt;&#x0a;&#x0a;&lt;b&gt;Move&lt;/b&gt;&#x0a;Relocates checked files to the target folder.&#x0a;Filenames are preserved. Original files are removed.&#x0a;&#x0a;&lt;w&gt;Both actions affect ALL checked files across ALL groups.&lt;/w&gt; Double-check your selection before proceeding." />
+                                    </StackPanel>
                                     <StackPanel Orientation="Horizontal">
                                         <Button Content="🗑 Delete" Command="{Binding DeleteSelectedFilesCommand}"
                                                 Padding="8,3" Margin="0,0,8,0" FontSize="11" Cursor="Hand"
