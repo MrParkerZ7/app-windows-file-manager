@@ -66,7 +66,17 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="12">
+    <TabControl Margin="4" Padding="8">
+        <TabControl.Resources>
+            <Style TargetType="TabItem">
+                <Setter Property="Padding" Value="12,6" />
+                <Setter Property="FontSize" Value="13" />
+            </Style>
+        </TabControl.Resources>
+
+        <!-- Tab 1: Duplicate Finder -->
+        <TabItem Header="🔍 Duplicate Finder">
+    <Grid Margin="8">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="400" />
             <ColumnDefinition Width="320" />
@@ -313,6 +323,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
@@ -418,22 +429,25 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Duplicate Groups List -->
-                <!-- Bulk Action Toggle Bar + Panel -->
-                <Border Grid.Row="2" Background="#FFF8E1" CornerRadius="4" Padding="8,4" Margin="0,0,0,4"
-                        BorderBrush="#FFE082" BorderThickness="1">
-                    <StackPanel>
-                        <!-- Toggle bar (always visible) -->
-                        <StackPanel Orientation="Horizontal">
-                            <Button Content="🔽 Actions"
-                                    Command="{Binding ToggleActionsCommand}"
-                                    Padding="8,3" FontSize="11" Cursor="Hand"
-                                    Foreground="#E65100" Background="Transparent" BorderThickness="0" />
-                        </StackPanel>
+                <!-- Actions Toggle Bar -->
+                <Border Grid.Row="2" Background="#FFF8E1" CornerRadius="4" Padding="8,4" Margin="0,0,0,4">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="🔽 Actions"
+                                Command="{Binding ToggleActionsCommand}"
+                                Padding="8,3" FontSize="11" Cursor="Hand"
+                                Foreground="#E65100" Background="Transparent" BorderThickness="0" />
+                    </Grid>
+                </Border>
 
-                        <!-- Expandable action panel -->
-                        <StackPanel Margin="0,6,0,0"
-                                    Visibility="{Binding IsActionsVisible, Converter={StaticResource BoolToVisibility}}">
+                <!-- Actions Panel (collapsible) -->
+                <Border Grid.Row="3" Background="#FFFBF0" CornerRadius="4" Padding="10" Margin="0,0,0,6"
+                        BorderBrush="#FFE082" BorderThickness="1"
+                        Visibility="{Binding IsActionsVisible, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
 
                             <!-- SELECT section -->
                             <Border Background="#E8F5E9" CornerRadius="3" Padding="8,6" Margin="0,0,0,6">
@@ -1089,11 +1103,10 @@
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
-                        </StackPanel>
                     </StackPanel>
                 </Border>
 
-                <GroupBox Grid.Row="3" Header="Duplicate Groups" Padding="4">
+                <GroupBox Grid.Row="4" Header="Duplicate Groups" Padding="4">
                 <ListView x:Name="DuplicateGroupsList"
                           ItemsSource="{Binding FilteredDuplicateGroups}"
                           SelectedItem="{Binding SelectedDuplicateGroup}"
@@ -1615,4 +1628,314 @@
             </Grid>
         </Border>
     </Grid>
+        </TabItem>
+
+        <!-- Tab 2: Search -->
+        <TabItem Header="🔎 Search">
+            <Grid Margin="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="400" />
+                    <ColumnDefinition Width="260" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: Search + Results -->
+                <Grid Grid.Column="0" Margin="0,0,8,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Row 0: Target Folders (shared) -->
+                    <Border Grid.Row="0" Background="#F5F5F5" CornerRadius="4" Padding="8,6" Margin="0,0,0,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="📂 Folders:" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#555555" VerticalAlignment="Top" Margin="0,1,8,0" />
+                            <ItemsControl Grid.Column="1" ItemsSource="{Binding TargetPaths}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#E8EAF6" CornerRadius="3" Padding="6,2" Margin="0,0,4,2">
+                                            <TextBlock Text="{Binding}" FontSize="10" Foreground="#333333" />
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </Border>
+
+                    <!-- Row 1: Search Bar -->
+                    <Border Grid.Row="1" Background="#E3F2FD" CornerRadius="4" Padding="10" Margin="0,0,0,6">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Search input -->
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="8,6" FontSize="13" VerticalContentAlignment="Center"
+                                         IsEnabled="{Binding IsSearching, Converter={StaticResource InverseBool}}"
+                                         helpers:TextBoxEnterKeyBehavior.Command="{Binding SearchCommand}" />
+                                <Button Grid.Column="1" Content="🔎 Search" Command="{Binding SearchCommand}"
+                                        Padding="14,6" Margin="8,0,0,0" FontSize="12" Cursor="Hand" FontWeight="SemiBold" />
+                                <Button Grid.Column="2" Content="Cancel" Command="{Binding CancelSearchCommand}"
+                                        Padding="10,6" Margin="4,0,0,0" FontSize="11" Cursor="Hand" Foreground="#C62828" />
+                            </Grid>
+
+                            <!-- Search mode -->
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
+                                <TextBlock Text="Search in:" FontSize="11" FontWeight="SemiBold" Foreground="#555555"
+                                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <CheckBox Content="File names" IsChecked="{Binding SearchByFileName}"
+                                          FontSize="11" VerticalContentAlignment="Center" Margin="0,0,12,0" />
+                                <CheckBox Content="Folder names" IsChecked="{Binding SearchByFolderName}"
+                                          FontSize="11" VerticalContentAlignment="Center" Margin="0,0,12,0" />
+                                <CheckBox Content="File type:" IsChecked="{Binding SearchByFileType}"
+                                          FontSize="11" VerticalContentAlignment="Center" Margin="0,0,4,0" />
+                                <TextBox Text="{Binding SearchFileTypeFilter, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="4,2" FontSize="10" Width="140" VerticalContentAlignment="Center"
+                                         IsEnabled="{Binding SearchByFileType}"
+                                         ToolTip="e.g.: .jpg, .png, .pdf" />
+                                <CheckBox Content="File content:" IsChecked="{Binding SearchByContent}"
+                                          FontSize="11" VerticalContentAlignment="Center" Margin="12,0,4,0" />
+                                <TextBox Text="{Binding SearchContentQuery, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="4,2" FontSize="10" Width="140" VerticalContentAlignment="Center"
+                                         IsEnabled="{Binding SearchByContent}"
+                                         ToolTip="Search text inside files (slow for large scans)" />
+                            </StackPanel>
+
+                            <!-- Options row -->
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
+                                <CheckBox Content="Subdirectories" IsChecked="{Binding SearchIncludeSubdirectories}"
+                                          FontSize="11" VerticalContentAlignment="Center" Margin="0,0,12,0" />
+                                <CheckBox Content="Regex" IsChecked="{Binding IsSearchRegex}"
+                                          FontSize="11" VerticalContentAlignment="Center" Margin="0,0,12,0" />
+                                <CheckBox Content="Ignore case" IsChecked="{Binding IsSearchIgnoreCase}"
+                                          FontSize="11" VerticalContentAlignment="Center" Margin="0,0,20,0" />
+                                <TextBlock Text="Sort:" FontSize="11" Foreground="#666666" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                <ComboBox ItemsSource="{Binding SearchSortOptions}" SelectedItem="{Binding SearchSortOption}"
+                                          Width="130" FontSize="11" VerticalContentAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Row 2: Results -->
+                    <GroupBox Grid.Row="2" Padding="4">
+                        <GroupBox.Header>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Search Results" />
+                                <TextBlock Text="{Binding SearchResultCount, StringFormat=' ({0})'}" Foreground="#666666" />
+                            </StackPanel>
+                        </GroupBox.Header>
+                        <ListView ItemsSource="{Binding SearchResults}"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  BorderThickness="0"
+                                  GridViewColumnHeader.Click="SearchResults_ColumnHeaderClick">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="" Width="28">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Icon}" FontSize="13" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Name" Width="260">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Name}" FontSize="11"
+                                                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Type" Width="50">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding ResultType}" FontSize="10" Foreground="#888888" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Size" Width="70">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding FormattedSize}" FontSize="10" Foreground="#666666" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Ext" Width="55">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Extension}" FontSize="10" Foreground="#888888" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Modified" Width="120">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
+                                                           FontSize="10" Foreground="#888888" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Directory" Width="400">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Directory}" FontSize="10" Foreground="#888888"
+                                                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Directory}" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="" Width="55">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Content="📂 Open"
+                                                        Command="{Binding DataContext.OpenSearchResultLocationCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding FullPath}"
+                                                        Padding="4,1" FontSize="10" Cursor="Hand"
+                                                        Background="Transparent" BorderThickness="0" Foreground="#1565C0" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </GroupBox>
+
+                    <!-- Row 3: Status Bar -->
+                    <Border Grid.Row="3" Background="#F5F5F5" CornerRadius="4" Padding="8,4" Margin="0,4,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding SearchStatusMessage}"
+                                       FontSize="11" Foreground="#666666" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="Clear Results" Command="{Binding ClearSearchResultsCommand}"
+                                    Padding="8,3" FontSize="11" Cursor="Hand" Foreground="#C62828"
+                                    Background="Transparent" BorderThickness="0" />
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Right: Filters Panel -->
+                <Border Grid.Column="1" Background="#FAFAFA" CornerRadius="4" Padding="10"
+                        BorderBrush="#E0E0E0" BorderThickness="1">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="FILTERS" FontSize="12" FontWeight="Bold" Foreground="#555555" Margin="0,0,0,10" />
+
+                            <!-- Size Filter -->
+                            <Border Background="#FFF8E1" CornerRadius="3" Padding="8,6" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <CheckBox Content="Filter by size" IsChecked="{Binding SearchFilterBySize}"
+                                              FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                    <Grid IsEnabled="{Binding SearchFilterBySize}">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Min:" FontSize="10" Foreground="#666666"
+                                                   VerticalAlignment="Center" Margin="0,0,6,4" />
+                                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SearchMinSize, UpdateSourceTrigger=PropertyChanged}"
+                                                 Padding="4,2" FontSize="10" Margin="0,0,0,4" />
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Max:" FontSize="10" Foreground="#666666"
+                                                   VerticalAlignment="Center" Margin="0,0,6,4" />
+                                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SearchMaxSize, UpdateSourceTrigger=PropertyChanged}"
+                                                 Padding="4,2" FontSize="10" Margin="0,0,0,4" />
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Unit:" FontSize="10" Foreground="#666666"
+                                                   VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding SearchSizeUnitOptions}"
+                                                  SelectedItem="{Binding SearchSizeUnit}" FontSize="10" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Date Filter -->
+                            <Border Background="#E8F5E9" CornerRadius="3" Padding="8,6" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <CheckBox Content="Filter by date modified" IsChecked="{Binding SearchFilterByDate}"
+                                              FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                    <ComboBox ItemsSource="{Binding SearchDateRangeOptionsList}"
+                                              SelectedItem="{Binding SearchDateRange}"
+                                              IsEnabled="{Binding SearchFilterByDate}"
+                                              FontSize="10" Margin="0,0,0,4" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0"
+                                                IsEnabled="{Binding SearchFilterByDate}">
+                                        <TextBlock Text="From:" FontSize="10" Foreground="#666666"
+                                                   VerticalAlignment="Center" Margin="0,0,4,0" />
+                                        <DatePicker SelectedDate="{Binding SearchDateFrom}" FontSize="10" Width="95" />
+                                        <TextBlock Text="To:" FontSize="10" Foreground="#666666"
+                                                   VerticalAlignment="Center" Margin="8,0,4,0" />
+                                        <DatePicker SelectedDate="{Binding SearchDateTo}" FontSize="10" Width="95" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Attribute Filter -->
+                            <Border Background="#F3E5F5" CornerRadius="3" Padding="8,6" Margin="0,0,0,8">
+                                <StackPanel>
+                                    <CheckBox Content="Filter by attributes" IsChecked="{Binding SearchFilterByAttributes}"
+                                              FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                    <StackPanel IsEnabled="{Binding SearchFilterByAttributes}">
+                                        <CheckBox Content="Include hidden files" IsChecked="{Binding SearchIncludeHidden}"
+                                                  FontSize="10" Margin="0,0,0,3" />
+                                        <CheckBox Content="Include system files" IsChecked="{Binding SearchIncludeSystem}"
+                                                  FontSize="10" Margin="0,0,0,3" />
+                                        <CheckBox Content="Include read-only files" IsChecked="{Binding SearchIncludeReadOnly}"
+                                                  FontSize="10" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Quick File Types -->
+                            <Border Background="#E0F2F1" CornerRadius="3" Padding="8,6">
+                                <StackPanel>
+                                    <TextBlock Text="Quick file types" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="#555555" Margin="0,0,0,6" />
+                                    <WrapPanel>
+                                        <Button Content="Images" Padding="6,2" Margin="0,0,4,4" FontSize="10" Cursor="Hand"
+                                                Click="QuickType_Click" Tag=".jpg,.jpeg,.png,.gif,.bmp,.webp,.svg,.tiff" />
+                                        <Button Content="Videos" Padding="6,2" Margin="0,0,4,4" FontSize="10" Cursor="Hand"
+                                                Click="QuickType_Click" Tag=".mp4,.avi,.mkv,.mov,.wmv,.flv,.webm" />
+                                        <Button Content="Audio" Padding="6,2" Margin="0,0,4,4" FontSize="10" Cursor="Hand"
+                                                Click="QuickType_Click" Tag=".mp3,.wav,.flac,.aac,.ogg,.wma,.m4a" />
+                                        <Button Content="Documents" Padding="6,2" Margin="0,0,4,4" FontSize="10" Cursor="Hand"
+                                                Click="QuickType_Click" Tag=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" />
+                                        <Button Content="Archives" Padding="6,2" Margin="0,0,4,4" FontSize="10" Cursor="Hand"
+                                                Click="QuickType_Click" Tag=".zip,.rar,.7z,.tar,.gz,.bz2" />
+                                        <Button Content="Code" Padding="6,2" Margin="0,0,4,4" FontSize="10" Cursor="Hand"
+                                                Click="QuickType_Click" Tag=".cs,.java,.py,.js,.ts,.cpp,.h,.go,.rs,.rb" />
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+        </TabItem>
+    </TabControl>
 </Window>

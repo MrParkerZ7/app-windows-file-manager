@@ -113,6 +113,31 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SearchResults_ColumnHeaderClick(object sender, RoutedEventArgs e)
+    {
+        if (e.OriginalSource is not GridViewColumnHeader header || header.Column == null)
+        {
+            return;
+        }
+
+        var headerText = header.Column.Header?.ToString();
+        if (string.IsNullOrEmpty(headerText) || DataContext is not MainViewModel vm)
+        {
+            return;
+        }
+
+        vm.SortSearchResultsByColumn(headerText);
+    }
+
+    private void QuickType_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string extensions && DataContext is MainViewModel vm)
+        {
+            vm.SearchByFileType = true;
+            vm.SearchFileTypeFilter = extensions;
+        }
+    }
+
     private void DuplicateGroups_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
         // Stop any playing media when selection changes

@@ -76,6 +76,62 @@ public class MainViewModel : ViewModelBase
     private string _selectedSortOption = "Size (largest)";
     private int _minDuplicateCount = 2;
 
+    // Search tab fields
+    private string _searchQuery = string.Empty;
+    private string _searchStatusMessage = "Enter a search query and click Search.";
+    private bool _isSearching;
+    private int _searchResultCount;
+    private int _searchFilesScanned;
+    private bool _searchIncludeSubdirectories = true;
+    private bool _searchByFileName = true;
+    private bool _searchByFolderName;
+    private bool _searchByFileType;
+    private string _searchFileTypeFilter = string.Empty;
+    private bool _isSearchRegex;
+    private bool _isSearchIgnoreCase = true;
+    private bool _searchByContent;
+    private string _searchContentQuery = string.Empty;
+    private bool _searchFilterBySize;
+    private string _searchMinSize = string.Empty;
+    private string _searchMaxSize = string.Empty;
+    private string _searchSizeUnit = "KB";
+    private bool _searchFilterByDate;
+    private string _searchDateRange = "Any time";
+    private DateTime? _searchDateFrom;
+    private DateTime? _searchDateTo;
+    private bool _searchFilterByAttributes;
+    private bool _searchIncludeHidden;
+    private bool _searchIncludeSystem;
+    private bool _searchIncludeReadOnly;
+    private string _searchSortOption = "Name (A-Z)";
+    private string _searchSortColumn = "Name";
+    private bool _searchSortAscending = true;
+    private CancellationTokenSource? _searchCancellationTokenSource;
+
+    private static readonly List<string> SearchSortOptionsList = new()
+    {
+        "Name (A-Z)",
+        "Name (Z-A)",
+        "Size (largest)",
+        "Size (smallest)",
+        "Date (newest)",
+        "Date (oldest)",
+        "Type (A-Z)",
+    };
+
+    private static readonly List<string> SearchDateRangeOptions = new()
+    {
+        "Any time",
+        "Today",
+        "Last 7 days",
+        "Last 30 days",
+        "Last 90 days",
+        "Last year",
+        "Custom range",
+    };
+
+    private static readonly List<string> SearchSizeUnits = new() { "B", "KB", "MB", "GB" };
+
     private static readonly List<string> SortOptionsList = new()
     {
         "Size (largest)",
@@ -601,6 +657,12 @@ public class MainViewModel : ViewModelBase
         SelectAllInGroupCommand = new RelayCommand(p => SelectAllInGroup(p as DuplicateGroup));
         ClearSelectionInGroupCommand = new RelayCommand(p => ClearSelectionInGroup(p as DuplicateGroup));
 
+        // Search tab commands
+        SearchCommand = new RelayCommand(_ => SearchAsync(), _ => CanSearch());
+        CancelSearchCommand = new RelayCommand(_ => CancelSearch(), _ => IsSearching);
+        ClearSearchResultsCommand = new RelayCommand(_ => ClearSearchResults(), _ => SearchResults.Count > 0);
+        OpenSearchResultLocationCommand = new RelayCommand(p => OpenFileLocation(p as string));
+
         FilteredDuplicateGroups = CollectionViewSource.GetDefaultView(DuplicateGroups);
         FilteredDuplicateGroups.Filter = FilterDuplicateGroup;
 
@@ -1001,6 +1063,223 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the clear file selection in a single group command.</summary>
     public ICommand ClearSelectionInGroupCommand { get; }
 
+    // -- Search tab commands --
+
+    /// <summary>Gets the search command.</summary>
+    public ICommand SearchCommand { get; }
+
+    /// <summary>Gets the cancel search command.</summary>
+    public ICommand CancelSearchCommand { get; }
+
+    /// <summary>Gets the clear search results command.</summary>
+    public ICommand ClearSearchResultsCommand { get; }
+
+    /// <summary>Gets the open search result location command.</summary>
+    public ICommand OpenSearchResultLocationCommand { get; }
+
+    // -- Search tab properties --
+
+    /// <summary>Gets the search results collection.</summary>
+    public ObservableCollection<SearchResultItem> SearchResults { get; } = new();
+
+    /// <summary>Gets or sets the search query text.</summary>
+    public string SearchQuery
+    {
+        get => _searchQuery;
+        set => SetProperty(ref _searchQuery, value);
+    }
+
+    /// <summary>Gets or sets the search status message.</summary>
+    public string SearchStatusMessage
+    {
+        get => _searchStatusMessage;
+        set => SetProperty(ref _searchStatusMessage, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether search is in progress.</summary>
+    public bool IsSearching
+    {
+        get => _isSearching;
+        set => SetProperty(ref _isSearching, value);
+    }
+
+    /// <summary>Gets or sets the search result count.</summary>
+    public int SearchResultCount
+    {
+        get => _searchResultCount;
+        set => SetProperty(ref _searchResultCount, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether to search subdirectories.</summary>
+    public bool SearchIncludeSubdirectories
+    {
+        get => _searchIncludeSubdirectories;
+        set => SetProperty(ref _searchIncludeSubdirectories, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether to search by file name.</summary>
+    public bool SearchByFileName
+    {
+        get => _searchByFileName;
+        set => SetProperty(ref _searchByFileName, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether to search by folder name.</summary>
+    public bool SearchByFolderName
+    {
+        get => _searchByFolderName;
+        set => SetProperty(ref _searchByFolderName, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether to search by file type.</summary>
+    public bool SearchByFileType
+    {
+        get => _searchByFileType;
+        set => SetProperty(ref _searchByFileType, value);
+    }
+
+    /// <summary>Gets or sets the file type filter for search.</summary>
+    public string SearchFileTypeFilter
+    {
+        get => _searchFileTypeFilter;
+        set => SetProperty(ref _searchFileTypeFilter, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether search uses regex.</summary>
+    public bool IsSearchRegex
+    {
+        get => _isSearchRegex;
+        set => SetProperty(ref _isSearchRegex, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether search ignores case.</summary>
+    public bool IsSearchIgnoreCase
+    {
+        get => _isSearchIgnoreCase;
+        set => SetProperty(ref _isSearchIgnoreCase, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether to search file content.</summary>
+    public bool SearchByContent
+    {
+        get => _searchByContent;
+        set => SetProperty(ref _searchByContent, value);
+    }
+
+    /// <summary>Gets or sets the content search query.</summary>
+    public string SearchContentQuery
+    {
+        get => _searchContentQuery;
+        set => SetProperty(ref _searchContentQuery, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether to filter by size.</summary>
+    public bool SearchFilterBySize
+    {
+        get => _searchFilterBySize;
+        set => SetProperty(ref _searchFilterBySize, value);
+    }
+
+    /// <summary>Gets or sets the minimum size filter.</summary>
+    public string SearchMinSize
+    {
+        get => _searchMinSize;
+        set => SetProperty(ref _searchMinSize, value);
+    }
+
+    /// <summary>Gets or sets the maximum size filter.</summary>
+    public string SearchMaxSize
+    {
+        get => _searchMaxSize;
+        set => SetProperty(ref _searchMaxSize, value);
+    }
+
+    /// <summary>Gets or sets the search size unit.</summary>
+    public string SearchSizeUnit
+    {
+        get => _searchSizeUnit;
+        set => SetProperty(ref _searchSizeUnit, value);
+    }
+
+    /// <summary>Gets the available size units.</summary>
+    public static List<string> SearchSizeUnitOptions => SearchSizeUnits;
+
+    /// <summary>Gets or sets a value indicating whether to filter by date.</summary>
+    public bool SearchFilterByDate
+    {
+        get => _searchFilterByDate;
+        set => SetProperty(ref _searchFilterByDate, value);
+    }
+
+    /// <summary>Gets or sets the selected date range.</summary>
+    public string SearchDateRange
+    {
+        get => _searchDateRange;
+        set => SetProperty(ref _searchDateRange, value);
+    }
+
+    /// <summary>Gets the available date range options.</summary>
+    public static List<string> SearchDateRangeOptionsList => SearchDateRangeOptions;
+
+    /// <summary>Gets or sets the custom date from.</summary>
+    public DateTime? SearchDateFrom
+    {
+        get => _searchDateFrom;
+        set => SetProperty(ref _searchDateFrom, value);
+    }
+
+    /// <summary>Gets or sets the custom date to.</summary>
+    public DateTime? SearchDateTo
+    {
+        get => _searchDateTo;
+        set => SetProperty(ref _searchDateTo, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether to filter by attributes.</summary>
+    public bool SearchFilterByAttributes
+    {
+        get => _searchFilterByAttributes;
+        set => SetProperty(ref _searchFilterByAttributes, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether to include hidden files.</summary>
+    public bool SearchIncludeHidden
+    {
+        get => _searchIncludeHidden;
+        set => SetProperty(ref _searchIncludeHidden, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether to include system files.</summary>
+    public bool SearchIncludeSystem
+    {
+        get => _searchIncludeSystem;
+        set => SetProperty(ref _searchIncludeSystem, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether to include read-only files.</summary>
+    public bool SearchIncludeReadOnly
+    {
+        get => _searchIncludeReadOnly;
+        set => SetProperty(ref _searchIncludeReadOnly, value);
+    }
+
+    /// <summary>Gets or sets the search sort option.</summary>
+    public string SearchSortOption
+    {
+        get => _searchSortOption;
+        set => SetProperty(ref _searchSortOption, value);
+    }
+
+    /// <summary>Gets the available search sort options.</summary>
+    public static List<string> SearchSortOptions => SearchSortOptionsList;
+
+    /// <summary>Gets or sets the search files scanned count.</summary>
+    public int SearchFilesScanned
+    {
+        get => _searchFilesScanned;
+        set => SetProperty(ref _searchFilesScanned, value);
+    }
+
     /// <summary>
     /// Gets or sets the filename filter text.
     /// </summary>
@@ -1256,6 +1535,31 @@ public class MainViewModel : ViewModelBase
             IsIgnoreFilepathIgnoreCase = IsIgnoreFilepathIgnoreCase,
             IsContainSectionVisible = IsContainSectionVisible,
             IsIgnoreSectionVisible = IsIgnoreSectionVisible,
+
+            // Search tab
+            SearchQuery = SearchQuery,
+            SearchIncludeSubdirectories = SearchIncludeSubdirectories,
+            SearchByFileName = SearchByFileName,
+            SearchByFolderName = SearchByFolderName,
+            SearchByFileType = SearchByFileType,
+            SearchFileTypeFilter = SearchFileTypeFilter,
+            IsSearchRegex = IsSearchRegex,
+            IsSearchIgnoreCase = IsSearchIgnoreCase,
+            SearchByContent = SearchByContent,
+            SearchContentQuery = SearchContentQuery,
+            SearchFilterBySize = SearchFilterBySize,
+            SearchMinSize = SearchMinSize,
+            SearchMaxSize = SearchMaxSize,
+            SearchSizeUnit = SearchSizeUnit,
+            SearchFilterByDate = SearchFilterByDate,
+            SearchDateRange = SearchDateRange,
+            SearchDateFrom = SearchDateFrom,
+            SearchDateTo = SearchDateTo,
+            SearchFilterByAttributes = SearchFilterByAttributes,
+            SearchIncludeHidden = SearchIncludeHidden,
+            SearchIncludeSystem = SearchIncludeSystem,
+            SearchIncludeReadOnly = SearchIncludeReadOnly,
+            SearchSortOption = SearchSortOption,
         };
         _settingsService.Save(settings);
     }
@@ -1285,6 +1589,32 @@ public class MainViewModel : ViewModelBase
         IsIgnoreFilepathIgnoreCase = settings.IsIgnoreFilepathIgnoreCase;
         IsContainSectionVisible = settings.IsContainSectionVisible;
         IsIgnoreSectionVisible = settings.IsIgnoreSectionVisible;
+
+        // Search tab
+        SearchQuery = settings.SearchQuery;
+        SearchIncludeSubdirectories = settings.SearchIncludeSubdirectories;
+        SearchByFileName = settings.SearchByFileName;
+        SearchByFolderName = settings.SearchByFolderName;
+        SearchByFileType = settings.SearchByFileType;
+        SearchFileTypeFilter = settings.SearchFileTypeFilter;
+        IsSearchRegex = settings.IsSearchRegex;
+        IsSearchIgnoreCase = settings.IsSearchIgnoreCase;
+        SearchByContent = settings.SearchByContent;
+        SearchContentQuery = settings.SearchContentQuery;
+        SearchFilterBySize = settings.SearchFilterBySize;
+        SearchMinSize = settings.SearchMinSize;
+        SearchMaxSize = settings.SearchMaxSize;
+        SearchSizeUnit = settings.SearchSizeUnit;
+        SearchFilterByDate = settings.SearchFilterByDate;
+        SearchDateRange = settings.SearchDateRange;
+        SearchDateFrom = settings.SearchDateFrom;
+        SearchDateTo = settings.SearchDateTo;
+        SearchFilterByAttributes = settings.SearchFilterByAttributes;
+        SearchIncludeHidden = settings.SearchIncludeHidden;
+        SearchIncludeSystem = settings.SearchIncludeSystem;
+        SearchIncludeReadOnly = settings.SearchIncludeReadOnly;
+        SearchSortOption = settings.SearchSortOption;
+
         foreach (var path in settings.TargetPaths)
         {
             TargetPaths.Add(path);
@@ -2304,6 +2634,499 @@ public class MainViewModel : ViewModelBase
         {
             // Process may have been disposed
         }
+    }
+
+    // -- Search tab methods --
+    private bool CanSearch() => !IsSearching && TargetPaths.Count > 0
+        && (!string.IsNullOrWhiteSpace(SearchQuery) || SearchByFileType || SearchByContent);
+
+    private async void SearchAsync()
+    {
+        IsSearching = true;
+        SearchResults.Clear();
+        SearchResultCount = 0;
+        SearchFilesScanned = 0;
+        SearchStatusMessage = "Searching...";
+
+        _searchCancellationTokenSource = new CancellationTokenSource();
+        var token = _searchCancellationTokenSource.Token;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        try
+        {
+            var query = SearchQuery.Trim();
+            var searchOption = SearchIncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            var results = new List<SearchResultItem>();
+            var scanned = 0;
+
+            // Parse size filters
+            var minBytes = ParseSizeToBytes(SearchMinSize, SearchSizeUnit);
+            var maxBytes = ParseSizeToBytes(SearchMaxSize, SearchSizeUnit);
+
+            // Parse date filter
+            var (dateFrom, dateTo) = GetDateRange();
+
+            // Parse extension filter
+            HashSet<string>? extensions = null;
+            if (SearchByFileType && !string.IsNullOrWhiteSpace(SearchFileTypeFilter))
+            {
+                extensions = SearchFileTypeFilter
+                    .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(e => e.Trim().StartsWith('.') ? e.Trim().ToLowerInvariant() : "." + e.Trim().ToLowerInvariant())
+                    .ToHashSet();
+            }
+
+            await Task.Run(
+                () =>
+                {
+                    foreach (var targetPath in TargetPaths.ToList())
+                    {
+                        if (token.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
+                        if (!Directory.Exists(targetPath))
+                        {
+                            continue;
+                        }
+
+                        // Search folders by name
+                        if (SearchByFolderName && !string.IsNullOrWhiteSpace(query))
+                        {
+                            SearchFolders(targetPath, query, searchOption, results, token);
+                        }
+
+                        // Search files (combines all file-level filters in one pass)
+                        SearchFilesAdvanced(targetPath, query, searchOption, extensions, minBytes, maxBytes, dateFrom, dateTo, results, ref scanned, token);
+                    }
+                },
+                token);
+
+            sw.Stop();
+
+            // Sort results
+            var sorted = SortSearchResults(results);
+            foreach (var item in sorted)
+            {
+                SearchResults.Add(item);
+            }
+
+            SearchResultCount = SearchResults.Count;
+            SearchFilesScanned = scanned;
+            SearchStatusMessage = token.IsCancellationRequested
+                ? $"Cancelled. Found {SearchResultCount} results ({scanned:N0} files scanned, {sw.Elapsed.TotalSeconds:F1}s)"
+                : $"Found {SearchResultCount} results ({scanned:N0} files scanned, {sw.Elapsed.TotalSeconds:F1}s)";
+        }
+        catch (OperationCanceledException)
+        {
+            SearchStatusMessage = "Search cancelled.";
+        }
+        catch (Exception ex)
+        {
+            SearchStatusMessage = $"Search error: {ex.Message}";
+        }
+        finally
+        {
+            IsSearching = false;
+            _searchCancellationTokenSource?.Dispose();
+            _searchCancellationTokenSource = null;
+        }
+    }
+
+    private void SearchFilesAdvanced(
+        string rootPath,
+        string query,
+        SearchOption searchOption,
+        HashSet<string>? extensions,
+        long? minBytes,
+        long? maxBytes,
+        DateTime? dateFrom,
+        DateTime? dateTo,
+        List<SearchResultItem> results,
+        ref int scanned,
+        CancellationToken token)
+    {
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(rootPath, "*", searchOption))
+            {
+                if (token.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                scanned++;
+
+                try
+                {
+                    var info = new FileInfo(file);
+
+                    // Extension filter
+                    if (extensions != null && !extensions.Contains(info.Extension.ToLowerInvariant()))
+                    {
+                        continue;
+                    }
+
+                    // Name filter
+                    if (SearchByFileName && !string.IsNullOrWhiteSpace(query))
+                    {
+                        if (!MatchesQuery(info.Name, query))
+                        {
+                            // If only searching by name and it doesn't match, skip
+                            if (!SearchByContent && extensions == null)
+                            {
+                                continue;
+                            }
+
+                            // If also searching by content or type, name mismatch is OK
+                            if (!SearchByContent)
+                            {
+                                continue;
+                            }
+                        }
+                    }
+                    else if (!SearchByFileType && !SearchByContent && !string.IsNullOrWhiteSpace(query))
+                    {
+                        // Fallback: if no search mode is selected but query exists, match filename
+                        if (!MatchesQuery(info.Name, query))
+                        {
+                            continue;
+                        }
+                    }
+
+                    // Size filter
+                    if (SearchFilterBySize)
+                    {
+                        if (minBytes.HasValue && info.Length < minBytes.Value)
+                        {
+                            continue;
+                        }
+
+                        if (maxBytes.HasValue && info.Length > maxBytes.Value)
+                        {
+                            continue;
+                        }
+                    }
+
+                    // Date filter
+                    if (SearchFilterByDate)
+                    {
+                        if (dateFrom.HasValue && info.LastWriteTime < dateFrom.Value)
+                        {
+                            continue;
+                        }
+
+                        if (dateTo.HasValue && info.LastWriteTime > dateTo.Value)
+                        {
+                            continue;
+                        }
+                    }
+
+                    // Attribute filter
+                    if (SearchFilterByAttributes)
+                    {
+                        if (!SearchIncludeHidden && info.Attributes.HasFlag(FileAttributes.Hidden))
+                        {
+                            continue;
+                        }
+
+                        if (!SearchIncludeSystem && info.Attributes.HasFlag(FileAttributes.System))
+                        {
+                            continue;
+                        }
+
+                        if (!SearchIncludeReadOnly && info.Attributes.HasFlag(FileAttributes.ReadOnly))
+                        {
+                            continue;
+                        }
+                    }
+
+                    // Content search (slow — only if enabled)
+                    if (SearchByContent && !string.IsNullOrWhiteSpace(SearchContentQuery))
+                    {
+                        if (!FileContainsText(file, SearchContentQuery, token))
+                        {
+                            continue;
+                        }
+                    }
+
+                    results.Add(new SearchResultItem
+                    {
+                        FullPath = file,
+                        Name = info.Name,
+                        Directory = info.DirectoryName ?? string.Empty,
+                        ResultType = "File",
+                        SizeBytes = info.Length,
+                        FormattedSize = FormatSize(info.Length),
+                        Extension = info.Extension.ToLowerInvariant(),
+                        LastModified = info.LastWriteTime,
+                    });
+                }
+                catch
+                {
+                    // Skip individual file errors
+                }
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Skip inaccessible directories
+        }
+        catch (IOException)
+        {
+            // Skip I/O errors
+        }
+    }
+
+    private void SearchFolders(string rootPath, string query, SearchOption searchOption, List<SearchResultItem> results, CancellationToken token)
+    {
+        try
+        {
+            foreach (var dir in Directory.EnumerateDirectories(rootPath, "*", searchOption))
+            {
+                if (token.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var dirName = Path.GetFileName(dir);
+                if (MatchesQuery(dirName, query))
+                {
+                    results.Add(new SearchResultItem
+                    {
+                        FullPath = dir,
+                        Name = dirName,
+                        Directory = Path.GetDirectoryName(dir) ?? string.Empty,
+                        ResultType = "Folder",
+                        LastModified = Directory.GetLastWriteTime(dir),
+                    });
+                }
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Skip inaccessible directories
+        }
+        catch (IOException)
+        {
+            // Skip I/O errors
+        }
+    }
+
+    private bool FileContainsText(string filePath, string searchText, CancellationToken token)
+    {
+        try
+        {
+            // Skip large files (>10 MB) and binary files
+            var info = new FileInfo(filePath);
+            if (info.Length > 10 * 1024 * 1024)
+            {
+                return false;
+            }
+
+            using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new StreamReader(stream);
+
+            // Check first 1KB for binary content (null bytes)
+            var buffer = new char[1024];
+            var read = reader.Read(buffer, 0, buffer.Length);
+            var firstChunk = new string(buffer, 0, read);
+            if (firstChunk.Contains('\0'))
+            {
+                return false; // Binary file
+            }
+
+            // Check first chunk
+            var comparison = IsSearchIgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            if (firstChunk.Contains(searchText, comparison))
+            {
+                return true;
+            }
+
+            // Read rest line by line
+            string? line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                if (token.IsCancellationRequested)
+                {
+                    return false;
+                }
+
+                if (line.Contains(searchText, comparison))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool MatchesQuery(string text, string query)
+    {
+        if (IsSearchRegex)
+        {
+            try
+            {
+                var options = IsSearchIgnoreCase
+                    ? System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                    : System.Text.RegularExpressions.RegexOptions.None;
+                return System.Text.RegularExpressions.Regex.IsMatch(text, query, options);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // Support wildcards: * and ?
+        if (query.Contains('*') || query.Contains('?'))
+        {
+            var pattern = "^" + System.Text.RegularExpressions.Regex.Escape(query)
+                .Replace("\\*", ".*").Replace("\\?", ".") + "$";
+            var options = IsSearchIgnoreCase
+                ? System.Text.RegularExpressions.RegexOptions.IgnoreCase
+                : System.Text.RegularExpressions.RegexOptions.None;
+            return System.Text.RegularExpressions.Regex.IsMatch(text, pattern, options);
+        }
+
+        var comparison = IsSearchIgnoreCase
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+        return text.Contains(query, comparison);
+    }
+
+    private static long? ParseSizeToBytes(string sizeText, string unit)
+    {
+        if (string.IsNullOrWhiteSpace(sizeText) || !double.TryParse(sizeText, out var size))
+        {
+            return null;
+        }
+
+        return unit switch
+        {
+            "B" => (long)size,
+            "KB" => (long)(size * 1024),
+            "MB" => (long)(size * 1024 * 1024),
+            "GB" => (long)(size * 1024 * 1024 * 1024),
+            _ => (long)(size * 1024),
+        };
+    }
+
+    private (DateTime? from, DateTime? to) GetDateRange()
+    {
+        if (!SearchFilterByDate)
+        {
+            return (null, null);
+        }
+
+        var now = DateTime.Now;
+        return SearchDateRange switch
+        {
+            "Today" => (now.Date, null),
+            "Last 7 days" => (now.AddDays(-7), null),
+            "Last 30 days" => (now.AddDays(-30), null),
+            "Last 90 days" => (now.AddDays(-90), null),
+            "Last year" => (now.AddYears(-1), null),
+            "Custom range" => (SearchDateFrom, SearchDateTo),
+            _ => (null, null),
+        };
+    }
+
+    private List<SearchResultItem> SortSearchResults(List<SearchResultItem> results)
+    {
+        return SearchSortOption switch
+        {
+            "Name (A-Z)" => results.OrderBy(r => r.ResultType).ThenBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList(),
+            "Name (Z-A)" => results.OrderBy(r => r.ResultType).ThenByDescending(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList(),
+            "Size (largest)" => results.OrderByDescending(r => r.SizeBytes).ToList(),
+            "Size (smallest)" => results.OrderBy(r => r.SizeBytes).ToList(),
+            "Date (newest)" => results.OrderByDescending(r => r.LastModified).ToList(),
+            "Date (oldest)" => results.OrderBy(r => r.LastModified).ToList(),
+            "Type (A-Z)" => results.OrderBy(r => r.Extension).ThenBy(r => r.Name).ToList(),
+            _ => results.OrderBy(r => r.ResultType).ThenBy(r => r.Name).ToList(),
+        };
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        string[] units = { "B", "KB", "MB", "GB", "TB" };
+        double size = bytes;
+        int unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.Length - 1)
+        {
+            size /= 1024;
+            unitIndex++;
+        }
+
+        return $"{size:F1} {units[unitIndex]}";
+    }
+
+    private void CancelSearch()
+    {
+        _searchCancellationTokenSource?.Cancel();
+    }
+
+    /// <summary>
+    /// Sorts the search results by the specified column. Toggles direction if same column clicked again.
+    /// </summary>
+    /// <param name="column">The column name to sort by.</param>
+    public void SortSearchResultsByColumn(string column)
+    {
+        if (SearchResults.Count == 0)
+        {
+            return;
+        }
+
+        if (_searchSortColumn == column)
+        {
+            _searchSortAscending = !_searchSortAscending;
+        }
+        else
+        {
+            _searchSortColumn = column;
+            _searchSortAscending = true;
+        }
+
+        var items = SearchResults.ToList();
+        List<SearchResultItem> sorted = (_searchSortColumn, _searchSortAscending) switch
+        {
+            ("Name", true) => items.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList(),
+            ("Name", false) => items.OrderByDescending(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList(),
+            ("Type", true) => items.OrderBy(r => r.ResultType).ThenBy(r => r.Name).ToList(),
+            ("Type", false) => items.OrderByDescending(r => r.ResultType).ThenBy(r => r.Name).ToList(),
+            ("Size", true) => items.OrderBy(r => r.SizeBytes).ToList(),
+            ("Size", false) => items.OrderByDescending(r => r.SizeBytes).ToList(),
+            ("Ext", true) => items.OrderBy(r => r.Extension).ThenBy(r => r.Name).ToList(),
+            ("Ext", false) => items.OrderByDescending(r => r.Extension).ThenBy(r => r.Name).ToList(),
+            ("Modified", true) => items.OrderBy(r => r.LastModified).ToList(),
+            ("Modified", false) => items.OrderByDescending(r => r.LastModified).ToList(),
+            ("Directory", true) => items.OrderBy(r => r.Directory, StringComparer.OrdinalIgnoreCase).ThenBy(r => r.Name).ToList(),
+            ("Directory", false) => items.OrderByDescending(r => r.Directory, StringComparer.OrdinalIgnoreCase).ThenBy(r => r.Name).ToList(),
+            _ => items,
+        };
+
+        SearchResults.Clear();
+        foreach (var item in sorted)
+        {
+            SearchResults.Add(item);
+        }
+
+        var arrow = _searchSortAscending ? "▲" : "▼";
+        SearchStatusMessage = $"Sorted by {_searchSortColumn} {arrow} — {SearchResultCount} results";
+    }
+
+    private void ClearSearchResults()
+    {
+        SearchResults.Clear();
+        SearchResultCount = 0;
+        SearchFilesScanned = 0;
+        SearchStatusMessage = "Enter a search query and click Search.";
     }
 
     private static DuplicateScannerService CreateDefaultScanner()
