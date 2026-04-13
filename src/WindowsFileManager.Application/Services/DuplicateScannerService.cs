@@ -49,10 +49,26 @@ public class DuplicateScannerService
 
         var stopwatch = Stopwatch.StartNew();
 
-        var searchOption = options.IncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-        var allFiles = options.TargetPaths
-            .SelectMany(path => _fileSystem.EnumerateFiles(path, "*.*", searchOption))
-            .Distinct(StringComparer.OrdinalIgnoreCase);
+        var hasExclusions = options.ExcludeFolderNames.Count > 0;
+        var excludeSet = hasExclusions
+            ? new HashSet<string>(options.ExcludeFolderNames, StringComparer.OrdinalIgnoreCase)
+            : null;
+
+        IEnumerable<string> allFiles;
+        if (hasExclusions && options.IncludeSubdirectories)
+        {
+            // Custom recursive enumeration that skips excluded folder names
+            allFiles = options.TargetPaths
+                .SelectMany(path => EnumerateFilesExcluding(path, excludeSet!))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+        }
+        else
+        {
+            var searchOption = options.IncludeSubdirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            allFiles = options.TargetPaths
+                .SelectMany(path => _fileSystem.EnumerateFiles(path, "*.*", searchOption))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+        }
 
         // Step 1: Collect file metadata and apply filters
         var scannedFiles = new List<ScannedFile>();
@@ -142,5 +158,43 @@ public class DuplicateScannerService
             DuplicateGroups = duplicateGroups,
             Duration = stopwatch.Elapsed,
         };
+    }
+
+    private IEnumerable<string> EnumerateFilesExcluding(string rootPath, HashSet<string> excludeNames)
+    {
+        // Enumerate files in current directory
+        foreach (var file in _fileSystem.EnumerateFiles(rootPath, "*.*", SearchOption.TopDirectoryOnly))
+        {
+            yield return file;
+        }
+
+        // Recurse into subdirectories, skipping excluded names
+        IEnumerable<string> subDirs;
+        try
+        {
+            subDirs = Directory.EnumerateDirectories(rootPath);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            yield break;
+        }
+        catch (IOException)
+        {
+            yield break;
+        }
+
+        foreach (var subDir in subDirs)
+        {
+            var dirName = Path.GetFileName(subDir);
+            if (excludeNames.Contains(dirName))
+            {
+                continue;
+            }
+
+            foreach (var file in EnumerateFilesExcluding(subDir, excludeNames))
+            {
+                yield return file;
+            }
+        }
     }
 }

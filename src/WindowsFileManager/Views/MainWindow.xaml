@@ -79,6 +79,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <!-- Path input + buttons -->
@@ -140,6 +141,49 @@
                     <ToggleButton Style="{StaticResource HelpButtonStyle}"
                                   Tag="&lt;h&gt;WHERE TO SCAN&lt;/h&gt;&#x0a;Add folders that may contain duplicate files.&#x0a;&#x0a;&lt;b&gt;Include subdirectories&lt;/b&gt; = scan all nested folders too&#x0a;&lt;b&gt;Multiple folders&lt;/b&gt; = compare files across different locations&#x0a;&#x0a;&lt;h&gt;How it works:&lt;/h&gt; Files are compared by &lt;b&gt;content hash (SHA-256)&lt;/b&gt;, not by name. Two files with different names but identical content are detected as duplicates." />
                 </StackPanel>
+
+                <!-- Exclude Folders -->
+                <Border Grid.Row="3" Background="#FFF8E1" CornerRadius="4" Padding="8,6" Margin="0,6,0,0"
+                        BorderBrush="#FFE0B2" BorderThickness="1">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="Exclude Folders" FontWeight="SemiBold" FontSize="11"
+                                       Foreground="#E65100" VerticalAlignment="Center" />
+                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                          Tag="&lt;h&gt;EXCLUDE FOLDER NAMES&lt;/h&gt;&#x0a;Skip folders with these names during scanning.&#x0a;&#x0a;Matching is by &lt;b&gt;folder name only&lt;/b&gt; (not full path), case-insensitive.&#x0a;Any subfolder matching the name is skipped entirely.&#x0a;&#x0a;&lt;h&gt;Common examples:&lt;/h&gt;&#x0a;&lt;b&gt;node_modules&lt;/b&gt; — JavaScript dependencies&#x0a;&lt;b&gt;.git&lt;/b&gt; — Git internals&#x0a;&lt;b&gt;bin&lt;/b&gt; / &lt;b&gt;obj&lt;/b&gt; — Build output&#x0a;&lt;b&gt;__pycache__&lt;/b&gt; — Python cache" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                            <TextBox Text="{Binding NewExcludeFolderName, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center"
+                                     helpers:TextBoxEnterKeyBehavior.Command="{Binding AddExcludeFolderCommand}" />
+                            <Button Content="+ Add" Command="{Binding AddExcludeFolderCommand}"
+                                    Padding="8,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand" />
+                        </StackPanel>
+                        <ItemsControl ItemsSource="{Binding ExcludeFolderNames}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#FFE0B2" CornerRadius="3" Padding="6,2" Margin="0,2,6,2">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding}" VerticalAlignment="Center"
+                                                       FontSize="11" Foreground="#BF360C" FontWeight="SemiBold" />
+                                            <Button Content="✕"
+                                                    Command="{Binding DataContext.RemoveExcludeFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Padding="2,0" Margin="6,0,0,0"
+                                                    FontSize="9" Foreground="#C62828" Cursor="Hand"
+                                                    Background="Transparent" BorderThickness="0" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
             </Grid>
         </GroupBox>
 
@@ -320,7 +364,7 @@
                              Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
             </StackPanel>
 
-            <!-- Row 1: Filter Bar + Duplicate Groups List -->
+            <!-- Row 1: Workflow Panels + Duplicate Groups List -->
             <Grid Grid.Row="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -458,7 +502,7 @@
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                         <TextBlock Text="SELECT" FontSize="12" FontWeight="Bold" Foreground="#2E7D32" />
                                         <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                                      Tag="&lt;h&gt;SELECTING FILES FOR ACTION&lt;/h&gt;&#x0a;Check files you want to delete or move.&#x0a;&#x0a;&lt;b&gt;Quick select:&lt;/b&gt;&#x0a;Select All = check every file&#x0a;Select Newer = keep oldest, check the rest&#x0a;Select Older = keep newest, check the rest&#x0a;&#x0a;&lt;b&gt;Precise select:&lt;/b&gt;&#x0a;Contain Filters = check files matching a pattern&#x0a;Ignore Filters = uncheck files matching a pattern&#x0a;&#x0a;&lt;w&gt;Ignore always overrides Contain.&lt;/w&gt; If a file matches both, it stays unchecked (protected)." />
+                                                      Tag="&lt;h&gt;SELECTING FILES FOR ACTION&lt;/h&gt;&#x0a;Check files you want to delete or move.&#x0a;&#x0a;&lt;b&gt;Quick select:&lt;/b&gt;&#x0a;Select All = check every file&#x0a;Select Newer = keep oldest, check the rest&#x0a;Select Older = keep newest, check the rest&#x0a;&#x0a;&lt;b&gt;Dynamic rules:&lt;/b&gt;&#x0a;Build filter rules with text patterns.&#x0a;Select rules = check matching files&#x0a;Ignore rules = uncheck matching files&#x0a;&#x0a;&lt;w&gt;Ignore ALWAYS overrides Select.&lt;/w&gt; If a file matches both, it stays unchecked (protected)." />
                                         <TextBlock FontSize="10" Foreground="#555555" Margin="8,0,0,0"
                                                    VerticalAlignment="Center">
                                             <TextBlock.Text>
@@ -467,87 +511,52 @@
                                         </TextBlock>
                                     </StackPanel>
 
-                                    <!-- Select All / By Age / Clear -->
+                                    <!-- Quick Select buttons -->
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                         <Button Content="✓ Select All" Command="{Binding SelectAllFilesCommand}"
                                                 Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                                ToolTip="Select all files in selected groups" />
+                                                ToolTip="Select all files in all groups" />
                                         <Button Content="✓ Select Newer" Command="{Binding SelectNewerFilesCommand}"
                                                 Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
                                                 ToolTip="Select newer duplicates (keep oldest unselected)" />
                                         <Button Content="✓ Select Older" Command="{Binding SelectOlderFilesCommand}"
                                                 Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
                                                 ToolTip="Select older duplicates (keep newest unselected)" />
-                                        <Button Content="✕ Clear All Selected" Command="{Binding ClearFileSelectionCommand}"
-                                                Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                                Foreground="#888888"
-                                                ToolTip="Clear all file selections" />
-                                        <Button Content="✕ Clear Rules" Command="{Binding ClearAllRulesCommand}"
+                                        <Button Content="✕ Clear Selection" Command="{Binding ClearFileSelectionCommand}"
                                                 Padding="8,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
                                                 Foreground="#888888"
-                                                ToolTip="Clear all contain and ignore filter fields" />
+                                                ToolTip="Clear all file selections" />
                                     </StackPanel>
 
-                                    <!-- Contain filters sub-section -->
+                                    <!-- Dynamic Filter Rules -->
                                     <Border Background="#F1F8E9" CornerRadius="3" Padding="8,6" Margin="0,4,0,0">
                                         <StackPanel>
-                                            <ToggleButton IsChecked="{Binding IsContainSectionVisible}" Cursor="Hand" Margin="0,0,0,2">
-                                                <ToggleButton.Style>
-                                                    <Style TargetType="ToggleButton">
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="ToggleButton">
-                                                                    <Border Background="Transparent" Padding="0,2">
-                                                                        <StackPanel Orientation="Horizontal">
-                                                                            <TextBlock FontSize="11.5" FontWeight="Bold" Foreground="#999999" VerticalAlignment="Center" Width="12">
-                                                                                <TextBlock.Style>
-                                                                                    <Style TargetType="TextBlock">
-                                                                                        <Setter Property="Text" Value="+" />
-                                                                                        <Style.Triggers>
-                                                                                            <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
-                                                                                                <Setter Property="Text" Value="-" />
-                                                                                            </DataTrigger>
-                                                                                        </Style.Triggers>
-                                                                                    </Style>
-                                                                                </TextBlock.Style>
-                                                                            </TextBlock>
-                                                                            <TextBlock Text="Contain Filters" FontSize="11.5" FontWeight="Bold" Foreground="#2E7D32" />
-                                                                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                                                                          Tag="&lt;h&gt;CONTAIN = SELECT files matching a pattern&lt;/h&gt;&#x0a;&#x0a;&lt;b&gt;Filename contain&lt;/b&gt; &#x2014; matches against the file name only&#x0a;&lt;b&gt;Filepath contain&lt;/b&gt; &#x2014; matches against the full path&#x0a;&#x0a;&lt;h&gt;Options:&lt;/h&gt;&#x0a;&lt;b&gt;Regex&lt;/b&gt; = use regular expressions (e.g. &lt;b&gt;\d{4}&lt;/b&gt; for 4 digits)&#x0a;&lt;b&gt;Ignore Case&lt;/b&gt; = case-insensitive matching (on by default)&#x0a;&#x0a;Click &lt;b&gt;Select&lt;/b&gt; to apply. Any active Ignore filters are automatically applied after, removing protected files from the selection." />
-                                                                        </StackPanel>
-                                                                    </Border>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </ToggleButton.Style>
-                                            </ToggleButton>
-                                            <StackPanel Visibility="{Binding IsContainSectionVisible, Converter={StaticResource BoolToVisibility}}">
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                <TextBlock Text="Filter Rules" FontSize="11.5" FontWeight="Bold" Foreground="#2E7D32" />
+                                                <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                                              Tag="&lt;h&gt;DYNAMIC FILTER RULES&lt;/h&gt;&#x0a;Build rules to select or ignore files by pattern.&#x0a;&#x0a;&lt;b&gt;Action:&lt;/b&gt; Select (check) or Ignore (uncheck)&#x0a;&lt;b&gt;Target:&lt;/b&gt; Filename only or full Filepath&#x0a;&lt;b&gt;Pattern:&lt;/b&gt; Text to match against&#x0a;&lt;b&gt;Regex:&lt;/b&gt; Use regular expressions&#x0a;&lt;b&gt;Ignore Case:&lt;/b&gt; Case-insensitive matching&#x0a;&#x0a;&lt;h&gt;How it works:&lt;/h&gt;&#x0a;1. Set action, target, pattern, and options&#x0a;2. Click &lt;b&gt;+ Add&lt;/b&gt; to add the rule to the list&#x0a;3. Repeat to add more rules&#x0a;4. Click &lt;b&gt;Apply Rules&lt;/b&gt; to execute all rules&#x0a;&#x0a;&lt;w&gt;Ignore ALWAYS overrides Select.&lt;/w&gt; If a file matches both, it stays unchecked." />
+                                            </StackPanel>
+                                            <!-- Rule builder row -->
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                                <TextBlock FontSize="10.5"
-                                                           VerticalAlignment="Center" Margin="0,0,6,0" Width="105">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="Filename contain:" />
-                                                            <Setter Property="Foreground" Value="#2E7D32" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsFilenameRegex}" Value="True">
-                                                                    <Setter Property="Text" Value="Filename regex:" />
-                                                                    <Setter Property="Foreground" Value="#1565C0" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <TextBox Text="{Binding FilenameFilterText, UpdateSourceTrigger=PropertyChanged}"
-                                                         Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center">
+                                                <ComboBox ItemsSource="{Binding FilterActions}"
+                                                          SelectedItem="{Binding RuleAction}"
+                                                          Width="70" FontSize="11" VerticalContentAlignment="Center"
+                                                          Margin="0,0,4,0" />
+                                                <ComboBox ItemsSource="{Binding FilterTargets}"
+                                                          SelectedItem="{Binding RuleTarget}"
+                                                          Width="80" FontSize="11" VerticalContentAlignment="Center"
+                                                          Margin="0,0,4,0" />
+                                                <TextBox Text="{Binding RulePatternText, UpdateSourceTrigger=PropertyChanged}"
+                                                         Width="180" Padding="4,3" FontSize="11" VerticalContentAlignment="Center"
+                                                         Margin="0,0,4,0"
+                                                         helpers:TextBoxEnterKeyBehavior.Command="{Binding AddFilterRuleCommand}">
                                                     <TextBox.Style>
                                                         <Style TargetType="TextBox">
                                                             <Setter Property="BorderBrush" Value="#AAAAAA" />
                                                             <Setter Property="Background" Value="White" />
                                                             <Setter Property="FontFamily" Value="Segoe UI" />
                                                             <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsFilenameRegex}" Value="True">
+                                                                <DataTrigger Binding="{Binding RuleIsRegex}" Value="True">
                                                                     <Setter Property="BorderBrush" Value="#42A5F5" />
                                                                     <Setter Property="Background" Value="#E1F5FE" />
                                                                     <Setter Property="FontFamily" Value="Consolas" />
@@ -556,15 +565,9 @@
                                                         </Style>
                                                     </TextBox.Style>
                                                 </TextBox>
-                                                <Button Content="✓ Select" Command="{Binding SelectByFilenameCommand}"
-                                                        Padding="8,3" Margin="4,0,2,0" FontSize="11" Cursor="Hand"
-                                                        ToolTip="Select files whose filename matches the filter" />
-                                                <Button Content="✕ Clear" Command="{Binding ClearFilenameFilterCommand}"
-                                                        Padding="4,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                                        Foreground="#999999" ToolTip="Clear filename filter" />
-                                                <ToggleButton IsChecked="{Binding IsFilenameRegex}"
+                                                <ToggleButton IsChecked="{Binding RuleIsRegex}"
                                                               VerticalAlignment="Center" FontSize="10" Padding="6,2" Cursor="Hand"
-                                                              ToolTip="Enable regular expression matching for filename">
+                                                              ToolTip="Use regular expression matching">
                                                     <ToggleButton.Style>
                                                         <Style TargetType="ToggleButton">
                                                             <Setter Property="Content" Value="Regex" />
@@ -606,9 +609,9 @@
                                                         </Style>
                                                     </ToggleButton.Style>
                                                 </ToggleButton>
-                                                <ToggleButton IsChecked="{Binding IsFilenameIgnoreCase}"
+                                                <ToggleButton IsChecked="{Binding RuleIgnoreCase}"
                                                               VerticalAlignment="Center" FontSize="10" Padding="6,2" Margin="4,0,0,0" Cursor="Hand"
-                                                              ToolTip="Ignore case when matching filename">
+                                                              ToolTip="Ignore case when matching">
                                                     <ToggleButton.Style>
                                                         <Style TargetType="ToggleButton">
                                                             <Setter Property="Content" Value="Ignore Case" />
@@ -649,438 +652,195 @@
                                                         </Style>
                                                     </ToggleButton.Style>
                                                 </ToggleButton>
+                                                <Button Content="+ Add" Command="{Binding AddFilterRuleCommand}"
+                                                        Padding="8,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
+                                                        FontWeight="SemiBold" Foreground="#2E7D32"
+                                                        ToolTip="Add this rule to the list" />
                                             </StackPanel>
 
-                                            <!-- Custom selection: filepath contain -->
+                                            <!-- Rules list (horizontal chips) -->
+                                            <ItemsControl ItemsSource="{Binding FilterRules}" Margin="0,0,0,4">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel Orientation="Horizontal" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Margin="0,0,6,4" Padding="6,3" CornerRadius="4">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Background" Value="#C8E6C9" />
+                                                                    <Setter Property="BorderBrush" Value="#81C784" />
+                                                                    <Setter Property="BorderThickness" Value="1" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Action}" Value="Ignore">
+                                                                            <Setter Property="Background" Value="#FFCDD2" />
+                                                                            <Setter Property="BorderBrush" Value="#E57373" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <!-- Priority number -->
+                                                                <Border Background="#424242" CornerRadius="3" Padding="5,1" Margin="0,0,4,0"
+                                                                        VerticalAlignment="Center" MinWidth="20" HorizontalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Priority}" FontSize="9" FontWeight="Bold"
+                                                                               Foreground="White" HorizontalAlignment="Center" />
+                                                                </Border>
+                                                                <!-- Move up/down -->
+                                                                <StackPanel Orientation="Horizontal" Margin="0,0,4,0" VerticalAlignment="Center">
+                                                                    <Button Command="{Binding DataContext.MoveFilterRuleUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                            CommandParameter="{Binding}" Cursor="Hand" ToolTip="Move up (higher priority)">
+                                                                        <Button.Template>
+                                                                            <ControlTemplate TargetType="Button">
+                                                                                <Border x:Name="UpBorder" Background="#E0E0E0" CornerRadius="2,0,0,2"
+                                                                                        Padding="3,1" BorderThickness="0">
+                                                                                    <TextBlock Text="▲" FontSize="8" Foreground="#555555"
+                                                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                                </Border>
+                                                                                <ControlTemplate.Triggers>
+                                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                                        <Setter TargetName="UpBorder" Property="Background" Value="#1565C0" />
+                                                                                    </Trigger>
+                                                                                </ControlTemplate.Triggers>
+                                                                            </ControlTemplate>
+                                                                        </Button.Template>
+                                                                    </Button>
+                                                                    <Button Command="{Binding DataContext.MoveFilterRuleDownCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                            CommandParameter="{Binding}" Cursor="Hand" ToolTip="Move down (lower priority)">
+                                                                        <Button.Template>
+                                                                            <ControlTemplate TargetType="Button">
+                                                                                <Border x:Name="DownBorder" Background="#E0E0E0" CornerRadius="0,2,2,0"
+                                                                                        Padding="3,1" BorderThickness="0">
+                                                                                    <TextBlock Text="▼" FontSize="8" Foreground="#555555"
+                                                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                                </Border>
+                                                                                <ControlTemplate.Triggers>
+                                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                                        <Setter TargetName="DownBorder" Property="Background" Value="#1565C0" />
+                                                                                    </Trigger>
+                                                                                </ControlTemplate.Triggers>
+                                                                            </ControlTemplate>
+                                                                        </Button.Template>
+                                                                    </Button>
+                                                                </StackPanel>
+                                                                <!-- Action badge -->
+                                                                <Border CornerRadius="3" Padding="4,1" Margin="0,0,4,0" VerticalAlignment="Center">
+                                                                    <Border.Style>
+                                                                        <Style TargetType="Border">
+                                                                            <Setter Property="Background" Value="#2E7D32" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding Action}" Value="Ignore">
+                                                                                    <Setter Property="Background" Value="#C62828" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Border.Style>
+                                                                    <TextBlock FontSize="9" FontWeight="Bold" Foreground="White">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Text" Value="SELECT" />
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Action}" Value="Ignore">
+                                                                                        <Setter Property="Text" Value="IGNORE" />
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                </Border>
+                                                                <!-- Target badge -->
+                                                                <Border Background="#E3F2FD" CornerRadius="3" Padding="4,1" Margin="0,0,4,0" VerticalAlignment="Center">
+                                                                    <TextBlock FontSize="9" Foreground="#1565C0">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Text" Value="Name" />
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Target}" Value="Filepath">
+                                                                                        <Setter Property="Text" Value="Path" />
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                </Border>
+                                                                <!-- Pattern text -->
+                                                                <TextBlock Text="{Binding Pattern}" FontSize="11" FontWeight="SemiBold"
+                                                                           VerticalAlignment="Center" Margin="0,0,2,0">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Foreground" Value="#1B5E20" />
+                                                                            <Setter Property="FontFamily" Value="Segoe UI" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding Action}" Value="Ignore">
+                                                                                    <Setter Property="Foreground" Value="#B71C1C" />
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding IsRegex}" Value="True">
+                                                                                    <Setter Property="FontFamily" Value="Consolas" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                                <!-- Regex badge -->
+                                                                <Border CornerRadius="3" Padding="4,1" Margin="2,0,0,0" VerticalAlignment="Center"
+                                                                        Background="#E8EAF6" BorderBrush="#9FA8DA" BorderThickness="1"
+                                                                        Visibility="{Binding IsRegex, Converter={StaticResource BoolToVisibility}}">
+                                                                    <TextBlock Text="Regex" FontSize="9" FontWeight="SemiBold" Foreground="#283593" />
+                                                                </Border>
+                                                                <!-- IgnoreCase badge -->
+                                                                <Border CornerRadius="3" Padding="4,1" Margin="2,0,4,0" VerticalAlignment="Center"
+                                                                        Background="#FFF3E0" BorderBrush="#FFB74D" BorderThickness="1"
+                                                                        Visibility="{Binding IgnoreCase, Converter={StaticResource BoolToVisibility}}">
+                                                                    <TextBlock Text="IgnoreCase" FontSize="9" FontWeight="SemiBold" Foreground="#E65100" />
+                                                                </Border>
+                                                                <!-- Remove button -->
+                                                                <Button Command="{Binding DataContext.RemoveFilterRuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                        CommandParameter="{Binding}"
+                                                                        Cursor="Hand" VerticalAlignment="Center" Margin="2,0,0,0"
+                                                                        ToolTip="Remove this rule">
+                                                                    <Button.Template>
+                                                                        <ControlTemplate TargetType="Button">
+                                                                            <Border x:Name="RemoveBorder" Width="16" Height="16" CornerRadius="8"
+                                                                                    Background="#E0E0E0" BorderThickness="0">
+                                                                                <TextBlock x:Name="RemoveText" Text="✕" FontSize="9" FontWeight="Bold"
+                                                                                           Foreground="#757575"
+                                                                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                                           Margin="0,-1,0,0" />
+                                                                            </Border>
+                                                                            <ControlTemplate.Triggers>
+                                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                                    <Setter TargetName="RemoveBorder" Property="Background" Value="#EF5350" />
+                                                                                    <Setter TargetName="RemoveText" Property="Foreground" Value="White" />
+                                                                                </Trigger>
+                                                                            </ControlTemplate.Triggers>
+                                                                        </ControlTemplate>
+                                                                    </Button.Template>
+                                                                </Button>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <!-- Apply + Clear buttons -->
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock FontSize="10.5"
-                                                           VerticalAlignment="Center" Margin="0,0,6,0" Width="105">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="Filepath contain:" />
-                                                            <Setter Property="Foreground" Value="#2E7D32" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsFilepathRegex}" Value="True">
-                                                                    <Setter Property="Text" Value="Filepath regex:" />
-                                                                    <Setter Property="Foreground" Value="#1565C0" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <TextBox Text="{Binding FilepathFilterText, UpdateSourceTrigger=PropertyChanged}"
-                                                         Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center">
-                                                    <TextBox.Style>
-                                                        <Style TargetType="TextBox">
-                                                            <Setter Property="BorderBrush" Value="#AAAAAA" />
-                                                            <Setter Property="Background" Value="White" />
-                                                            <Setter Property="FontFamily" Value="Segoe UI" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsFilepathRegex}" Value="True">
-                                                                    <Setter Property="BorderBrush" Value="#42A5F5" />
-                                                                    <Setter Property="Background" Value="#E1F5FE" />
-                                                                    <Setter Property="FontFamily" Value="Consolas" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBox.Style>
-                                                </TextBox>
-                                                <Button Content="✓ Select" Command="{Binding SelectByPathCommand}"
-                                                        Padding="8,3" Margin="4,0,2,0" FontSize="11" Cursor="Hand"
-                                                        ToolTip="Select files whose full path matches the filter" />
-                                                <Button Content="✕ Clear" Command="{Binding ClearFilepathFilterCommand}"
-                                                        Padding="4,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                                        Foreground="#999999" ToolTip="Clear filepath filter" />
-                                                <ToggleButton IsChecked="{Binding IsFilepathRegex}"
-                                                              VerticalAlignment="Center" FontSize="10" Padding="6,2" Cursor="Hand"
-                                                              ToolTip="Enable regular expression matching for filepath">
-                                                    <ToggleButton.Style>
-                                                        <Style TargetType="ToggleButton">
-                                                            <Setter Property="Content" Value="Regex" />
-                                                            <Setter Property="Foreground" Value="#555555" />
-                                                            <Setter Property="Background" Value="#F5F5F5" />
-                                                            <Setter Property="BorderBrush" Value="#CCCCCC" />
-                                                            <Setter Property="BorderThickness" Value="1" />
-                                                            <Setter Property="Template">
-                                                                <Setter.Value>
-                                                                    <ControlTemplate TargetType="ToggleButton">
-                                                                        <Border Background="{TemplateBinding Background}"
-                                                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                                                CornerRadius="3" Padding="{TemplateBinding Padding}">
-                                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                                        </Border>
-                                                                    </ControlTemplate>
-                                                                </Setter.Value>
-                                                            </Setter>
-                                                            <Style.Triggers>
-                                                                <Trigger Property="IsChecked" Value="True">
-                                                                    <Setter Property="Content" Value="✦ Regex" />
-                                                                    <Setter Property="Foreground" Value="White" />
-                                                                    <Setter Property="Background" Value="#1565C0" />
-                                                                    <Setter Property="BorderBrush" Value="#0D47A1" />
-                                                                    <Setter Property="FontWeight" Value="SemiBold" />
-                                                                </Trigger>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="#E3F2FD" />
-                                                                </Trigger>
-                                                                <MultiTrigger>
-                                                                    <MultiTrigger.Conditions>
-                                                                        <Condition Property="IsChecked" Value="True" />
-                                                                        <Condition Property="IsMouseOver" Value="True" />
-                                                                    </MultiTrigger.Conditions>
-                                                                    <Setter Property="Background" Value="#1976D2" />
-                                                                </MultiTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </ToggleButton.Style>
-                                                </ToggleButton>
-                                                <ToggleButton IsChecked="{Binding IsFilepathIgnoreCase}"
-                                                              VerticalAlignment="Center" FontSize="10" Padding="6,2" Margin="4,0,0,0" Cursor="Hand"
-                                                              ToolTip="Ignore case when matching filepath">
-                                                    <ToggleButton.Style>
-                                                        <Style TargetType="ToggleButton">
-                                                            <Setter Property="Content" Value="Ignore Case" />
-                                                            <Setter Property="Foreground" Value="#555555" />
-                                                            <Setter Property="Background" Value="#F5F5F5" />
-                                                            <Setter Property="BorderBrush" Value="#CCCCCC" />
-                                                            <Setter Property="BorderThickness" Value="1" />
-                                                            <Setter Property="Template">
-                                                                <Setter.Value>
-                                                                    <ControlTemplate TargetType="ToggleButton">
-                                                                        <Border Background="{TemplateBinding Background}"
-                                                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                                                CornerRadius="3" Padding="{TemplateBinding Padding}">
-                                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                                        </Border>
-                                                                    </ControlTemplate>
-                                                                </Setter.Value>
-                                                            </Setter>
-                                                            <Style.Triggers>
-                                                                <Trigger Property="IsChecked" Value="True">
-                                                                    <Setter Property="Foreground" Value="White" />
-                                                                    <Setter Property="Background" Value="#E65100" />
-                                                                    <Setter Property="BorderBrush" Value="#BF360C" />
-                                                                    <Setter Property="FontWeight" Value="SemiBold" />
-                                                                </Trigger>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="#FFF3E0" />
-                                                                </Trigger>
-                                                                <MultiTrigger>
-                                                                    <MultiTrigger.Conditions>
-                                                                        <Condition Property="IsChecked" Value="True" />
-                                                                        <Condition Property="IsMouseOver" Value="True" />
-                                                                    </MultiTrigger.Conditions>
-                                                                    <Setter Property="Background" Value="#F4511E" />
-                                                                </MultiTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </ToggleButton.Style>
-                                                </ToggleButton>
-                                            </StackPanel>
-                                            </StackPanel>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <!-- Ignore filters sub-section -->
-                                    <Border Background="#FBE9E7" CornerRadius="3" Padding="8,6" Margin="0,4,0,0">
-                                        <StackPanel>
-                                            <ToggleButton IsChecked="{Binding IsIgnoreSectionVisible}" Cursor="Hand" Margin="0,0,0,2">
-                                                <ToggleButton.Style>
-                                                    <Style TargetType="ToggleButton">
-                                                        <Setter Property="Template">
-                                                            <Setter.Value>
-                                                                <ControlTemplate TargetType="ToggleButton">
-                                                                    <Border Background="Transparent" Padding="0,2">
-                                                                        <StackPanel Orientation="Horizontal">
-                                                                            <TextBlock FontSize="11.5" FontWeight="Bold" Foreground="#999999" VerticalAlignment="Center" Width="12">
-                                                                                <TextBlock.Style>
-                                                                                    <Style TargetType="TextBlock">
-                                                                                        <Setter Property="Text" Value="+" />
-                                                                                        <Style.Triggers>
-                                                                                            <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
-                                                                                                <Setter Property="Text" Value="-" />
-                                                                                            </DataTrigger>
-                                                                                        </Style.Triggers>
-                                                                                    </Style>
-                                                                                </TextBlock.Style>
-                                                                            </TextBlock>
-                                                                            <TextBlock Text="Ignore Filters" FontSize="11.5" FontWeight="Bold" Foreground="#C62828" />
-                                                                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                                                                          Tag="&lt;h&gt;IGNORE = PROTECT files from being selected&lt;/h&gt;&#x0a;&#x0a;Files matching an ignore pattern are &lt;b&gt;always unchecked&lt;/b&gt;, even if a Contain filter selected them.&#x0a;&#x0a;&lt;h&gt;Example workflow:&lt;/h&gt;&#x0a;1. Contain filename &lt;b&gt;photo&lt;/b&gt; &#x2192; selects all photo files&#x0a;2. Ignore filepath &lt;b&gt;important&lt;/b&gt; &#x2192; protects files in 'important' folder&#x0a;&#x0a;&lt;w&gt;Ignore ALWAYS wins over Contain.&lt;/w&gt; Use this to safeguard files you never want to accidentally delete." />
-                                                                        </StackPanel>
-                                                                    </Border>
-                                                                </ControlTemplate>
-                                                            </Setter.Value>
-                                                        </Setter>
-                                                    </Style>
-                                                </ToggleButton.Style>
-                                            </ToggleButton>
-                                            <StackPanel Visibility="{Binding IsIgnoreSectionVisible, Converter={StaticResource BoolToVisibility}}">
-                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
-                                                <TextBlock FontSize="10.5"
-                                                           VerticalAlignment="Center" Margin="0,0,6,0" Width="105">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="Ignore filename:" />
-                                                            <Setter Property="Foreground" Value="#C62828" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsIgnoreFilenameRegex}" Value="True">
-                                                                    <Setter Property="Text" Value="Ignore name regex:" />
-                                                                    <Setter Property="Foreground" Value="#1565C0" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <TextBox Text="{Binding IgnoreFilenameFilterText, UpdateSourceTrigger=PropertyChanged}"
-                                                         Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center">
-                                                    <TextBox.Style>
-                                                        <Style TargetType="TextBox">
-                                                            <Setter Property="BorderBrush" Value="#AAAAAA" />
-                                                            <Setter Property="Background" Value="White" />
-                                                            <Setter Property="FontFamily" Value="Segoe UI" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsIgnoreFilenameRegex}" Value="True">
-                                                                    <Setter Property="BorderBrush" Value="#42A5F5" />
-                                                                    <Setter Property="Background" Value="#E1F5FE" />
-                                                                    <Setter Property="FontFamily" Value="Consolas" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBox.Style>
-                                                </TextBox>
-                                                <Button Content="✓ Ignore" Command="{Binding IgnoreByFilenameCommand}"
-                                                        Padding="8,3" Margin="4,0,2,0" FontSize="11" Cursor="Hand"
-                                                        ToolTip="Deselect files whose filename matches the filter" />
-                                                <Button Content="✕ Clear" Command="{Binding ClearIgnoreFilenameFilterCommand}"
-                                                        Padding="4,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                                        Foreground="#999999" ToolTip="Clear ignore filename filter" />
-                                                <ToggleButton IsChecked="{Binding IsIgnoreFilenameRegex}"
-                                                              VerticalAlignment="Center" FontSize="10" Padding="6,2" Cursor="Hand"
-                                                              ToolTip="Enable regular expression matching for ignore filename">
-                                                    <ToggleButton.Style>
-                                                        <Style TargetType="ToggleButton">
-                                                            <Setter Property="Content" Value="Regex" />
-                                                            <Setter Property="Foreground" Value="#555555" />
-                                                            <Setter Property="Background" Value="#F5F5F5" />
-                                                            <Setter Property="BorderBrush" Value="#CCCCCC" />
-                                                            <Setter Property="BorderThickness" Value="1" />
-                                                            <Setter Property="Template">
-                                                                <Setter.Value>
-                                                                    <ControlTemplate TargetType="ToggleButton">
-                                                                        <Border Background="{TemplateBinding Background}"
-                                                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                                                CornerRadius="3" Padding="{TemplateBinding Padding}">
-                                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                                        </Border>
-                                                                    </ControlTemplate>
-                                                                </Setter.Value>
-                                                            </Setter>
-                                                            <Style.Triggers>
-                                                                <Trigger Property="IsChecked" Value="True">
-                                                                    <Setter Property="Content" Value="✦ Regex" />
-                                                                    <Setter Property="Foreground" Value="White" />
-                                                                    <Setter Property="Background" Value="#1565C0" />
-                                                                    <Setter Property="BorderBrush" Value="#0D47A1" />
-                                                                    <Setter Property="FontWeight" Value="SemiBold" />
-                                                                </Trigger>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="#E3F2FD" />
-                                                                </Trigger>
-                                                                <MultiTrigger>
-                                                                    <MultiTrigger.Conditions>
-                                                                        <Condition Property="IsChecked" Value="True" />
-                                                                        <Condition Property="IsMouseOver" Value="True" />
-                                                                    </MultiTrigger.Conditions>
-                                                                    <Setter Property="Background" Value="#1976D2" />
-                                                                </MultiTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </ToggleButton.Style>
-                                                </ToggleButton>
-                                                <ToggleButton IsChecked="{Binding IsIgnoreFilenameIgnoreCase}"
-                                                              VerticalAlignment="Center" FontSize="10" Padding="6,2" Margin="4,0,0,0" Cursor="Hand"
-                                                              ToolTip="Ignore case when matching filename to ignore">
-                                                    <ToggleButton.Style>
-                                                        <Style TargetType="ToggleButton">
-                                                            <Setter Property="Content" Value="Ignore Case" />
-                                                            <Setter Property="Foreground" Value="#555555" />
-                                                            <Setter Property="Background" Value="#F5F5F5" />
-                                                            <Setter Property="BorderBrush" Value="#CCCCCC" />
-                                                            <Setter Property="BorderThickness" Value="1" />
-                                                            <Setter Property="Template">
-                                                                <Setter.Value>
-                                                                    <ControlTemplate TargetType="ToggleButton">
-                                                                        <Border Background="{TemplateBinding Background}"
-                                                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                                                CornerRadius="3" Padding="{TemplateBinding Padding}">
-                                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                                        </Border>
-                                                                    </ControlTemplate>
-                                                                </Setter.Value>
-                                                            </Setter>
-                                                            <Style.Triggers>
-                                                                <Trigger Property="IsChecked" Value="True">
-                                                                    <Setter Property="Foreground" Value="White" />
-                                                                    <Setter Property="Background" Value="#E65100" />
-                                                                    <Setter Property="BorderBrush" Value="#BF360C" />
-                                                                    <Setter Property="FontWeight" Value="SemiBold" />
-                                                                </Trigger>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="#FFF3E0" />
-                                                                </Trigger>
-                                                                <MultiTrigger>
-                                                                    <MultiTrigger.Conditions>
-                                                                        <Condition Property="IsChecked" Value="True" />
-                                                                        <Condition Property="IsMouseOver" Value="True" />
-                                                                    </MultiTrigger.Conditions>
-                                                                    <Setter Property="Background" Value="#F4511E" />
-                                                                </MultiTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </ToggleButton.Style>
-                                                </ToggleButton>
-                                            </StackPanel>
-
-                                            <!-- Ignore filepath contain -->
-                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                <TextBlock FontSize="10.5"
-                                                           VerticalAlignment="Center" Margin="0,0,6,0" Width="105">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="Ignore filepath:" />
-                                                            <Setter Property="Foreground" Value="#C62828" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsIgnoreFilepathRegex}" Value="True">
-                                                                    <Setter Property="Text" Value="Ignore path regex:" />
-                                                                    <Setter Property="Foreground" Value="#1565C0" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <TextBox Text="{Binding IgnoreFilepathFilterText, UpdateSourceTrigger=PropertyChanged}"
-                                                         Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center">
-                                                    <TextBox.Style>
-                                                        <Style TargetType="TextBox">
-                                                            <Setter Property="BorderBrush" Value="#AAAAAA" />
-                                                            <Setter Property="Background" Value="White" />
-                                                            <Setter Property="FontFamily" Value="Segoe UI" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsIgnoreFilepathRegex}" Value="True">
-                                                                    <Setter Property="BorderBrush" Value="#42A5F5" />
-                                                                    <Setter Property="Background" Value="#E1F5FE" />
-                                                                    <Setter Property="FontFamily" Value="Consolas" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBox.Style>
-                                                </TextBox>
-                                                <Button Content="✓ Ignore" Command="{Binding IgnoreByFilepathCommand}"
-                                                        Padding="8,3" Margin="4,0,2,0" FontSize="11" Cursor="Hand"
-                                                        ToolTip="Deselect files whose full path matches the filter" />
-                                                <Button Content="✕ Clear" Command="{Binding ClearIgnoreFilepathFilterCommand}"
-                                                        Padding="4,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                                        Foreground="#999999" ToolTip="Clear ignore filepath filter" />
-                                                <ToggleButton IsChecked="{Binding IsIgnoreFilepathRegex}"
-                                                              VerticalAlignment="Center" FontSize="10" Padding="6,2" Cursor="Hand"
-                                                              ToolTip="Enable regular expression matching for ignore filepath">
-                                                    <ToggleButton.Style>
-                                                        <Style TargetType="ToggleButton">
-                                                            <Setter Property="Content" Value="Regex" />
-                                                            <Setter Property="Foreground" Value="#555555" />
-                                                            <Setter Property="Background" Value="#F5F5F5" />
-                                                            <Setter Property="BorderBrush" Value="#CCCCCC" />
-                                                            <Setter Property="BorderThickness" Value="1" />
-                                                            <Setter Property="Template">
-                                                                <Setter.Value>
-                                                                    <ControlTemplate TargetType="ToggleButton">
-                                                                        <Border Background="{TemplateBinding Background}"
-                                                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                                                CornerRadius="3" Padding="{TemplateBinding Padding}">
-                                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                                        </Border>
-                                                                    </ControlTemplate>
-                                                                </Setter.Value>
-                                                            </Setter>
-                                                            <Style.Triggers>
-                                                                <Trigger Property="IsChecked" Value="True">
-                                                                    <Setter Property="Content" Value="✦ Regex" />
-                                                                    <Setter Property="Foreground" Value="White" />
-                                                                    <Setter Property="Background" Value="#1565C0" />
-                                                                    <Setter Property="BorderBrush" Value="#0D47A1" />
-                                                                    <Setter Property="FontWeight" Value="SemiBold" />
-                                                                </Trigger>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="#E3F2FD" />
-                                                                </Trigger>
-                                                                <MultiTrigger>
-                                                                    <MultiTrigger.Conditions>
-                                                                        <Condition Property="IsChecked" Value="True" />
-                                                                        <Condition Property="IsMouseOver" Value="True" />
-                                                                    </MultiTrigger.Conditions>
-                                                                    <Setter Property="Background" Value="#1976D2" />
-                                                                </MultiTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </ToggleButton.Style>
-                                                </ToggleButton>
-                                                <ToggleButton IsChecked="{Binding IsIgnoreFilepathIgnoreCase}"
-                                                              VerticalAlignment="Center" FontSize="10" Padding="6,2" Margin="4,0,0,0" Cursor="Hand"
-                                                              ToolTip="Ignore case when matching filepath to ignore">
-                                                    <ToggleButton.Style>
-                                                        <Style TargetType="ToggleButton">
-                                                            <Setter Property="Content" Value="Ignore Case" />
-                                                            <Setter Property="Foreground" Value="#555555" />
-                                                            <Setter Property="Background" Value="#F5F5F5" />
-                                                            <Setter Property="BorderBrush" Value="#CCCCCC" />
-                                                            <Setter Property="BorderThickness" Value="1" />
-                                                            <Setter Property="Template">
-                                                                <Setter.Value>
-                                                                    <ControlTemplate TargetType="ToggleButton">
-                                                                        <Border Background="{TemplateBinding Background}"
-                                                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                                                CornerRadius="3" Padding="{TemplateBinding Padding}">
-                                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                                        </Border>
-                                                                    </ControlTemplate>
-                                                                </Setter.Value>
-                                                            </Setter>
-                                                            <Style.Triggers>
-                                                                <Trigger Property="IsChecked" Value="True">
-                                                                    <Setter Property="Foreground" Value="White" />
-                                                                    <Setter Property="Background" Value="#E65100" />
-                                                                    <Setter Property="BorderBrush" Value="#BF360C" />
-                                                                    <Setter Property="FontWeight" Value="SemiBold" />
-                                                                </Trigger>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter Property="Background" Value="#FFF3E0" />
-                                                                </Trigger>
-                                                                <MultiTrigger>
-                                                                    <MultiTrigger.Conditions>
-                                                                        <Condition Property="IsChecked" Value="True" />
-                                                                        <Condition Property="IsMouseOver" Value="True" />
-                                                                    </MultiTrigger.Conditions>
-                                                                    <Setter Property="Background" Value="#F4511E" />
-                                                                </MultiTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </ToggleButton.Style>
-                                                </ToggleButton>
-                                            </StackPanel>
+                                                <Button Content="▶ Apply Rules" Command="{Binding ApplyFilterRulesCommand}"
+                                                        Padding="10,4" FontSize="11" Cursor="Hand"
+                                                        FontWeight="SemiBold" Foreground="#1565C0"
+                                                        ToolTip="Apply all rules: Select rules check files, Ignore rules uncheck files" />
+                                                <Button Content="✕ Clear All Rules" Command="{Binding ClearAllRulesCommand}"
+                                                        Padding="8,4" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
+                                                        Foreground="#888888"
+                                                        ToolTip="Remove all filter rules" />
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
                             </Border>
 
-                            <!-- ACTION section -->
+                            <!-- #5 ACTION section -->
                             <Border Background="#FFF3E0" CornerRadius="3" Padding="8,6">
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">

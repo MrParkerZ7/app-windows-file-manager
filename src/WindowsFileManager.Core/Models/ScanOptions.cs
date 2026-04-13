@@ -24,4 +24,9 @@ public class ScanOptions
     /// Gets or sets file extension filters (empty = all files).
     /// </summary>
     public List<string> FileExtensions { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets folder names to exclude from scanning (e.g. "node_modules", ".git").
+    /// </summary>
+    public List<string> ExcludeFolderNames { get; set; } = new();
 }

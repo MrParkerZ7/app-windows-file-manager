@@ -14,6 +14,7 @@ public class ScanOptionsTests
         options.IncludeSubdirectories.Should().BeTrue();
         options.MinimumFileSize.Should().Be(1);
         options.FileExtensions.Should().BeEmpty();
+        options.ExcludeFolderNames.Should().BeEmpty();
     }
 
     [Fact]
@@ -25,11 +26,13 @@ public class ScanOptionsTests
             IncludeSubdirectories = false,
             MinimumFileSize = 1024,
             FileExtensions = new List<string> { "txt", "pdf" },
+            ExcludeFolderNames = new List<string> { "node_modules", ".git" },
         };
 
         options.TargetPaths.Should().BeEquivalentTo(new[] { @"C:\test", @"D:\data" });
         options.IncludeSubdirectories.Should().BeFalse();
         options.MinimumFileSize.Should().Be(1024);
         options.FileExtensions.Should().BeEquivalentTo(new[] { "txt", "pdf" });
+        options.ExcludeFolderNames.Should().BeEquivalentTo(new[] { "node_modules", ".git" });
     }
 }

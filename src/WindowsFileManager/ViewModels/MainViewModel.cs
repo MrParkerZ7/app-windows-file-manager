@@ -54,22 +54,18 @@ public class MainViewModel : ViewModelBase
     private string _resourceCpu = string.Empty;
     private string _resourceThreads = string.Empty;
     private string _moveTargetPath = string.Empty;
-    private string _filenameFilterText = string.Empty;
-    private bool _isFilenameRegex;
-    private bool _isFilenameIgnoreCase = true;
-    private string _filepathFilterText = string.Empty;
-    private bool _isFilepathRegex;
-    private bool _isFilepathIgnoreCase = true;
-    private string _ignoreFilenameFilterText = string.Empty;
-    private bool _isIgnoreFilenameRegex;
-    private bool _isIgnoreFilenameIgnoreCase = true;
-    private string _ignoreFilepathFilterText = string.Empty;
-    private bool _isIgnoreFilepathRegex;
-    private bool _isIgnoreFilepathIgnoreCase = true;
     private int _selectedFileCount;
     private bool _isActionsVisible;
-    private bool _isContainSectionVisible = true;
-    private bool _isIgnoreSectionVisible = true;
+
+    // Dynamic filter rule builder state
+    private string _rulePatternText = string.Empty;
+    private bool _ruleIsRegex;
+    private bool _ruleIgnoreCase = true;
+    private FilterAction _ruleAction = FilterAction.Select;
+    private FilterTarget _ruleTarget = FilterTarget.Filename;
+
+    // Exclude folders
+    private string _newExcludeFolderName = string.Empty;
     private TimeSpan _lastCpuTime;
     private DateTime _lastCheckTime;
     private DuplicateGroup? _selectedDuplicateGroup;
@@ -579,22 +575,23 @@ public class MainViewModel : ViewModelBase
         ApplyFileSizeFilterCommand = new RelayCommand(_ => ApplyFilters());
         ToggleFilterCommand = new RelayCommand(_ => IsFilterVisible = !IsFilterVisible);
         ToggleActionsCommand = new RelayCommand(_ => IsActionsVisible = !IsActionsVisible);
-        ToggleContainSectionCommand = new RelayCommand(_ => IsContainSectionVisible = !IsContainSectionVisible);
-        ToggleIgnoreSectionCommand = new RelayCommand(_ => IsIgnoreSectionVisible = !IsIgnoreSectionVisible);
 
         SelectAllFilesCommand = new RelayCommand(_ => SelectAllFiles(), _ => DuplicateGroups.Count > 0);
         SelectNewerFilesCommand = new RelayCommand(_ => SelectNewerFiles(), _ => DuplicateGroups.Count > 0);
         SelectOlderFilesCommand = new RelayCommand(_ => SelectOlderFiles(), _ => DuplicateGroups.Count > 0);
-        SelectByFilenameCommand = new RelayCommand(_ => SelectByFilename(), _ => DuplicateGroups.Count > 0);
-        SelectByPathCommand = new RelayCommand(_ => SelectByPath(), _ => DuplicateGroups.Count > 0);
-        ClearFilenameFilterCommand = new RelayCommand(_ => FilenameFilterText = string.Empty);
-        ClearFilepathFilterCommand = new RelayCommand(_ => FilepathFilterText = string.Empty);
-        IgnoreByFilenameCommand = new RelayCommand(_ => IgnoreByFilename(), _ => DuplicateGroups.Count > 0);
-        IgnoreByFilepathCommand = new RelayCommand(_ => IgnoreByFilepath(), _ => DuplicateGroups.Count > 0);
-        ClearIgnoreFilenameFilterCommand = new RelayCommand(_ => IgnoreFilenameFilterText = string.Empty);
-        ClearIgnoreFilepathFilterCommand = new RelayCommand(_ => IgnoreFilepathFilterText = string.Empty);
         ClearFileSelectionCommand = new RelayCommand(_ => ClearFileSelection());
-        ClearAllRulesCommand = new RelayCommand(_ => ClearAllRules());
+
+        // Dynamic filter rules
+        AddFilterRuleCommand = new RelayCommand(_ => AddFilterRule(), _ => !string.IsNullOrWhiteSpace(RulePatternText));
+        RemoveFilterRuleCommand = new RelayCommand(p => RemoveFilterRule(p as FilterRule));
+        ClearAllRulesCommand = new RelayCommand(_ => ClearAllRules(), _ => FilterRules.Count > 0);
+        ApplyFilterRulesCommand = new RelayCommand(_ => ApplyFilterRules(), _ => DuplicateGroups.Count > 0);
+        MoveFilterRuleUpCommand = new RelayCommand(p => MoveFilterRuleUp(p as FilterRule));
+        MoveFilterRuleDownCommand = new RelayCommand(p => MoveFilterRuleDown(p as FilterRule));
+
+        // Exclude folders
+        AddExcludeFolderCommand = new RelayCommand(_ => AddExcludeFolder(), _ => !string.IsNullOrWhiteSpace(NewExcludeFolderName));
+        RemoveExcludeFolderCommand = new RelayCommand(p => RemoveExcludeFolder(p as string));
         DeleteSelectedFilesCommand = new RelayCommand(_ => DeleteSelectedFiles(), _ => SelectedFileCount > 0);
         MoveSelectedFilesCommand = new RelayCommand(_ => MoveSelectedFiles(), _ => SelectedFileCount > 0);
         BrowseMoveTargetCommand = new RelayCommand(_ => BrowseMoveTarget());
@@ -919,30 +916,6 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the toggle actions panel command.</summary>
     public ICommand ToggleActionsCommand { get; }
 
-    /// <summary>
-    /// Gets or sets a value indicating whether the contain filter section is visible.
-    /// </summary>
-    public bool IsContainSectionVisible
-    {
-        get => _isContainSectionVisible;
-        set => SetProperty(ref _isContainSectionVisible, value);
-    }
-
-    /// <summary>Gets the toggle contain section command.</summary>
-    public ICommand ToggleContainSectionCommand { get; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether the ignore filter section is visible.
-    /// </summary>
-    public bool IsIgnoreSectionVisible
-    {
-        get => _isIgnoreSectionVisible;
-        set => SetProperty(ref _isIgnoreSectionVisible, value);
-    }
-
-    /// <summary>Gets the toggle ignore section command.</summary>
-    public ICommand ToggleIgnoreSectionCommand { get; }
-
     // -- Selection commands --
 
     /// <summary>Gets the select all files command.</summary>
@@ -954,35 +927,90 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the select older duplicates command.</summary>
     public ICommand SelectOlderFilesCommand { get; }
 
-    /// <summary>Gets the select by filename contains command.</summary>
-    public ICommand SelectByFilenameCommand { get; }
-
-    /// <summary>Gets the select by path contains command.</summary>
-    public ICommand SelectByPathCommand { get; }
-
-    /// <summary>Gets the clear filename filter text command.</summary>
-    public ICommand ClearFilenameFilterCommand { get; }
-
-    /// <summary>Gets the clear filepath filter text command.</summary>
-    public ICommand ClearFilepathFilterCommand { get; }
-
-    /// <summary>Gets the ignore by filename contains command.</summary>
-    public ICommand IgnoreByFilenameCommand { get; }
-
-    /// <summary>Gets the ignore by filepath contains command.</summary>
-    public ICommand IgnoreByFilepathCommand { get; }
-
-    /// <summary>Gets the clear ignore filename filter text command.</summary>
-    public ICommand ClearIgnoreFilenameFilterCommand { get; }
-
-    /// <summary>Gets the clear ignore filepath filter text command.</summary>
-    public ICommand ClearIgnoreFilepathFilterCommand { get; }
-
     /// <summary>Gets the clear file selection command.</summary>
     public ICommand ClearFileSelectionCommand { get; }
 
+    // -- Dynamic filter rule commands --
+
+    /// <summary>Gets the add filter rule command.</summary>
+    public ICommand AddFilterRuleCommand { get; }
+
+    /// <summary>Gets the remove filter rule command.</summary>
+    public ICommand RemoveFilterRuleCommand { get; }
+
     /// <summary>Gets the clear all rules command.</summary>
     public ICommand ClearAllRulesCommand { get; }
+
+    /// <summary>Gets the apply filter rules command.</summary>
+    public ICommand ApplyFilterRulesCommand { get; }
+
+    /// <summary>Gets the move filter rule up (higher priority) command.</summary>
+    public ICommand MoveFilterRuleUpCommand { get; }
+
+    /// <summary>Gets the move filter rule down (lower priority) command.</summary>
+    public ICommand MoveFilterRuleDownCommand { get; }
+
+    /// <summary>Gets the dynamic filter rules collection.</summary>
+    public ObservableCollection<FilterRule> FilterRules { get; } = new();
+
+    /// <summary>Gets the available filter actions for the rule builder.</summary>
+    public List<FilterAction> FilterActions { get; } = new() { FilterAction.Select, FilterAction.Ignore };
+
+    /// <summary>Gets the available filter targets for the rule builder.</summary>
+    public List<FilterTarget> FilterTargets { get; } = new() { FilterTarget.Filename, FilterTarget.Filepath };
+
+    /// <summary>Gets or sets the rule builder pattern text.</summary>
+    public string RulePatternText
+    {
+        get => _rulePatternText;
+        set => SetProperty(ref _rulePatternText, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether the rule builder uses regex.</summary>
+    public bool RuleIsRegex
+    {
+        get => _ruleIsRegex;
+        set => SetProperty(ref _ruleIsRegex, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether the rule builder ignores case.</summary>
+    public bool RuleIgnoreCase
+    {
+        get => _ruleIgnoreCase;
+        set => SetProperty(ref _ruleIgnoreCase, value);
+    }
+
+    /// <summary>Gets or sets the rule builder action (Select/Ignore).</summary>
+    public FilterAction RuleAction
+    {
+        get => _ruleAction;
+        set => SetProperty(ref _ruleAction, value);
+    }
+
+    /// <summary>Gets or sets the rule builder target (Filename/Filepath).</summary>
+    public FilterTarget RuleTarget
+    {
+        get => _ruleTarget;
+        set => SetProperty(ref _ruleTarget, value);
+    }
+
+    // -- Exclude folders --
+
+    /// <summary>Gets the exclude folder names collection.</summary>
+    public ObservableCollection<string> ExcludeFolderNames { get; } = new();
+
+    /// <summary>Gets or sets the new exclude folder name input.</summary>
+    public string NewExcludeFolderName
+    {
+        get => _newExcludeFolderName;
+        set => SetProperty(ref _newExcludeFolderName, value);
+    }
+
+    /// <summary>Gets the add exclude folder command.</summary>
+    public ICommand AddExcludeFolderCommand { get; }
+
+    /// <summary>Gets the remove exclude folder command.</summary>
+    public ICommand RemoveExcludeFolderCommand { get; }
 
     // -- Action commands --
 
@@ -1000,114 +1028,6 @@ public class MainViewModel : ViewModelBase
 
     /// <summary>Gets the clear file selection in a single group command.</summary>
     public ICommand ClearSelectionInGroupCommand { get; }
-
-    /// <summary>
-    /// Gets or sets the filename filter text.
-    /// </summary>
-    public string FilenameFilterText
-    {
-        get => _filenameFilterText;
-        set => SetProperty(ref _filenameFilterText, value);
-    }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether regex mode is enabled for filename filter.
-    /// </summary>
-    public bool IsFilenameRegex
-    {
-        get => _isFilenameRegex;
-        set => SetProperty(ref _isFilenameRegex, value);
-    }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether ignore case is enabled for filename filter.
-    /// </summary>
-    public bool IsFilenameIgnoreCase
-    {
-        get => _isFilenameIgnoreCase;
-        set => SetProperty(ref _isFilenameIgnoreCase, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the filepath filter text.
-    /// </summary>
-    public string FilepathFilterText
-    {
-        get => _filepathFilterText;
-        set => SetProperty(ref _filepathFilterText, value);
-    }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether regex mode is enabled for filepath filter.
-    /// </summary>
-    public bool IsFilepathRegex
-    {
-        get => _isFilepathRegex;
-        set => SetProperty(ref _isFilepathRegex, value);
-    }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether ignore case is enabled for filepath filter.
-    /// </summary>
-    public bool IsFilepathIgnoreCase
-    {
-        get => _isFilepathIgnoreCase;
-        set => SetProperty(ref _isFilepathIgnoreCase, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the ignore filename filter text.
-    /// </summary>
-    public string IgnoreFilenameFilterText
-    {
-        get => _ignoreFilenameFilterText;
-        set => SetProperty(ref _ignoreFilenameFilterText, value);
-    }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether regex mode is enabled for ignore filename filter.
-    /// </summary>
-    public bool IsIgnoreFilenameRegex
-    {
-        get => _isIgnoreFilenameRegex;
-        set => SetProperty(ref _isIgnoreFilenameRegex, value);
-    }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether ignore case is enabled for ignore filename filter.
-    /// </summary>
-    public bool IsIgnoreFilenameIgnoreCase
-    {
-        get => _isIgnoreFilenameIgnoreCase;
-        set => SetProperty(ref _isIgnoreFilenameIgnoreCase, value);
-    }
-
-    /// <summary>
-    /// Gets or sets the ignore filepath filter text.
-    /// </summary>
-    public string IgnoreFilepathFilterText
-    {
-        get => _ignoreFilepathFilterText;
-        set => SetProperty(ref _ignoreFilepathFilterText, value);
-    }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether regex mode is enabled for ignore filepath filter.
-    /// </summary>
-    public bool IsIgnoreFilepathRegex
-    {
-        get => _isIgnoreFilepathRegex;
-        set => SetProperty(ref _isIgnoreFilepathRegex, value);
-    }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether ignore case is enabled for ignore filepath filter.
-    /// </summary>
-    public bool IsIgnoreFilepathIgnoreCase
-    {
-        get => _isIgnoreFilepathIgnoreCase;
-        set => SetProperty(ref _isIgnoreFilepathIgnoreCase, value);
-    }
 
     /// <summary>
     /// Gets or sets the count of individually selected files.
@@ -1242,20 +1162,8 @@ public class MainViewModel : ViewModelBase
             SelectedSortOption = SelectedSortOption,
             Volume = MediaVolume,
             MoveTargetPath = MoveTargetPath,
-            FilenameFilterText = FilenameFilterText,
-            IsFilenameRegex = IsFilenameRegex,
-            IsFilenameIgnoreCase = IsFilenameIgnoreCase,
-            FilepathFilterText = FilepathFilterText,
-            IsFilepathRegex = IsFilepathRegex,
-            IsFilepathIgnoreCase = IsFilepathIgnoreCase,
-            IgnoreFilenameFilterText = IgnoreFilenameFilterText,
-            IsIgnoreFilenameRegex = IsIgnoreFilenameRegex,
-            IsIgnoreFilenameIgnoreCase = IsIgnoreFilenameIgnoreCase,
-            IgnoreFilepathFilterText = IgnoreFilepathFilterText,
-            IsIgnoreFilepathRegex = IsIgnoreFilepathRegex,
-            IsIgnoreFilepathIgnoreCase = IsIgnoreFilepathIgnoreCase,
-            IsContainSectionVisible = IsContainSectionVisible,
-            IsIgnoreSectionVisible = IsIgnoreSectionVisible,
+            ExcludeFolderNames = ExcludeFolderNames.ToList(),
+            FilterRules = FilterRules.ToList(),
         };
         _settingsService.Save(settings);
     }
@@ -1271,25 +1179,23 @@ public class MainViewModel : ViewModelBase
         SelectedSortOption = settings.SelectedSortOption;
         MediaVolume = settings.Volume;
         MoveTargetPath = settings.MoveTargetPath;
-        FilenameFilterText = settings.FilenameFilterText;
-        IsFilenameRegex = settings.IsFilenameRegex;
-        IsFilenameIgnoreCase = settings.IsFilenameIgnoreCase;
-        FilepathFilterText = settings.FilepathFilterText;
-        IsFilepathRegex = settings.IsFilepathRegex;
-        IsFilepathIgnoreCase = settings.IsFilepathIgnoreCase;
-        IgnoreFilenameFilterText = settings.IgnoreFilenameFilterText;
-        IsIgnoreFilenameRegex = settings.IsIgnoreFilenameRegex;
-        IsIgnoreFilenameIgnoreCase = settings.IsIgnoreFilenameIgnoreCase;
-        IgnoreFilepathFilterText = settings.IgnoreFilepathFilterText;
-        IsIgnoreFilepathRegex = settings.IsIgnoreFilepathRegex;
-        IsIgnoreFilepathIgnoreCase = settings.IsIgnoreFilepathIgnoreCase;
-        IsContainSectionVisible = settings.IsContainSectionVisible;
-        IsIgnoreSectionVisible = settings.IsIgnoreSectionVisible;
 
         foreach (var path in settings.TargetPaths)
         {
             TargetPaths.Add(path);
         }
+
+        foreach (var name in settings.ExcludeFolderNames)
+        {
+            ExcludeFolderNames.Add(name);
+        }
+
+        foreach (var rule in settings.FilterRules)
+        {
+            FilterRules.Add(rule);
+        }
+
+        RefreshRulePriorities();
     }
 
     private bool CanScan() => !IsScanning && TargetPaths.Count > 0;
@@ -1313,6 +1219,7 @@ public class MainViewModel : ViewModelBase
             {
                 TargetPaths = TargetPaths.ToList(),
                 IncludeSubdirectories = IncludeSubdirectories,
+                ExcludeFolderNames = ExcludeFolderNames.ToList(),
             };
 
             var result = await Task.Run(
@@ -1822,8 +1729,10 @@ public class MainViewModel : ViewModelBase
             }
         }
 
+        var ignored = ApplyIgnoreRules();
         RefreshSelectedFileCount();
-        StatusMessage = $"Selected all {SelectedFileCount} files in {DuplicateGroups.Count} groups.";
+        StatusMessage = $"Selected all {SelectedFileCount} files in {DuplicateGroups.Count} groups." +
+            (ignored > 0 ? $" ({ignored} excluded by ignore rules)" : string.Empty);
     }
 
     private void SelectNewerFiles()
@@ -1846,8 +1755,11 @@ public class MainViewModel : ViewModelBase
             }
         }
 
+        var ignored = ApplyIgnoreRules();
+        selected -= ignored;
         RefreshSelectedFileCount();
-        StatusMessage = $"Selected {selected} newer duplicates (keeping oldest in each group).";
+        StatusMessage = $"Selected {selected} newer duplicates (keeping oldest in each group)." +
+            (ignored > 0 ? $" ({ignored} excluded by ignore rules)" : string.Empty);
     }
 
     private void SelectOlderFiles()
@@ -1870,124 +1782,22 @@ public class MainViewModel : ViewModelBase
             }
         }
 
-        RefreshSelectedFileCount();
-        StatusMessage = $"Selected {selected} older duplicates (keeping newest in each group).";
-    }
-
-    private void SelectByFilename()
-    {
-        if (string.IsNullOrWhiteSpace(FilenameFilterText))
-        {
-            StatusMessage = "Enter filename filter text first.";
-            return;
-        }
-
-        ClearFileSelection();
-        var filter = FilenameFilterText.Trim();
-        var selected = 0;
-
-        foreach (var group in DuplicateGroups)
-        {
-            foreach (var file in group.Files)
-            {
-                if (MatchesFilter(file.FileName, filter, IsFilenameRegex, IsFilenameIgnoreCase))
-                {
-                    file.IsFileSelected = true;
-                    selected++;
-                }
-            }
-        }
-
-        var ignored = ApplyIgnoreFilters();
+        var ignored = ApplyIgnoreRules();
         selected -= ignored;
-
         RefreshSelectedFileCount();
-        StatusMessage = selected > 0
-            ? $"Selected {selected} files with filename matching \"{filter}\"{(ignored > 0 ? $" ({ignored} excluded by ignore filters)" : string.Empty)}."
-            : $"No files with filename matching \"{filter}\".";
+        StatusMessage = $"Selected {selected} older duplicates (keeping newest in each group)." +
+            (ignored > 0 ? $" ({ignored} excluded by ignore rules)" : string.Empty);
     }
 
-    private void SelectByPath()
+    private int ApplyIgnoreRules()
     {
-        if (string.IsNullOrWhiteSpace(FilepathFilterText))
-        {
-            StatusMessage = "Enter filepath filter text first.";
-            return;
-        }
-
-        ClearFileSelection();
-        var filter = FilepathFilterText.Trim();
-        var selected = 0;
-
-        foreach (var group in DuplicateGroups)
-        {
-            foreach (var file in group.Files)
-            {
-                if (MatchesFilter(file.FilePath, filter, IsFilepathRegex, IsFilepathIgnoreCase))
-                {
-                    file.IsFileSelected = true;
-                    selected++;
-                }
-            }
-        }
-
-        var ignored = ApplyIgnoreFilters();
-        selected -= ignored;
-
-        RefreshSelectedFileCount();
-        StatusMessage = selected > 0
-            ? $"Selected {selected} files with path matching \"{filter}\"{(ignored > 0 ? $" ({ignored} excluded by ignore filters)" : string.Empty)}."
-            : $"No files with path matching \"{filter}\".";
-    }
-
-    private void IgnoreByFilename()
-    {
-        if (string.IsNullOrWhiteSpace(IgnoreFilenameFilterText))
-        {
-            StatusMessage = "Enter ignore filename filter text first.";
-            return;
-        }
-
-        var deselected = ApplyIgnoreFilters();
-
-        RefreshSelectedFileCount();
-        var filter = IgnoreFilenameFilterText.Trim();
-        StatusMessage = deselected > 0
-            ? $"Deselected {deselected} files by ignore filters."
-            : $"No selected files with filename matching \"{filter}\".";
-    }
-
-    private void IgnoreByFilepath()
-    {
-        if (string.IsNullOrWhiteSpace(IgnoreFilepathFilterText))
-        {
-            StatusMessage = "Enter ignore filepath filter text first.";
-            return;
-        }
-
-        var deselected = ApplyIgnoreFilters();
-
-        RefreshSelectedFileCount();
-        var filter = IgnoreFilepathFilterText.Trim();
-        StatusMessage = deselected > 0
-            ? $"Deselected {deselected} files by ignore filters."
-            : $"No selected files with path matching \"{filter}\".";
-    }
-
-    private int ApplyIgnoreFilters()
-    {
-        var deselected = 0;
-        var hasIgnoreFilename = !string.IsNullOrWhiteSpace(IgnoreFilenameFilterText);
-        var hasIgnoreFilepath = !string.IsNullOrWhiteSpace(IgnoreFilepathFilterText);
-
-        if (!hasIgnoreFilename && !hasIgnoreFilepath)
+        var ignoreRules = FilterRules.Where(r => r.Action == FilterAction.Ignore).ToList();
+        if (ignoreRules.Count == 0)
         {
             return 0;
         }
 
-        var ignoreNameFilter = hasIgnoreFilename ? IgnoreFilenameFilterText.Trim() : string.Empty;
-        var ignorePathFilter = hasIgnoreFilepath ? IgnoreFilepathFilterText.Trim() : string.Empty;
-
+        var deselected = 0;
         foreach (var group in DuplicateGroups)
         {
             foreach (var file in group.Files)
@@ -1997,12 +1807,13 @@ public class MainViewModel : ViewModelBase
                     continue;
                 }
 
-                var matchesIgnoreName = hasIgnoreFilename &&
-                    MatchesFilter(file.FileName, ignoreNameFilter, IsIgnoreFilenameRegex, IsIgnoreFilenameIgnoreCase);
-                var matchesIgnorePath = hasIgnoreFilepath &&
-                    MatchesFilter(file.FilePath, ignorePathFilter, IsIgnoreFilepathRegex, IsIgnoreFilepathIgnoreCase);
+                var matchesAnyIgnore = ignoreRules.Any(rule =>
+                {
+                    var input = rule.Target == FilterTarget.Filename ? file.FileName : file.FilePath;
+                    return MatchesFilter(input, rule.Pattern, rule.IsRegex, rule.IgnoreCase);
+                });
 
-                if (matchesIgnoreName || matchesIgnorePath)
+                if (matchesAnyIgnore)
                 {
                     file.IsFileSelected = false;
                     deselected++;
@@ -2011,6 +1822,119 @@ public class MainViewModel : ViewModelBase
         }
 
         return deselected;
+    }
+
+    private void AddFilterRule()
+    {
+        var pattern = RulePatternText.Trim();
+        if (string.IsNullOrEmpty(pattern))
+        {
+            return;
+        }
+
+        FilterRules.Add(new FilterRule
+        {
+            Pattern = pattern,
+            IsRegex = RuleIsRegex,
+            IgnoreCase = RuleIgnoreCase,
+            Action = RuleAction,
+            Target = RuleTarget,
+        });
+
+        RefreshRulePriorities();
+
+        // Clear builder for next input
+        RulePatternText = string.Empty;
+        RuleIsRegex = false;
+        RuleIgnoreCase = true;
+        RuleAction = FilterAction.Select;
+        RuleTarget = FilterTarget.Filename;
+
+        StatusMessage = $"Added filter rule #{FilterRules.Count}: {FilterRules[^1].DisplaySummary}";
+    }
+
+    private void RemoveFilterRule(FilterRule? rule)
+    {
+        if (rule != null)
+        {
+            FilterRules.Remove(rule);
+            RefreshRulePriorities();
+            StatusMessage = "Removed filter rule.";
+        }
+    }
+
+    private void MoveFilterRuleUp(FilterRule? rule)
+    {
+        if (rule == null)
+        {
+            return;
+        }
+
+        var index = FilterRules.IndexOf(rule);
+        if (index > 0)
+        {
+            FilterRules.Move(index, index - 1);
+            RefreshRulePriorities();
+        }
+    }
+
+    private void MoveFilterRuleDown(FilterRule? rule)
+    {
+        if (rule == null)
+        {
+            return;
+        }
+
+        var index = FilterRules.IndexOf(rule);
+        if (index >= 0 && index < FilterRules.Count - 1)
+        {
+            FilterRules.Move(index, index + 1);
+            RefreshRulePriorities();
+        }
+    }
+
+    private void RefreshRulePriorities()
+    {
+        for (var i = 0; i < FilterRules.Count; i++)
+        {
+            FilterRules[i].Priority = i + 1;
+        }
+    }
+
+    private void ApplyFilterRules()
+    {
+        if (FilterRules.Count == 0)
+        {
+            StatusMessage = "No filter rules to apply. Add rules first.";
+            return;
+        }
+
+        ClearFileSelection();
+
+        // Process rules from lowest priority (last) to highest (first).
+        // Higher priority rules override lower ones — the last write wins.
+        var rulesHighToLow = FilterRules.Reverse().ToList();
+
+        foreach (var group in DuplicateGroups)
+        {
+            foreach (var file in group.Files)
+            {
+                // Find the highest-priority rule that matches this file
+                foreach (var rule in FilterRules)
+                {
+                    var input = rule.Target == FilterTarget.Filename ? file.FileName : file.FilePath;
+                    if (MatchesFilter(input, rule.Pattern, rule.IsRegex, rule.IgnoreCase))
+                    {
+                        file.IsFileSelected = rule.Action == FilterAction.Select;
+                        break; // highest priority match wins
+                    }
+                }
+            }
+        }
+
+        RefreshSelectedFileCount();
+        var selected = SelectedFileCount;
+        StatusMessage = $"Applied {FilterRules.Count} rules (priority order): {selected} files selected.";
     }
 
     private static bool MatchesFilter(string input, string filter, bool useRegex, bool ignoreCase)
@@ -2051,19 +1975,27 @@ public class MainViewModel : ViewModelBase
 
     private void ClearAllRules()
     {
-        FilenameFilterText = string.Empty;
-        IsFilenameRegex = false;
-        IsFilenameIgnoreCase = true;
-        FilepathFilterText = string.Empty;
-        IsFilepathRegex = false;
-        IsFilepathIgnoreCase = true;
-        IgnoreFilenameFilterText = string.Empty;
-        IsIgnoreFilenameRegex = false;
-        IsIgnoreFilenameIgnoreCase = true;
-        IgnoreFilepathFilterText = string.Empty;
-        IsIgnoreFilepathRegex = false;
-        IsIgnoreFilepathIgnoreCase = true;
+        FilterRules.Clear();
+        RefreshRulePriorities();
         StatusMessage = "All filter rules cleared.";
+    }
+
+    private void AddExcludeFolder()
+    {
+        var name = NewExcludeFolderName.Trim();
+        if (!string.IsNullOrEmpty(name) && !ExcludeFolderNames.Contains(name))
+        {
+            ExcludeFolderNames.Add(name);
+            NewExcludeFolderName = string.Empty;
+        }
+    }
+
+    private void RemoveExcludeFolder(string? name)
+    {
+        if (!string.IsNullOrEmpty(name))
+        {
+            ExcludeFolderNames.Remove(name);
+        }
     }
 
     // ── ACTION METHODS ──
