@@ -67,6 +67,14 @@
     </Window.Resources>
 
     <Grid Margin="4">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Column 0: Target Folders + Tabs -->
+        <Grid Grid.Column="0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -187,12 +195,14 @@
             </Grid>
         </GroupBox>
 
-        <!-- Row 1: Duplicate Finder Content -->
-    <Grid Grid.Row="1" Margin="8">
+        <!-- Row 1: Feature Tabs -->
+        <TabControl Grid.Row="1" Margin="4,0,4,4">
+
+            <!-- Tab 1: Scan for Duplicates -->
+            <TabItem Header="Scan for Duplicates">
+    <Grid Margin="8">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="400" />
-            <ColumnDefinition Width="320" />
-            <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
         <!-- Left Column: Controls + Results -->
@@ -313,6 +323,51 @@
                         </ToggleButton.Style>
                     </ToggleButton>
 
+                    <ToggleButton IsChecked="{Binding IsAnalyticsVisible}"
+                                  VerticalAlignment="Center" FontSize="11" Padding="8,3" Margin="4,0,0,0" Cursor="Hand"
+                                  ToolTip="Show or hide the analytics dashboard panel">
+                        <ToggleButton.Style>
+                            <Style TargetType="ToggleButton">
+                                <Setter Property="Content" Value="Analytics" />
+                                <Setter Property="Foreground" Value="#555555" />
+                                <Setter Property="Background" Value="#F5F5F5" />
+                                <Setter Property="BorderBrush" Value="#CCCCCC" />
+                                <Setter Property="BorderThickness" Value="1" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter Property="Content" Value="✦ Analytics" />
+                                        <Setter Property="Foreground" Value="White" />
+                                        <Setter Property="Background" Value="#0277BD" />
+                                        <Setter Property="BorderBrush" Value="#01579B" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#E1F5FE" />
+                                    </Trigger>
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="IsChecked" Value="True" />
+                                            <Condition Property="IsMouseOver" Value="True" />
+                                        </MultiTrigger.Conditions>
+                                        <Setter Property="Background" Value="#0288D1" />
+                                    </MultiTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ToggleButton.Style>
+                    </ToggleButton>
+
                     <ToggleButton IsChecked="{Binding IsAutoPlay}"
                                   VerticalAlignment="Center" FontSize="11" Padding="8,3" Margin="4,0,0,0" Cursor="Hand"
                                   ToolTip="Auto-play video/audio. When off, video shows first frame.">
@@ -371,6 +426,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
@@ -409,28 +465,45 @@
                         BorderBrush="#E0E0E0" BorderThickness="1"
                         Visibility="{Binding IsFilterVisible, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel>
-                        <!-- File Type Filters -->
-                        <Grid Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <TextBlock Text="File Types" FontWeight="SemiBold" FontSize="12"
-                                           Foreground="#333333" VerticalAlignment="Center" />
-                                <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                              Tag="&lt;h&gt;FILTER BY FILE TYPE&lt;/h&gt;&#x0a;Show or hide duplicate groups by their file extension.&#x0a;&#x0a;&lt;b&gt;Checked&lt;/b&gt; = shown in results&#x0a;&lt;b&gt;Unchecked&lt;/b&gt; = hidden from results&#x0a;&#x0a;&lt;h&gt;Tip:&lt;/h&gt; Use this to focus on one type at a time (e.g. only images, only documents)." />
-                            </StackPanel>
-                            <Button Grid.Column="1" Content="Select All"
+                        <!-- Filter controls: all in one horizontal row -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="File Types" FontWeight="SemiBold" FontSize="12"
+                                       Foreground="#333333" VerticalAlignment="Center" />
+                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                          Tag="&lt;h&gt;FILTER BY FILE TYPE&lt;/h&gt;&#x0a;Show or hide duplicate groups by their file extension.&#x0a;&#x0a;&lt;b&gt;Checked&lt;/b&gt; = shown in results&#x0a;&lt;b&gt;Unchecked&lt;/b&gt; = hidden from results&#x0a;&#x0a;&lt;h&gt;Tip:&lt;/h&gt; Use this to focus on one type at a time (e.g. only images, only documents)." />
+                            <Button Content="Select All"
                                     Command="{Binding ShowAllTypesCommand}"
-                                    Padding="6,2" Margin="0,0,4,0" FontSize="10" Cursor="Hand" />
-                            <Button Grid.Column="2" Content="Clear All"
+                                    Padding="6,2" Margin="8,0,4,0" FontSize="10" Cursor="Hand" />
+                            <Button Content="Clear All"
                                     Command="{Binding ClearAllTypesCommand}"
-                                    Padding="6,2" FontSize="10" Cursor="Hand" />
-                        </Grid>
+                                    Padding="6,2" Margin="0,0,0,0" FontSize="10" Cursor="Hand" />
 
-                        <ItemsControl ItemsSource="{Binding ExtensionFilters}" Margin="0,0,0,10">
+                            <Border Width="1" Background="#D0D0D0" Margin="12,2" />
+
+                            <TextBlock Text="Min size:" FontWeight="SemiBold" FontSize="11"
+                                       Foreground="#333333" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <ToggleButton Style="{StaticResource HelpButtonStyle}" Margin="0,0,4,0"
+                                          Tag="&lt;h&gt;FILTER BY SIZE &amp; COUNT&lt;/h&gt;&#x0a;&#x0a;&lt;b&gt;Min file size&lt;/b&gt;&#x0a;Hide files below this threshold. Useful to skip tiny duplicates and focus on large files wasting disk space.&#x0a;&#x0a;&lt;b&gt;Min duplicates&lt;/b&gt;&#x0a;Hide groups with fewer than N copies. Default = 2. Increase to find files with many copies (e.g. 5+ scattered across folders)." />
+                            <TextBox Text="{Binding MinFileSizeText, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="60" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
+                            <ComboBox ItemsSource="{Binding SizeUnits}"
+                                      SelectedItem="{Binding SelectedSizeUnit}"
+                                      Width="55" Margin="4,0,0,0" FontSize="11"
+                                      VerticalContentAlignment="Center" />
+
+                            <Border Width="1" Background="#D0D0D0" Margin="12,2" />
+
+                            <TextBlock Text="Min dups:" FontWeight="SemiBold" FontSize="11"
+                                       Foreground="#333333" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <TextBox Text="{Binding MinDuplicateCount, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="40" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
+
+                            <Button Content="Apply" Command="{Binding ApplyFileSizeFilterCommand}"
+                                    Padding="8,3" Margin="8,0,0,0" FontSize="11" Cursor="Hand" />
+                        </StackPanel>
+
+                        <!-- Extension checkboxes -->
+                        <ItemsControl ItemsSource="{Binding ExtensionFilters}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <WrapPanel Orientation="Horizontal" />
@@ -451,39 +524,17 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-
-                        <!-- Minimum File Size + Min Duplicates Filter -->
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Min file size:" FontWeight="SemiBold" FontSize="12"
-                                       Foreground="#333333" VerticalAlignment="Center" Margin="0,0,4,0" />
-                            <ToggleButton Style="{StaticResource HelpButtonStyle}" Margin="0,0,4,0"
-                                          Tag="&lt;h&gt;FILTER BY SIZE &amp; COUNT&lt;/h&gt;&#x0a;&#x0a;&lt;b&gt;Min file size&lt;/b&gt;&#x0a;Hide files below this threshold. Useful to skip tiny duplicates and focus on large files wasting disk space.&#x0a;&#x0a;&lt;b&gt;Min duplicates&lt;/b&gt;&#x0a;Hide groups with fewer than N copies. Default = 2. Increase to find files with many copies (e.g. 5+ scattered across folders)." />
-                            <TextBox Text="{Binding MinFileSizeText, UpdateSourceTrigger=PropertyChanged}"
-                                     Width="80" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
-                            <ComboBox ItemsSource="{Binding SizeUnits}"
-                                      SelectedItem="{Binding SelectedSizeUnit}"
-                                      Width="55" Margin="4,0,0,0" FontSize="11"
-                                      VerticalContentAlignment="Center" />
-
-                            <TextBlock Text="Min duplicates:" FontWeight="SemiBold" FontSize="12"
-                                       Foreground="#333333" VerticalAlignment="Center" Margin="16,0,8,0" />
-                            <TextBox Text="{Binding MinDuplicateCount, UpdateSourceTrigger=PropertyChanged}"
-                                     Width="45" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
-
-                            <Button Content="Apply" Command="{Binding ApplyFileSizeFilterCommand}"
-                                    Padding="8,3" Margin="8,0,0,0" FontSize="11" Cursor="Hand" />
-                        </StackPanel>
                     </StackPanel>
                 </Border>
 
-                <!-- Actions Toggle Bar -->
+                <!-- Rule Selection Toggle Bar -->
                 <Border Grid.Row="2" Background="#FFF8E1" CornerRadius="4" Padding="8,4" Margin="0,0,0,4">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="🔽 Actions"
+                        <Button Grid.Column="0" Content="🔽 Custom Rule Filter"
                                 Command="{Binding ToggleActionsCommand}"
                                 Padding="8,3" FontSize="11" Cursor="Hand"
                                 Foreground="#E65100" Background="Transparent" BorderThickness="0" />
@@ -495,41 +546,8 @@
                         BorderBrush="#FFE082" BorderThickness="1"
                         Visibility="{Binding IsActionsVisible, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel>
-
-                            <!-- SELECT section -->
-                            <Border Background="#E8F5E9" CornerRadius="3" Padding="8,6" Margin="0,0,0,6">
-                                <StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                        <TextBlock Text="SELECT" FontSize="12" FontWeight="Bold" Foreground="#2E7D32" />
-                                        <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                                      Tag="&lt;h&gt;SELECTING FILES FOR ACTION&lt;/h&gt;&#x0a;Check files you want to delete or move.&#x0a;&#x0a;&lt;b&gt;Quick select:&lt;/b&gt;&#x0a;Select All = check every file&#x0a;Select Newer = keep oldest, check the rest&#x0a;Select Older = keep newest, check the rest&#x0a;&#x0a;&lt;b&gt;Dynamic rules:&lt;/b&gt;&#x0a;Build filter rules with text patterns.&#x0a;Select rules = check matching files&#x0a;Ignore rules = uncheck matching files&#x0a;&#x0a;&lt;w&gt;Ignore ALWAYS overrides Select.&lt;/w&gt; If a file matches both, it stays unchecked (protected)." />
-                                        <TextBlock FontSize="10" Foreground="#555555" Margin="8,0,0,0"
-                                                   VerticalAlignment="Center">
-                                            <TextBlock.Text>
-                                                <Binding Path="SelectedFileCount" StringFormat="{}{0} files selected" />
-                                            </TextBlock.Text>
-                                        </TextBlock>
-                                    </StackPanel>
-
-                                    <!-- Quick Select buttons -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                        <Button Content="✓ Select All" Command="{Binding SelectAllFilesCommand}"
-                                                Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                                ToolTip="Select all files in all groups" />
-                                        <Button Content="✓ Select Newer" Command="{Binding SelectNewerFilesCommand}"
-                                                Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                                ToolTip="Select newer duplicates (keep oldest unselected)" />
-                                        <Button Content="✓ Select Older" Command="{Binding SelectOlderFilesCommand}"
-                                                Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                                ToolTip="Select older duplicates (keep newest unselected)" />
-                                        <Button Content="✕ Clear Selection" Command="{Binding ClearFileSelectionCommand}"
-                                                Padding="8,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
-                                                Foreground="#888888"
-                                                ToolTip="Clear all file selections" />
-                                    </StackPanel>
-
-                                    <!-- Dynamic Filter Rules -->
-                                    <Border Background="#F1F8E9" CornerRadius="3" Padding="8,6" Margin="0,4,0,0">
+                            <!-- Dynamic Filter Rules -->
+                            <Border Background="#F1F8E9" CornerRadius="3" Padding="8,6">
                                         <StackPanel>
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                                 <TextBlock Text="Filter Rules" FontSize="11.5" FontWeight="Bold" Foreground="#2E7D32" />
@@ -836,40 +854,61 @@
                                                         ToolTip="Remove all filter rules" />
                                             </StackPanel>
                                         </StackPanel>
-                                    </Border>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- #5 ACTION section -->
-                            <Border Background="#FFF3E0" CornerRadius="3" Padding="8,6">
-                                <StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                        <TextBlock Text="ACTION" FontSize="12" FontWeight="Bold" Foreground="#E65100" />
-                                        <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                                      Tag="&lt;h&gt;TAKE ACTION on selected files&lt;/h&gt;&#x0a;&#x0a;&lt;b&gt;Delete&lt;/b&gt;&#x0a;Permanently removes checked files from disk.&#x0a;&lt;w&gt;No Recycle Bin &#x2014; cannot be undone.&lt;/w&gt;&#x0a;&#x0a;&lt;b&gt;Move&lt;/b&gt;&#x0a;Relocates checked files to the target folder.&#x0a;Filenames are preserved. Original files are removed.&#x0a;&#x0a;&lt;w&gt;Both actions affect ALL checked files across ALL groups.&lt;/w&gt; Double-check your selection before proceeding." />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Button Content="🗑 Delete" Command="{Binding DeleteSelectedFilesCommand}"
-                                                Padding="8,3" Margin="0,0,8,0" FontSize="11" Cursor="Hand"
-                                                Foreground="#C62828"
-                                                ToolTip="Delete all selected files" />
-                                        <TextBlock Text="Move to:" FontSize="11" FontWeight="SemiBold"
-                                                   VerticalAlignment="Center" Foreground="#E65100" Margin="0,0,6,0" />
-                                        <TextBox Text="{Binding MoveTargetPath, UpdateSourceTrigger=PropertyChanged}"
-                                                 Width="230" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
-                                        <Button Content="Browse..." Command="{Binding BrowseMoveTargetCommand}"
-                                                Padding="6,3" Margin="4,0,4,0" FontSize="11" Cursor="Hand" />
-                                        <Button Content="📁 Move" Command="{Binding MoveSelectedFilesCommand}"
-                                                Padding="8,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
-                                                Foreground="#1565C0"
-                                                ToolTip="Move all selected files to the target folder" />
-                                    </StackPanel>
-                                </StackPanel>
                             </Border>
                     </StackPanel>
                 </Border>
 
-                <GroupBox Grid.Row="4" Header="Duplicate Groups" Padding="4">
+                <!-- Action Section (standalone) -->
+                <Border Grid.Row="4" Background="#FFF3E0" CornerRadius="4" Padding="8,6" Margin="0,0,0,4">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="ACTION" FontSize="12" FontWeight="Bold" Foreground="#E65100" />
+                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                          Tag="&lt;h&gt;TAKE ACTION on selected files&lt;/h&gt;&#x0a;&#x0a;&lt;b&gt;Delete&lt;/b&gt;&#x0a;Permanently removes checked files from disk.&#x0a;&lt;w&gt;No Recycle Bin &#x2014; cannot be undone.&lt;/w&gt;&#x0a;&#x0a;&lt;b&gt;Move&lt;/b&gt;&#x0a;Relocates checked files to the target folder.&#x0a;Filenames are preserved. Original files are removed.&#x0a;&#x0a;&lt;w&gt;Both actions affect ALL checked files across ALL groups.&lt;/w&gt; Double-check your selection before proceeding." />
+                            <TextBlock FontSize="10" Foreground="#555555" Margin="8,0,0,0"
+                                       VerticalAlignment="Center">
+                                <TextBlock.Text>
+                                    <Binding Path="SelectedFileCount" StringFormat="{}{0} files selected" />
+                                </TextBlock.Text>
+                            </TextBlock>
+                        </StackPanel>
+                        <!-- Quick Select buttons -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <Button Content="✓ Select All" Command="{Binding SelectAllFilesCommand}"
+                                    Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
+                                    ToolTip="Select all files in all groups" />
+                            <Button Content="✓ Select Newer" Command="{Binding SelectNewerFilesCommand}"
+                                    Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
+                                    ToolTip="Select newer duplicates (keep oldest unselected)" />
+                            <Button Content="✓ Select Older" Command="{Binding SelectOlderFilesCommand}"
+                                    Padding="8,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
+                                    ToolTip="Select older duplicates (keep newest unselected)" />
+                            <Button Content="✕ Clear Selection" Command="{Binding ClearFileSelectionCommand}"
+                                    Padding="8,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
+                                    Foreground="#888888"
+                                    ToolTip="Clear all file selections" />
+                        </StackPanel>
+                        <!-- Delete / Move -->
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="🗑 Delete" Command="{Binding DeleteSelectedFilesCommand}"
+                                    Padding="8,3" Margin="0,0,8,0" FontSize="11" Cursor="Hand"
+                                    Foreground="#C62828"
+                                    ToolTip="Delete all selected files" />
+                            <TextBlock Text="Move to:" FontSize="11" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Foreground="#E65100" Margin="0,0,6,0" />
+                            <TextBox Text="{Binding MoveTargetPath, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="230" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
+                            <Button Content="Browse..." Command="{Binding BrowseMoveTargetCommand}"
+                                    Padding="6,3" Margin="4,0,4,0" FontSize="11" Cursor="Hand" />
+                            <Button Content="📁 Move" Command="{Binding MoveSelectedFilesCommand}"
+                                    Padding="8,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
+                                    Foreground="#1565C0"
+                                    ToolTip="Move all selected files to the target folder" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <GroupBox Grid.Row="5" Header="Duplicate Groups" Padding="4">
                 <ListView x:Name="DuplicateGroupsList"
                           ItemsSource="{Binding FilteredDuplicateGroups}"
                           SelectedItem="{Binding SelectedDuplicateGroup}"
@@ -1016,14 +1055,40 @@
             </Border>
         </Grid>
 
-        <!-- Right Column: Analytics Dashboard (full height) -->
+    </Grid>
+            </TabItem>
+
+            <!-- Tab 2: Search All -->
+            <TabItem Header="Search All">
+                <Grid Margin="8">
+                    <TextBlock Text="Search All — Coming Soon"
+                               FontSize="18" Foreground="#888888"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+        </Grid>
+
+        <!-- Column 1: Analytics Dashboard (full window height, toggleable) -->
         <Border Grid.Column="1" Background="#FAFAFA" CornerRadius="6"
-                BorderBrush="#E0E0E0" BorderThickness="1" Padding="12">
+                BorderBrush="#E0E0E0" BorderThickness="1" Padding="12" Margin="4,4,4,4"
+                Width="320"
+                Visibility="{Binding IsAnalyticsVisible, Converter={StaticResource BoolToVisibility}}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel DataContext="{Binding Analytics}">
 
-                    <TextBlock Text="Analytics" FontSize="16" FontWeight="Bold"
-                               Foreground="#1A237E" Margin="0,0,0,12" />
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Analytics" FontSize="16" FontWeight="Bold"
+                                   Foreground="#1A237E" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="✕ Close" Padding="8,4"
+                                FontSize="11" Cursor="Hand" Foreground="#666666"
+                                Click="CloseAnalytics_Click" />
+                    </Grid>
 
                     <!-- Summary Cards -->
                     <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
@@ -1169,9 +1234,9 @@
             </ScrollViewer>
         </Border>
 
-        <!-- Right Column: File Preview Panel -->
+        <!-- Column 2: File Preview Panel (full window height) -->
         <Border Grid.Column="2" Background="#FAFAFA" CornerRadius="6"
-                BorderBrush="#E0E0E0" BorderThickness="1" Padding="12" Margin="8,0,0,0"
+                BorderBrush="#E0E0E0" BorderThickness="1" Padding="12" Margin="4,4,4,4"
                 Width="380"
                 Visibility="{Binding IsPreviewVisible, Converter={StaticResource BoolToVisibility}}">
             <Grid>
@@ -1335,7 +1400,7 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- Info Card Preview (documents, archives, fonts, executables, databases, 3D, non-native images) -->
+                        <!-- Info Card Preview -->
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                             <StackPanel.Style>
                                 <Style TargetType="StackPanel">
@@ -1390,6 +1455,6 @@
                 </Border>
             </Grid>
         </Border>
-    </Grid>
+
     </Grid>
 </Window>

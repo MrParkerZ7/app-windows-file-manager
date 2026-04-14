@@ -72,3 +72,9 @@ WindowsFileManager/
 1. `dotnet build -c Release` — Compile + StyleCop + .NET Analyzers
 2. `dotnet test --collect:"XPlat Code Coverage" --settings tests/WindowsFileManager.Tests/coverlet.runsettings` — All tests pass + 100% coverage
 3. `dotnet format --verify-no-changes` — EditorConfig compliance
+
+---
+
+## Project Notes
+
+- **[2026-04-14]** `dotnet watch run` does NOT work for WPF apps (watch/hot-reload is web-only). Use `dotnet run` from `src/WindowsFileManager/` to launch the app during development.

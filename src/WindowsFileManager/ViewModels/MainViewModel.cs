@@ -40,6 +40,7 @@ public class MainViewModel : ViewModelBase
     private string? _previewFileName;
     private string? _previewFileSize;
     private bool _isPreviewVisible;
+    private bool _isAnalyticsVisible = true;
     private long _minFileSizeBytes;
     private string _minFileSizeText = string.Empty;
     private string _selectedSizeUnit = "KB";
@@ -1091,6 +1092,15 @@ public class MainViewModel : ViewModelBase
     {
         get => _isPreviewVisible;
         set => SetProperty(ref _isPreviewVisible, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the analytics panel is visible.
+    /// </summary>
+    public bool IsAnalyticsVisible
+    {
+        get => _isAnalyticsVisible;
+        set => SetProperty(ref _isAnalyticsVisible, value);
     }
 
     /// <summary>

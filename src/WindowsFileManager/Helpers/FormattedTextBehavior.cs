@@ -87,7 +87,7 @@ public static class FormattedTextBehavior
                 break;
             }
 
-            var tag = text[(tagStart + 1) ..tagEnd];
+            var tag = text[(tagStart + 1)..tagEnd];
 
             if (tag is "b" or "h" or "w")
             {
@@ -100,13 +100,13 @@ public static class FormattedTextBehavior
                     break;
                 }
 
-                var content = text[(tagEnd + 1) ..closePos];
+                var content = text[(tagEnd + 1)..closePos];
                 AddStyledRun(textBlock, content, tag);
                 position = closePos + closeTag.Length;
             }
             else
             {
-                AddPlainText(textBlock, text[tagStart.. (tagEnd + 1)]);
+                AddPlainText(textBlock, text[tagStart..(tagEnd + 1)]);
                 position = tagEnd + 1;
             }
 

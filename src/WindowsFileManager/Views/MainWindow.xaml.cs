@@ -25,6 +25,14 @@ public partial class MainWindow : Window
         Closing += MainWindow_Closing;
     }
 
+    private void CloseAnalytics_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel vm)
+        {
+            vm.IsAnalyticsVisible = false;
+        }
+    }
+
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (DataContext is MainViewModel vm)

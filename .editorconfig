@@ -87,6 +87,8 @@ dotnet_diagnostic.SA1000.severity = none    # new() target-typed — spacing rul
 dotnet_diagnostic.SA1204.severity = none    # Static member ordering — relaxed
 dotnet_diagnostic.SA0001.severity = none    # XML comment analysis disabled warning
 dotnet_diagnostic.SA1118.severity = none    # Parameter spans multiple lines (test data)
+dotnet_diagnostic.SA1008.severity = none    # Opening paren spacing — false positive on C# range operator
+dotnet_diagnostic.SA1009.severity = none    # Closing paren spacing — false positive on C# range operator
 
 [*.xaml]
 indent_size = 4
