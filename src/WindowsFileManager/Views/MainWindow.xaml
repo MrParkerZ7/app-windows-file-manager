@@ -165,24 +165,32 @@
                                   Tag="&lt;h&gt;WHERE TO SCAN&lt;/h&gt;&#x0a;Add folders that may contain duplicate files.&#x0a;&#x0a;&lt;b&gt;Include subdirectories&lt;/b&gt; = scan all nested folders too&#x0a;&lt;b&gt;Multiple folders&lt;/b&gt; = compare files across different locations&#x0a;&#x0a;&lt;h&gt;How it works:&lt;/h&gt; Files are compared by &lt;b&gt;content hash (SHA-256)&lt;/b&gt;, not by name. Two files with different names but identical content are detected as duplicates." />
                 </StackPanel>
 
-                <!-- Exclude Folders -->
-                <Border Grid.Row="3" Background="#FFF8E1" CornerRadius="4" Padding="8,6" Margin="0,6,0,0"
+                <!-- Exclude Folders (inline) -->
+                <Border Grid.Row="3" Background="#FFF8E1" CornerRadius="4" Padding="8,2" Margin="0,6,0,0"
                         BorderBrush="#FFE0B2" BorderThickness="1">
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                            <TextBlock Text="Exclude Folders" FontWeight="SemiBold" FontSize="11"
-                                       Foreground="#E65100" VerticalAlignment="Center" />
-                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                          Tag="&lt;h&gt;EXCLUDE FOLDER NAMES&lt;/h&gt;&#x0a;Skip folders with these names during scanning.&#x0a;&#x0a;Matching is by &lt;b&gt;folder name only&lt;/b&gt; (not full path), case-insensitive.&#x0a;Any subfolder matching the name is skipped entirely.&#x0a;&#x0a;&lt;h&gt;Common examples:&lt;/h&gt;&#x0a;&lt;b&gt;node_modules&lt;/b&gt; — JavaScript dependencies&#x0a;&lt;b&gt;.git&lt;/b&gt; — Git internals&#x0a;&lt;b&gt;bin&lt;/b&gt; / &lt;b&gt;obj&lt;/b&gt; — Build output&#x0a;&lt;b&gt;__pycache__&lt;/b&gt; — Python cache" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
-                            <TextBox Text="{Binding NewExcludeFolderName, UpdateSourceTrigger=PropertyChanged}"
-                                     Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center"
-                                     helpers:TextBoxEnterKeyBehavior.Command="{Binding AddExcludeFolderCommand}" />
-                            <Button Content="+ Add" Command="{Binding AddExcludeFolderCommand}"
-                                    Padding="8,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand" />
-                        </StackPanel>
-                        <ItemsControl ItemsSource="{Binding ExcludeFolderNames}">
+                        <!-- Label + input + add (inline row) -->
+                        <WrapPanel Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                                <TextBlock Text="Exclude Folders" FontWeight="SemiBold" FontSize="11"
+                                           Foreground="#E65100" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                              Tag="&lt;h&gt;EXCLUDE FOLDER NAMES&lt;/h&gt;&#x0a;Skip folders with these names during scanning.&#x0a;&#x0a;Matching is by &lt;b&gt;folder name only&lt;/b&gt; (not full path), case-insensitive.&#x0a;Any subfolder matching the name is skipped entirely.&#x0a;&#x0a;&lt;h&gt;Common examples:&lt;/h&gt;&#x0a;&lt;b&gt;node_modules&lt;/b&gt; — JavaScript dependencies&#x0a;&lt;b&gt;.git&lt;/b&gt; — Git internals&#x0a;&lt;b&gt;bin&lt;/b&gt; / &lt;b&gt;obj&lt;/b&gt; — Build output&#x0a;&lt;b&gt;__pycache__&lt;/b&gt; — Python cache" />
+                                <Border Width="1" Background="#E0D0A0" Margin="8,2" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                                <TextBox Text="{Binding NewExcludeFolderName, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="180" Padding="4,3" FontSize="11" VerticalContentAlignment="Center"
+                                         helpers:TextBoxEnterKeyBehavior.Command="{Binding AddExcludeFolderCommand}" />
+                                <Button Content="+ Add" Command="{Binding AddExcludeFolderCommand}"
+                                        Padding="8,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
+                                        FontWeight="SemiBold" Foreground="#E65100" />
+                            </StackPanel>
+                        </WrapPanel>
+
+                        <!-- Exclude folder chips (below, wrapping) -->
+                        <ItemsControl ItemsSource="{Binding ExcludeFolderNames}" Margin="0,2,0,0">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <WrapPanel Orientation="Horizontal" />
@@ -190,7 +198,7 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border CornerRadius="3" Padding="6,2" Margin="0,2,6,2">
+                                    <Border CornerRadius="3" Padding="6,2" Margin="0,0,6,4">
                                         <Border.Style>
                                             <Style TargetType="Border">
                                                 <Setter Property="Background" Value="#FFE0B2" />
@@ -459,9 +467,19 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <!-- Row 0: Filters bar (inline — sort + file type controls + size/dup filters) -->
-                <Border Grid.Row="0" Background="#F0F4FF" CornerRadius="4" Padding="8,2" Margin="0,0,0,4">
+                <!-- Row 0: Base Filters (inline — sort + file type controls + size/dup filters) -->
+                <Border Grid.Row="0" Background="#F0F4FF" CornerRadius="4" Padding="8,2" Margin="0,0,0,4"
+                        BorderBrush="#C5CAE9" BorderThickness="1">
                     <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Title -->
+                        <StackPanel Orientation="Horizontal" Margin="0,2,8,2" VerticalAlignment="Center">
+                            <TextBlock Text="Base Filters" FontWeight="Bold" FontSize="11"
+                                       Foreground="#1565C0" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                          Tag="&lt;h&gt;BASE FILTERS&lt;/h&gt;&#x0a;Quick filters to narrow down duplicate results.&#x0a;&#x0a;&lt;b&gt;Sort&lt;/b&gt; — order groups by size, count, type, or name&#x0a;&lt;b&gt;Types&lt;/b&gt; — show/hide groups by file extension&#x0a;&lt;b&gt;Min size&lt;/b&gt; — hide files smaller than threshold&#x0a;&lt;b&gt;Min dups&lt;/b&gt; — hide groups with fewer than N copies&#x0a;&#x0a;&lt;h&gt;Tip:&lt;/h&gt; These filters work instantly on the current scan results. Use &lt;b&gt;Custom Rules&lt;/b&gt; below for pattern-based selection." />
+                            <Border Width="1" Background="#C5CAE9" Margin="8,2" />
+                        </StackPanel>
+
                         <!-- Sort + Group count -->
                         <StackPanel Orientation="Horizontal" Margin="0,2,8,2" VerticalAlignment="Center">
                             <TextBlock Text="Sort:" FontWeight="SemiBold" FontSize="11"
