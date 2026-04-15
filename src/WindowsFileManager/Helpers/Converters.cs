@@ -89,6 +89,35 @@ public class InverseBoolToVisibilityConverter : IValueConverter
 }
 
 /// <summary>
+/// Subtracts a value from a double. Used to make GroupBox header span near-full width.
+/// Parameter is the amount to subtract (as string).
+/// </summary>
+public class SubtractConverter : IValueConverter
+{
+    /// <summary>
+    /// Gets the singleton instance.
+    /// </summary>
+    public static readonly SubtractConverter Instance = new();
+
+    /// <inheritdoc/>
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is double width && parameter is string paramStr && double.TryParse(paramStr, out var subtract))
+        {
+            return Math.Max(0, width - subtract);
+        }
+
+        return value;
+    }
+
+    /// <inheritdoc/>
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotSupportedException();
+    }
+}
+
+/// <summary>
 /// Inverts a boolean value.
 /// </summary>
 public class InverseBoolConverter : IValueConverter

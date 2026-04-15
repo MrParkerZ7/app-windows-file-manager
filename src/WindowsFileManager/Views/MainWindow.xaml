@@ -88,7 +88,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Left: Target Folders -->
-            <GroupBox Grid.Column="0" Header="Target Folders" Padding="8" Margin="0,0,2,0">
+            <Border Grid.Column="0" BorderBrush="#C0C0C0" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,2,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -96,8 +96,22 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <!-- Path input + buttons -->
+                    <!-- Header row -->
                     <Grid Grid.Row="0" Margin="0,0,0,6">
+                        <TextBlock Text="Target Folders" FontWeight="Bold" FontSize="12"
+                                   VerticalAlignment="Center" HorizontalAlignment="Left" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <CheckBox Content="Include subdirectories"
+                                      IsChecked="{Binding IncludeSubdirectories}"
+                                      IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
+                                      VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                          Tag="&lt;h&gt;WHERE TO SCAN&lt;/h&gt;&#x0a;Add folders that may contain duplicate files.&#x0a;&#x0a;&lt;b&gt;Include subdirectories&lt;/b&gt; = scan all nested folders too&#x0a;&lt;b&gt;Multiple folders&lt;/b&gt; = compare files across different locations&#x0a;&#x0a;&lt;h&gt;How it works:&lt;/h&gt; Files are compared by &lt;b&gt;content hash (SHA-256)&lt;/b&gt;, not by name. Two files with different names but identical content are detected as duplicates." />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Path input + buttons -->
+                    <Grid Grid.Row="1" Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -120,69 +134,65 @@
                                 IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}" />
                     </Grid>
 
-                    <!-- Folder list (horizontal chips, wrapping) -->
-                    <ItemsControl Grid.Row="1" ItemsSource="{Binding TargetPaths}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border CornerRadius="3" Padding="6,3" Margin="0,0,6,4">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Setter Property="Background" Value="#E8EAF6" />
-                                            <Setter Property="Opacity" Value="1" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsEnabled}" Value="False">
-                                                    <Setter Property="Background" Value="#EEEEEE" />
-                                                    <Setter Property="Opacity" Value="0.6" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
-                                    <StackPanel Orientation="Horizontal">
-                                        <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
-                                                  Margin="0,0,4,0" Cursor="Hand"
-                                                  ToolTip="Enable or disable this path temporarily" />
-                                        <TextBlock Text="{Binding Value}" VerticalAlignment="Center"
-                                                   FontSize="11" Foreground="#333333"
-                                                   ToolTip="{Binding Value}" />
-                                        <Button Content="✕"
-                                                Command="{Binding DataContext.RemoveFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                CommandParameter="{Binding}"
-                                                Padding="2,0" Margin="6,0,0,0"
-                                                FontSize="9" Foreground="#C62828" Cursor="Hand"
-                                                Background="Transparent" BorderThickness="0"
-                                                ToolTip="Remove this folder" />
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
-                        <CheckBox Content="Include subdirectories"
-                                  IsChecked="{Binding IncludeSubdirectories}"
-                                  IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
-                                  Margin="0,0,8,0" />
-                        <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                      Tag="&lt;h&gt;WHERE TO SCAN&lt;/h&gt;&#x0a;Add folders that may contain duplicate files.&#x0a;&#x0a;&lt;b&gt;Include subdirectories&lt;/b&gt; = scan all nested folders too&#x0a;&lt;b&gt;Multiple folders&lt;/b&gt; = compare files across different locations&#x0a;&#x0a;&lt;h&gt;How it works:&lt;/h&gt; Files are compared by &lt;b&gt;content hash (SHA-256)&lt;/b&gt;, not by name. Two files with different names but identical content are detected as duplicates." />
-                    </StackPanel>
+                    <!-- Folder chips -->
+                    <ItemsControl Grid.Row="2" ItemsSource="{Binding TargetPaths}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="3" Padding="6,3" Margin="0,0,6,4">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#E8EAF6" />
+                                                <Setter Property="Opacity" Value="1" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                        <Setter Property="Background" Value="#EEEEEE" />
+                                                        <Setter Property="Opacity" Value="0.6" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
+                                                      Margin="0,0,4,0" Cursor="Hand"
+                                                      ToolTip="Enable or disable this path temporarily" />
+                                            <TextBlock Text="{Binding Value}" VerticalAlignment="Center"
+                                                       FontSize="11" Foreground="#333333"
+                                                       ToolTip="{Binding Value}" />
+                                            <Button Content="✕"
+                                                    Command="{Binding DataContext.RemoveFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Padding="2,0" Margin="6,0,0,0"
+                                                    FontSize="9" Foreground="#C62828" Cursor="Hand"
+                                                    Background="Transparent" BorderThickness="0"
+                                                    ToolTip="Remove this folder" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                 </Grid>
-            </GroupBox>
+            </Border>
 
             <!-- Right: Exclude Folders -->
-            <GroupBox Grid.Column="1" Header="Exclude Folders" Padding="8" Margin="2,0,0,0">
+            <Border Grid.Column="1" BorderBrush="#C0C0C0" BorderThickness="1" CornerRadius="4" Padding="8" Margin="2,0,0,0">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
+                    <!-- Header row -->
+                    <TextBlock Grid.Row="0" Text="Exclude Folders" FontWeight="Bold" FontSize="12"
+                               Foreground="#E65100" Margin="0,0,0,6" />
+
                     <!-- Input + add -->
-                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                    <Grid Grid.Row="1" Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
@@ -199,7 +209,7 @@
                     </Grid>
 
                     <!-- Exclude folder chips -->
-                    <ItemsControl Grid.Row="1" ItemsSource="{Binding ExcludeFolderNames}">
+                    <ItemsControl Grid.Row="2" ItemsSource="{Binding ExcludeFolderNames}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel Orientation="Horizontal" />
@@ -238,7 +248,7 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </Grid>
-            </GroupBox>
+            </Border>
         </Grid>
 
         <!-- Row 1: Feature Tabs -->
