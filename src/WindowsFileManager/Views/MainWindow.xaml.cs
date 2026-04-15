@@ -23,6 +23,47 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Closing += MainWindow_Closing;
+        Loaded += MainWindow_Loaded;
+    }
+
+    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm)
+        {
+            return;
+        }
+
+        var settings = vm.GetSettings();
+        if (settings.WindowWidth == null || settings.WindowHeight == null)
+        {
+            return;
+        }
+
+        var left = settings.WindowLeft ?? 0;
+        var top = settings.WindowTop ?? 0;
+        var width = settings.WindowWidth.Value;
+        var height = settings.WindowHeight.Value;
+
+        // Check if the saved position is visible on any current monitor
+        // Uses virtual screen bounds (spans all monitors)
+        var isOnScreen = left < SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth &&
+                         left + width > SystemParameters.VirtualScreenLeft &&
+                         top < SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight &&
+                         top + height > SystemParameters.VirtualScreenTop;
+
+        if (isOnScreen)
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Left = left;
+            Top = top;
+            Width = width;
+            Height = height;
+        }
+
+        if (settings.IsMaximized)
+        {
+            WindowState = WindowState.Maximized;
+        }
     }
 
     private void CloseAnalytics_Click(object sender, RoutedEventArgs e)
@@ -37,6 +78,9 @@ public partial class MainWindow : Window
     {
         if (DataContext is MainViewModel vm)
         {
+            // Save window state using RestoreBounds (gives normal size even when maximized)
+            var bounds = WindowState == WindowState.Maximized ? RestoreBounds : new Rect(Left, Top, Width, Height);
+            vm.SaveWindowState(bounds.Left, bounds.Top, bounds.Width, bounds.Height, WindowState == WindowState.Maximized);
             vm.SaveSettings();
         }
     }

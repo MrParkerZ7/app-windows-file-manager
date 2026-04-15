@@ -62,8 +62,15 @@ public class MainViewModel : ViewModelBase
     private string _rulePatternText = string.Empty;
     private bool _ruleIsRegex;
     private bool _ruleIgnoreCase = true;
-    private FilterAction _ruleAction = FilterAction.Select;
+    private FilterAction _ruleAction = FilterAction.Contains;
     private FilterTarget _ruleTarget = FilterTarget.Filename;
+
+    // Window state
+    private double? _windowLeft;
+    private double? _windowTop;
+    private double? _windowWidth;
+    private double? _windowHeight;
+    private bool _isMaximized;
 
     // Exclude folders
     private string _newExcludeFolderName = string.Empty;
@@ -955,7 +962,7 @@ public class MainViewModel : ViewModelBase
     public ObservableCollection<FilterRule> FilterRules { get; } = new();
 
     /// <summary>Gets the available filter actions for the rule builder.</summary>
-    public List<FilterAction> FilterActions { get; } = new() { FilterAction.Select, FilterAction.Ignore };
+    public List<FilterAction> FilterActions { get; } = new() { FilterAction.Contains, FilterAction.Ignore };
 
     /// <summary>Gets the available filter targets for the rule builder.</summary>
     public List<FilterTarget> FilterTargets { get; } = new() { FilterTarget.Filename, FilterTarget.Filepath };
@@ -1158,6 +1165,29 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Gets the current settings (for window state restoration on load).
+    /// </summary>
+    /// <returns>The loaded settings.</returns>
+    public AppSettings GetSettings() => _settingsService.Load();
+
+    /// <summary>
+    /// Stores window position and size to be persisted on next save.
+    /// </summary>
+    /// <param name="left">Window left position.</param>
+    /// <param name="top">Window top position.</param>
+    /// <param name="width">Window width.</param>
+    /// <param name="height">Window height.</param>
+    /// <param name="isMaximized">Whether the window is maximized.</param>
+    public void SaveWindowState(double left, double top, double width, double height, bool isMaximized)
+    {
+        _windowLeft = left;
+        _windowTop = top;
+        _windowWidth = width;
+        _windowHeight = height;
+        _isMaximized = isMaximized;
+    }
+
+    /// <summary>
     /// Saves current settings to disk. Called on window close.
     /// </summary>
     public void SaveSettings()
@@ -1174,6 +1204,11 @@ public class MainViewModel : ViewModelBase
             MoveTargetPath = MoveTargetPath,
             ExcludeFolderNames = ExcludeFolderNames.ToList(),
             FilterRules = FilterRules.ToList(),
+            WindowLeft = _windowLeft,
+            WindowTop = _windowTop,
+            WindowWidth = _windowWidth,
+            WindowHeight = _windowHeight,
+            IsMaximized = _isMaximized,
         };
         _settingsService.Save(settings);
     }
@@ -1857,7 +1892,7 @@ public class MainViewModel : ViewModelBase
         RulePatternText = string.Empty;
         RuleIsRegex = false;
         RuleIgnoreCase = true;
-        RuleAction = FilterAction.Select;
+        RuleAction = FilterAction.Contains;
         RuleTarget = FilterTarget.Filename;
 
         StatusMessage = $"Added filter rule #{FilterRules.Count}: {FilterRules[^1].DisplaySummary}";
@@ -1935,7 +1970,7 @@ public class MainViewModel : ViewModelBase
                     var input = rule.Target == FilterTarget.Filename ? file.FileName : file.FilePath;
                     if (MatchesFilter(input, rule.Pattern, rule.IsRegex, rule.IgnoreCase))
                     {
-                        file.IsFileSelected = rule.Action == FilterAction.Select;
+                        file.IsFileSelected = rule.Action == FilterAction.Contains;
                         break; // highest priority match wins
                     }
                 }

@@ -67,6 +67,24 @@ WindowsFileManager/
 
 ---
 
+## Reusable Features
+
+### Contextual Help Button (`?` Popup)
+- **Style**: `HelpButtonStyle` in `Window.Resources` — 16px `?` circle with click-to-open popup
+- **Behavior**: `Helpers/FormattedTextBehavior.cs` — parses `Tag` markup into styled `Inline` elements
+- **Markup tags**: `<b>bold</b>`, `<h>heading</h>`, `<w>warning</w>`, `<link=URL>text</link>`
+- **Links**: `<link>` tag creates clickable `Hyperlink` that opens URL in default browser (e.g., regex101.com)
+- **Spec**: See `D:\Programing\claude-prompt-solution-architect\prompts\10-development\feature-common\CONTEXTUAL_HELP_BUTTON.md`
+
+### Window State Persistence
+- **Saves on close**: window position, size, and maximized state to `settings.json` via `AppSettings`
+- **Restores on load**: `MainWindow.Loaded` reads settings, validates position is on-screen via `SystemParameters.VirtualScreen*`
+- **Fallback**: if saved position is off-screen (monitor unplugged/changed), defaults to `CenterScreen`
+- **Maximized**: uses `RestoreBounds` to save normal size even when closing maximized
+- **Spec**: See `D:\Programing\claude-prompt-solution-architect\prompts\10-development\feature-common\WINDOW_STATE_PERSISTENCE.md`
+
+---
+
 ## Quality Gates (CI)
 
 1. `dotnet build -c Release` — Compile + StyleCop + .NET Analyzers

@@ -59,4 +59,29 @@ public class AppSettings
     /// Gets or sets the dynamic filter rules.
     /// </summary>
     public List<FilterRule> FilterRules { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the window left position.
+    /// </summary>
+    public double? WindowLeft { get; set; }
+
+    /// <summary>
+    /// Gets or sets the window top position.
+    /// </summary>
+    public double? WindowTop { get; set; }
+
+    /// <summary>
+    /// Gets or sets the window width.
+    /// </summary>
+    public double? WindowWidth { get; set; }
+
+    /// <summary>
+    /// Gets or sets the window height.
+    /// </summary>
+    public double? WindowHeight { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the window was maximized.
+    /// </summary>
+    public bool IsMaximized { get; set; }
 }

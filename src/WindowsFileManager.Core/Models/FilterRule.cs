@@ -5,8 +5,8 @@ namespace WindowsFileManager.Core.Models;
 /// </summary>
 public enum FilterAction
 {
-    /// <summary>Select (check) files matching the pattern.</summary>
-    Select,
+    /// <summary>Contains (check) files matching the pattern.</summary>
+    Contains,
 
     /// <summary>Ignore (uncheck) files matching the pattern.</summary>
     Ignore,
@@ -53,7 +53,7 @@ public class FilterRule
     /// <summary>
     /// Gets or sets the filter action (Select or Ignore).
     /// </summary>
-    public FilterAction Action { get; set; } = FilterAction.Select;
+    public FilterAction Action { get; set; } = FilterAction.Contains;
 
     /// <summary>
     /// Gets or sets the filter target (Filename or Filepath).

@@ -8,7 +8,8 @@ namespace WindowsFileManager.Helpers;
 
 /// <summary>
 /// Attached behavior that parses simple markup tags into formatted TextBlock inlines.
-/// Supported tags: &lt;b&gt;bold&lt;/b&gt;, &lt;h&gt;highlight&lt;/h&gt;, &lt;w&gt;warning&lt;/w&gt;.
+/// Supported tags: &lt;b&gt;bold&lt;/b&gt;, &lt;h&gt;highlight&lt;/h&gt;, &lt;w&gt;warning&lt;/w&gt;,
+/// &lt;link=URL&gt;text&lt;/link&gt;.
 /// Newlines (\n) are converted to LineBreak elements.
 /// </summary>
 [ExcludeFromCodeCoverage]
@@ -17,6 +18,7 @@ public static class FormattedTextBehavior
     private static readonly SolidColorBrush HighlightForeground = new(Color.FromRgb(0x0D, 0x47, 0xA1));
     private static readonly SolidColorBrush WarningForeground = new(Color.FromRgb(0xC6, 0x28, 0x28));
     private static readonly SolidColorBrush WarningBackground = new(Color.FromRgb(0xFF, 0xEB, 0xEE));
+    private static readonly SolidColorBrush LinkForeground = new(Color.FromRgb(0x15, 0x65, 0xC0));
 
     /// <summary>
     /// Identifies the FormattedText attached property.
@@ -104,6 +106,22 @@ public static class FormattedTextBehavior
                 AddStyledRun(textBlock, content, tag);
                 position = closePos + closeTag.Length;
             }
+            else if (tag.StartsWith("link=", StringComparison.Ordinal))
+            {
+                var url = tag["link=".Length..];
+                var closeTag = "</link>";
+                var closePos = text.IndexOf(closeTag, tagEnd + 1, StringComparison.Ordinal);
+
+                if (closePos < 0)
+                {
+                    AddPlainText(textBlock, text[tagStart..]);
+                    break;
+                }
+
+                var displayText = text[(tagEnd + 1)..closePos];
+                AddHyperlink(textBlock, displayText, url);
+                position = closePos + closeTag.Length;
+            }
             else
             {
                 AddPlainText(textBlock, text[tagStart..(tagEnd + 1)]);
@@ -129,6 +147,34 @@ public static class FormattedTextBehavior
                 textBlock.Inlines.Add(new LineBreak());
             }
         }
+    }
+
+    private static void AddHyperlink(TextBlock textBlock, string displayText, string url)
+    {
+        var hyperlink = new Hyperlink(new Run(displayText))
+        {
+            Foreground = LinkForeground,
+            TextDecorations = TextDecorations.Underline,
+            Cursor = System.Windows.Input.Cursors.Hand,
+        };
+
+        hyperlink.Click += (_, _) =>
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true,
+                });
+            }
+            catch
+            {
+                // Silently ignore if URL can't be opened
+            }
+        };
+
+        textBlock.Inlines.Add(hyperlink);
     }
 
     private static void AddStyledRun(TextBlock textBlock, string content, string tag)
