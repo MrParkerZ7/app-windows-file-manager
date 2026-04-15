@@ -77,4 +77,11 @@ public interface IFileSystemService
     /// </summary>
     /// <param name="path">The directory path.</param>
     void CreateDirectory(string path);
+
+    /// <summary>
+    /// Enumerates subdirectories in a directory.
+    /// </summary>
+    /// <param name="path">The directory path.</param>
+    /// <returns>Enumerable of directory paths.</returns>
+    IEnumerable<string> EnumerateDirectories(string path);
 }

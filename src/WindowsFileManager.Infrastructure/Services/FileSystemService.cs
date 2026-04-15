@@ -47,4 +47,14 @@ public class FileSystemService : IFileSystemService
 
     /// <inheritdoc/>
     public void CreateDirectory(string path) => Directory.CreateDirectory(path);
+
+    /// <inheritdoc/>
+    public IEnumerable<string> EnumerateDirectories(string path)
+    {
+        return Directory.EnumerateDirectories(path, "*", new EnumerationOptions
+        {
+            IgnoreInaccessible = true,
+            AttributesToSkip = FileAttributes.System,
+        });
+    }
 }

@@ -61,6 +61,11 @@ public class AppSettings
     public List<FilterRule> FilterRules { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the folder search patterns.
+    /// </summary>
+    public List<FolderSearchPattern> FolderSearchPatterns { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets the window left position.
     /// </summary>
     public double? WindowLeft { get; set; }

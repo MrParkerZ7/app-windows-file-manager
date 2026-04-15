@@ -844,143 +844,115 @@
                                                     </Button.Template>
                                                 </Button>
                                             </StackPanel>
-                                            <!-- Action badge (fixed width) -->
-                                            <Border CornerRadius="3" Padding="4,1" Margin="0,0,4,0" VerticalAlignment="Center" MinWidth="58">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#2E7D32" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Action}" Value="Ignore">
-                                                                <Setter Property="Background" Value="#C62828" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock FontSize="9" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="CONTAINS" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Action}" Value="Ignore">
-                                                                    <Setter Property="Text" Value="IGNORE" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
-                                            <!-- Target badge (fixed width) -->
-                                            <Border Background="#E3F2FD" CornerRadius="3" Padding="4,1" Margin="0,0,4,0"
-                                                    VerticalAlignment="Center" MinWidth="34">
-                                                <TextBlock FontSize="9" Foreground="#1565C0" HorizontalAlignment="Center">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Text" Value="Name" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Target}" Value="Filepath">
-                                                                    <Setter Property="Text" Value="Path" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
-                                            <!-- Pattern text (fixed width, underlined to distinguish from labels) -->
-                                            <Border Margin="0,0,2,0" VerticalAlignment="Center" MinWidth="80" MaxWidth="200"
-                                                    Padding="4,1" CornerRadius="2">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="BorderThickness" Value="0,0,0,1.5" />
-                                                        <Setter Property="BorderBrush" Value="#42A5F5" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Action}" Value="Ignore">
-                                                                <Setter Property="BorderBrush" Value="#29B6F6" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock Text="{Binding Pattern}" FontSize="11" FontWeight="SemiBold"
-                                                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Pattern}">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#1B5E20" />
-                                                            <Setter Property="FontFamily" Value="Segoe UI" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Action}" Value="Ignore">
-                                                                    <Setter Property="Foreground" Value="#B71C1C" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding IsRegex}" Value="True">
-                                                                    <Setter Property="FontFamily" Value="Consolas" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
-                                            <!-- Regex badge (always visible, active/inactive style) -->
-                                            <Border CornerRadius="3" Padding="4,1" Margin="2,0,0,0" VerticalAlignment="Center"
-                                                    MinWidth="38">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
+                                            <!-- Action dropdown -->
+                                            <ComboBox ItemsSource="{Binding DataContext.FilterActions, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      SelectedItem="{Binding Action}"
+                                                      FontSize="9" Width="70" VerticalContentAlignment="Center"
+                                                      Margin="0,0,4,0" />
+                                            <!-- Target dropdown -->
+                                            <ComboBox ItemsSource="{Binding DataContext.FilterTargets, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      SelectedItem="{Binding Target}"
+                                                      FontSize="9" Width="72" VerticalContentAlignment="Center"
+                                                      Margin="0,0,4,0" />
+                                            <!-- Editable pattern text -->
+                                            <TextBox Text="{Binding Pattern, UpdateSourceTrigger=LostFocus}"
+                                                     MinWidth="80" MaxWidth="200" Padding="4,2" FontSize="11"
+                                                     FontWeight="SemiBold" VerticalContentAlignment="Center"
+                                                     BorderThickness="0,0,0,1.5" BorderBrush="#42A5F5"
+                                                     Background="Transparent" Margin="0,0,2,0"
+                                                     ToolTip="Click to edit pattern" />
+                                            <!-- Regex toggle button (same style as toolbar) -->
+                                            <ToggleButton IsChecked="{Binding IsRegex}"
+                                                          VerticalAlignment="Center" FontSize="9" Padding="4,1" Margin="4,0,0,0" Cursor="Hand"
+                                                          ToolTip="Toggle regex matching">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Content" Value=".*" />
+                                                        <Setter Property="Foreground" Value="#999999" />
                                                         <Setter Property="Background" Value="#F0F0F0" />
                                                         <Setter Property="BorderBrush" Value="#D0D0D0" />
                                                         <Setter Property="BorderThickness" Value="1" />
-                                                        <Setter Property="Opacity" Value="0.5" />
+                                                        <Setter Property="FontFamily" Value="Consolas" />
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border Background="{TemplateBinding Background}"
+                                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                                            CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                    </Border>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsRegex}" Value="True">
-                                                                <Setter Property="Background" Value="#E8EAF6" />
-                                                                <Setter Property="BorderBrush" Value="#9FA8DA" />
-                                                                <Setter Property="Opacity" Value="1" />
-                                                            </DataTrigger>
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter Property="Content" Value="✦ .*" />
+                                                                <Setter Property="Foreground" Value="White" />
+                                                                <Setter Property="Background" Value="#1565C0" />
+                                                                <Setter Property="BorderBrush" Value="#0D47A1" />
+                                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#E3F2FD" />
+                                                            </Trigger>
+                                                            <MultiTrigger>
+                                                                <MultiTrigger.Conditions>
+                                                                    <Condition Property="IsChecked" Value="True" />
+                                                                    <Condition Property="IsMouseOver" Value="True" />
+                                                                </MultiTrigger.Conditions>
+                                                                <Setter Property="Background" Value="#1976D2" />
+                                                            </MultiTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </Border.Style>
-                                                <TextBlock Text=".*" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center"
-                                                           FontFamily="Consolas">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#BBBBBB" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsRegex}" Value="True">
-                                                                    <Setter Property="Foreground" Value="#283593" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
-                                            <!-- IgnoreCase badge (always visible, active/inactive style) -->
-                                            <Border CornerRadius="3" Padding="4,1" Margin="2,0,4,0" VerticalAlignment="Center"
-                                                    MinWidth="28">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
+                                            <!-- IgnoreCase toggle button (same style as toolbar) -->
+                                            <ToggleButton IsChecked="{Binding IgnoreCase}"
+                                                          VerticalAlignment="Center" FontSize="9" Padding="4,1" Margin="2,0,4,0" Cursor="Hand"
+                                                          ToolTip="Toggle case-insensitive matching">
+                                                <ToggleButton.Style>
+                                                    <Style TargetType="ToggleButton">
+                                                        <Setter Property="Content" Value="Aa" />
+                                                        <Setter Property="Foreground" Value="#999999" />
                                                         <Setter Property="Background" Value="#F0F0F0" />
                                                         <Setter Property="BorderBrush" Value="#D0D0D0" />
                                                         <Setter Property="BorderThickness" Value="1" />
-                                                        <Setter Property="Opacity" Value="0.5" />
+                                                        <Setter Property="FontFamily" Value="Consolas" />
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ToggleButton">
+                                                                    <Border Background="{TemplateBinding Background}"
+                                                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                                                            CornerRadius="3" Padding="{TemplateBinding Padding}">
+                                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                    </Border>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IgnoreCase}" Value="True">
+                                                            <Trigger Property="IsChecked" Value="True">
+                                                                <Setter Property="Content" Value="✦ Aa" />
+                                                                <Setter Property="Foreground" Value="White" />
+                                                                <Setter Property="Background" Value="#E65100" />
+                                                                <Setter Property="BorderBrush" Value="#BF360C" />
+                                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsMouseOver" Value="True">
                                                                 <Setter Property="Background" Value="#FFF3E0" />
-                                                                <Setter Property="BorderBrush" Value="#FFB74D" />
-                                                                <Setter Property="Opacity" Value="1" />
-                                                            </DataTrigger>
+                                                            </Trigger>
+                                                            <MultiTrigger>
+                                                                <MultiTrigger.Conditions>
+                                                                    <Condition Property="IsChecked" Value="True" />
+                                                                    <Condition Property="IsMouseOver" Value="True" />
+                                                                </MultiTrigger.Conditions>
+                                                                <Setter Property="Background" Value="#F4511E" />
+                                                            </MultiTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </Border.Style>
-                                                <TextBlock Text="Aa" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center"
-                                                           FontFamily="Consolas">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#BBBBBB" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IgnoreCase}" Value="True">
-                                                                    <Setter Property="Foreground" Value="#E65100" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Border>
+                                                </ToggleButton.Style>
+                                            </ToggleButton>
                                             <!-- Remove button -->
                                             <Button Command="{Binding DataContext.RemoveFilterRuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                     CommandParameter="{Binding}"
@@ -1220,12 +1192,156 @@
     </Grid>
             </TabItem>
 
-            <!-- Tab 2: Search All -->
-            <TabItem Header="Search All">
+            <!-- Tab 2: Folder Control -->
+            <TabItem Header="Folder Control">
                 <Grid Margin="8">
-                    <TextBlock Text="Search All — Coming Soon"
-                               FontSize="18" Foreground="#888888"
-                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Row 0: Search patterns (configurable chip list) -->
+                    <Border Grid.Row="0" Background="#E8EAF6" CornerRadius="4" Padding="8,2" Margin="0,0,0,4"
+                            BorderBrush="#C5CAE9" BorderThickness="1">
+                        <StackPanel>
+                            <WrapPanel Orientation="Horizontal">
+                                <!-- Label -->
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                                    <TextBlock Text="Folder Search" FontSize="11" FontWeight="Bold" Foreground="#1565C0"
+                                               VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                                  Tag="&lt;h&gt;FOLDER SEARCH&lt;/h&gt;&#x0a;Search for folders by name across all target paths.&#x0a;&#x0a;&lt;b&gt;How it works:&lt;/b&gt;&#x0a;1. Add folder name patterns to the list&#x0a;2. Click &lt;b&gt;Search&lt;/b&gt; to find matching folders&#x0a;3. Results show all folders whose name contains the pattern&#x0a;&#x0a;&lt;b&gt;Scope:&lt;/b&gt; Uses the same Target Folders and Exclude Folders from the main tab.&#x0a;&lt;b&gt;Matching:&lt;/b&gt; Case-insensitive contains match.&#x0a;&#x0a;&lt;h&gt;Tip:&lt;/h&gt; Enable/disable patterns to quickly compare different search sets." />
+                                    <Border Width="1" Background="#C5CAE9" Margin="8,2" />
+                                </StackPanel>
+
+                                <!-- Input -->
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                                    <ComboBox ItemsSource="{Binding FolderMatchTypes}"
+                                              SelectedItem="{Binding NewFolderSearchMatchType}"
+                                              FontSize="11" Width="80" VerticalContentAlignment="Center"
+                                              Margin="0,0,4,0" />
+                                    <TextBlock Text="name:" FontWeight="SemiBold" FontSize="11"
+                                               Foreground="#333333" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <TextBox Text="{Binding NewFolderSearchPattern, UpdateSourceTrigger=PropertyChanged}"
+                                             Width="180" Padding="4,3" FontSize="11" VerticalContentAlignment="Center"
+                                             helpers:TextBoxEnterKeyBehavior.Command="{Binding AddFolderSearchPatternCommand}" />
+                                    <Button Content="+ Add" Command="{Binding AddFolderSearchPatternCommand}"
+                                            Padding="8,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
+                                            FontWeight="SemiBold" Foreground="#1565C0" />
+                                    <Border Width="1" Background="#C5CAE9" Margin="8,2" />
+                                </StackPanel>
+
+                                <!-- Search action -->
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                                    <Button Content="▶ Search" Command="{Binding SearchFoldersCommand}"
+                                            Padding="8,3" FontSize="11" Cursor="Hand"
+                                            FontWeight="SemiBold" Foreground="White" Background="#1565C0"
+                                            BorderThickness="0" />
+                                </StackPanel>
+                            </WrapPanel>
+
+                            <!-- Search pattern chips -->
+                            <ItemsControl ItemsSource="{Binding FolderSearchPatterns}" Margin="0,4,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="3" Padding="6,3" Margin="0,0,6,4">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#C5CAE9" />
+                                                    <Setter Property="BorderBrush" Value="#7986CB" />
+                                                    <Setter Property="BorderThickness" Value="1" />
+                                                    <Setter Property="Opacity" Value="1" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                            <Setter Property="Background" Value="#EEEEEE" />
+                                                            <Setter Property="BorderBrush" Value="#D0D0D0" />
+                                                            <Setter Property="Opacity" Value="0.6" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
+                                                          Margin="0,0,4,0" Cursor="Hand"
+                                                          ToolTip="Enable or disable this search pattern" />
+                                                <!-- Match type badge -->
+                                                <ComboBox ItemsSource="{Binding DataContext.FolderMatchTypes, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          SelectedItem="{Binding MatchType}"
+                                                          FontSize="9" Width="68" VerticalContentAlignment="Center"
+                                                          Margin="0,0,4,0" />
+                                                <!-- Editable pattern text -->
+                                                <TextBox Text="{Binding Pattern, UpdateSourceTrigger=LostFocus}"
+                                                         MinWidth="80" Padding="4,2" FontSize="11"
+                                                         FontWeight="SemiBold" Foreground="#283593"
+                                                         VerticalContentAlignment="Center"
+                                                         BorderThickness="0,0,0,1.5" BorderBrush="#7986CB"
+                                                         Background="Transparent"
+                                                         ToolTip="Click to edit pattern" />
+                                                <Button Content="✕"
+                                                        Command="{Binding DataContext.RemoveFolderSearchPatternCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"
+                                                        Padding="2,0" Margin="6,0,0,0"
+                                                        FontSize="9" Foreground="#C62828" Cursor="Hand"
+                                                        Background="Transparent" BorderThickness="0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Row 1: Status -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,4">
+                        <TextBlock Text="{Binding FolderSearchStatus}" FontSize="11" Foreground="#666666"
+                                   VerticalAlignment="Center" />
+                        <ProgressBar Width="100" Height="4" Margin="8,0,0,0"
+                                     IsIndeterminate="{Binding IsFolderSearching}"
+                                     Visibility="{Binding IsFolderSearching, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+
+                    <!-- Row 2: Result count -->
+                    <TextBlock Grid.Row="2" FontSize="11" Foreground="#888888" Margin="0,0,0,4">
+                        <TextBlock.Text>
+                            <Binding Path="FolderSearchCount" StringFormat="{}{0} folders found" />
+                        </TextBlock.Text>
+                    </TextBlock>
+
+                    <!-- Row 3: Results list -->
+                    <ListView Grid.Row="3" ItemsSource="{Binding FolderSearchResults}"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              BorderThickness="1" BorderBrush="#E0E0E0">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Folder Name" Width="200"
+                                                DisplayMemberBinding="{Binding FolderName}" />
+                                <GridViewColumn Header="Matched" Width="120"
+                                                DisplayMemberBinding="{Binding MatchedPattern}" />
+                                <GridViewColumn Header="Parent Path" Width="400"
+                                                DisplayMemberBinding="{Binding ParentPath}" />
+                                <GridViewColumn Header="Full Path" Width="500">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock>
+                                                <Hyperlink Command="{Binding DataContext.OpenFolderLocationCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                           CommandParameter="{Binding FullPath}"
+                                                           Foreground="#1565C0">
+                                                    <Run Text="{Binding FullPath, Mode=OneWay}" />
+                                                </Hyperlink>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
                 </Grid>
             </TabItem>
 

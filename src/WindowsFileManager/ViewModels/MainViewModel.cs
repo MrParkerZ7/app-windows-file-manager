@@ -22,6 +22,7 @@ namespace WindowsFileManager.ViewModels;
 public class MainViewModel : ViewModelBase
 {
     private readonly DuplicateScannerService _scannerService;
+    private readonly IFileSystemService _fileSystem;
     private readonly SettingsService _settingsService;
     private readonly DispatcherTimer _resourceTimer;
     private readonly Process _currentProcess;
@@ -74,6 +75,13 @@ public class MainViewModel : ViewModelBase
 
     // Exclude folders
     private string _newExcludeFolderName = string.Empty;
+
+    // Folder control
+    private string _newFolderSearchPattern = string.Empty;
+    private FolderMatchType _newFolderSearchMatchType = FolderMatchType.Match;
+    private bool _isFolderSearching;
+    private string _folderSearchStatus = string.Empty;
+    private int _folderSearchCount;
     private TimeSpan _lastCpuTime;
     private DateTime _lastCheckTime;
     private DuplicateGroup? _selectedDuplicateGroup;
@@ -559,14 +567,15 @@ public class MainViewModel : ViewModelBase
     /// Initializes a new instance of the <see cref="MainViewModel"/> class.
     /// </summary>
     public MainViewModel()
-        : this(CreateDefaultScanner(), CreateDefaultSettings())
+        : this(CreateDefaultScanner(), CreateDefaultSettings(), new FileSystemService())
     {
     }
 
-    internal MainViewModel(DuplicateScannerService scannerService, SettingsService settingsService)
+    internal MainViewModel(DuplicateScannerService scannerService, SettingsService settingsService, IFileSystemService fileSystem)
     {
         _scannerService = scannerService;
         _settingsService = settingsService;
+        _fileSystem = fileSystem;
 
         ScanCommand = new RelayCommand(_ => ScanAsync(), _ => CanScan());
         CancelCommand = new RelayCommand(_ => Cancel(), _ => IsScanning);
@@ -602,6 +611,12 @@ public class MainViewModel : ViewModelBase
         // Exclude folders
         AddExcludeFolderCommand = new RelayCommand(_ => AddExcludeFolder(), _ => !string.IsNullOrWhiteSpace(NewExcludeFolderName));
         RemoveExcludeFolderCommand = new RelayCommand(p => RemoveExcludeFolder(p));
+
+        // Folder control
+        AddFolderSearchPatternCommand = new RelayCommand(_ => AddFolderSearchPattern(), _ => !string.IsNullOrWhiteSpace(NewFolderSearchPattern));
+        RemoveFolderSearchPatternCommand = new RelayCommand(p => RemoveFolderSearchPattern(p));
+        SearchFoldersCommand = new RelayCommand(_ => SearchFoldersAsync(), _ => !IsFolderSearching && FolderSearchPatterns.Any(t => t.IsEnabled) && TargetPaths.Any(t => t.IsEnabled));
+        OpenFolderLocationCommand = new RelayCommand(p => OpenFolderLocation(p as string));
         DeleteSelectedFilesCommand = new RelayCommand(_ => DeleteSelectedFiles(), _ => SelectedFileCount > 0);
         MoveSelectedFilesCommand = new RelayCommand(_ => MoveSelectedFiles(), _ => SelectedFileCount > 0);
         BrowseMoveTargetCommand = new RelayCommand(_ => BrowseMoveTarget());
@@ -1028,6 +1043,64 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the remove exclude folder command.</summary>
     public ICommand RemoveExcludeFolderCommand { get; }
 
+    // -- Folder Control --
+
+    /// <summary>Gets the folder search patterns collection.</summary>
+    public ObservableCollection<FolderSearchPattern> FolderSearchPatterns { get; } = new();
+
+    /// <summary>Gets the available match types for folder search.</summary>
+    public List<FolderMatchType> FolderMatchTypes { get; } = new() { FolderMatchType.Contains, FolderMatchType.Match };
+
+    /// <summary>Gets the folder search results collection.</summary>
+    public ObservableCollection<FolderSearchResult> FolderSearchResults { get; } = new();
+
+    /// <summary>Gets or sets the new folder search pattern input.</summary>
+    public string NewFolderSearchPattern
+    {
+        get => _newFolderSearchPattern;
+        set => SetProperty(ref _newFolderSearchPattern, value);
+    }
+
+    /// <summary>Gets or sets the match type for the next pattern to add.</summary>
+    public FolderMatchType NewFolderSearchMatchType
+    {
+        get => _newFolderSearchMatchType;
+        set => SetProperty(ref _newFolderSearchMatchType, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether folder search is running.</summary>
+    public bool IsFolderSearching
+    {
+        get => _isFolderSearching;
+        set => SetProperty(ref _isFolderSearching, value);
+    }
+
+    /// <summary>Gets or sets the folder search status message.</summary>
+    public string FolderSearchStatus
+    {
+        get => _folderSearchStatus;
+        set => SetProperty(ref _folderSearchStatus, value);
+    }
+
+    /// <summary>Gets or sets the folder search result count.</summary>
+    public int FolderSearchCount
+    {
+        get => _folderSearchCount;
+        set => SetProperty(ref _folderSearchCount, value);
+    }
+
+    /// <summary>Gets the add folder search pattern command.</summary>
+    public ICommand AddFolderSearchPatternCommand { get; }
+
+    /// <summary>Gets the remove folder search pattern command.</summary>
+    public ICommand RemoveFolderSearchPatternCommand { get; }
+
+    /// <summary>Gets the search folders command.</summary>
+    public ICommand SearchFoldersCommand { get; }
+
+    /// <summary>Gets the open folder location command.</summary>
+    public ICommand OpenFolderLocationCommand { get; }
+
     // -- Action commands --
 
     /// <summary>Gets the delete selected files command.</summary>
@@ -1212,6 +1285,7 @@ public class MainViewModel : ViewModelBase
             MoveTargetPath = MoveTargetPath,
             ExcludeFolderNames = ExcludeFolderNames.Select(t => t.Value).ToList(),
             FilterRules = FilterRules.ToList(),
+            FolderSearchPatterns = FolderSearchPatterns.ToList(),
             WindowLeft = _windowLeft,
             WindowTop = _windowTop,
             WindowWidth = _windowWidth,
@@ -1246,6 +1320,11 @@ public class MainViewModel : ViewModelBase
         foreach (var rule in settings.FilterRules)
         {
             FilterRules.Add(rule);
+        }
+
+        foreach (var pattern in settings.FolderSearchPatterns)
+        {
+            FolderSearchPatterns.Add(pattern);
         }
 
         RefreshRulePriorities();
@@ -2077,6 +2156,134 @@ public class MainViewModel : ViewModelBase
         {
             ExcludeFolderNames.Remove(item);
             SaveSettings();
+        }
+    }
+
+    // ── FOLDER CONTROL METHODS ──
+    private void AddFolderSearchPattern()
+    {
+        var pattern = NewFolderSearchPattern.Trim();
+        if (!string.IsNullOrEmpty(pattern) && !FolderSearchPatterns.Any(t => t.Pattern == pattern))
+        {
+            FolderSearchPatterns.Add(new FolderSearchPattern { Pattern = pattern, MatchType = NewFolderSearchMatchType });
+            NewFolderSearchPattern = string.Empty;
+            SaveSettings();
+        }
+    }
+
+    private void RemoveFolderSearchPattern(object? param)
+    {
+        if (param is FolderSearchPattern item)
+        {
+            FolderSearchPatterns.Remove(item);
+            SaveSettings();
+        }
+    }
+
+    private async void SearchFoldersAsync()
+    {
+        IsFolderSearching = true;
+        FolderSearchResults.Clear();
+        FolderSearchCount = 0;
+        FolderSearchStatus = "Searching folders...";
+
+        var targetPaths = TargetPaths.Where(t => t.IsEnabled).Select(t => t.Value).ToList();
+        var excludeNames = new HashSet<string>(
+            ExcludeFolderNames.Where(t => t.IsEnabled).Select(t => t.Value),
+            StringComparer.OrdinalIgnoreCase);
+        var patterns = FolderSearchPatterns.Where(t => t.IsEnabled).ToList();
+
+        try
+        {
+            var results = await Task.Run(() =>
+            {
+                var found = new List<FolderSearchResult>();
+                foreach (var rootPath in targetPaths)
+                {
+                    if (!_fileSystem.DirectoryExists(rootPath))
+                    {
+                        continue;
+                    }
+
+                    SearchFoldersRecursive(rootPath, patterns, excludeNames, found);
+                }
+
+                return found;
+            });
+
+            foreach (var result in results)
+            {
+                FolderSearchResults.Add(result);
+            }
+
+            FolderSearchCount = results.Count;
+            FolderSearchStatus = $"Found {results.Count} folders matching {patterns.Count} patterns.";
+        }
+        catch (Exception ex)
+        {
+            FolderSearchStatus = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            IsFolderSearching = false;
+        }
+    }
+
+    private void SearchFoldersRecursive(
+        string currentPath,
+        List<FolderSearchPattern> patterns,
+        HashSet<string> excludeNames,
+        List<FolderSearchResult> results)
+    {
+        IEnumerable<string> subDirs;
+        try
+        {
+            subDirs = _fileSystem.EnumerateDirectories(currentPath);
+        }
+        catch
+        {
+            return;
+        }
+
+        foreach (var subDir in subDirs)
+        {
+            var dirName = Path.GetFileName(subDir);
+
+            if (excludeNames.Contains(dirName))
+            {
+                continue;
+            }
+
+            // Check if folder name matches any enabled pattern
+            foreach (var pattern in patterns)
+            {
+                var isMatch = pattern.MatchType == FolderMatchType.Match
+                    ? dirName.Equals(pattern.Pattern, StringComparison.OrdinalIgnoreCase)
+                    : dirName.Contains(pattern.Pattern, StringComparison.OrdinalIgnoreCase);
+
+                if (isMatch)
+                {
+                    results.Add(new FolderSearchResult
+                    {
+                        FullPath = subDir,
+                        FolderName = dirName,
+                        ParentPath = currentPath,
+                        MatchedPattern = pattern.Pattern,
+                    });
+                    break; // don't duplicate if multiple patterns match
+                }
+            }
+
+            // Recurse deeper
+            SearchFoldersRecursive(subDir, patterns, excludeNames, results);
+        }
+    }
+
+    private static void OpenFolderLocation(string? path)
+    {
+        if (!string.IsNullOrEmpty(path))
+        {
+            System.Diagnostics.Process.Start("explorer.exe", $"\"{path}\"");
         }
     }
 
