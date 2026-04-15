@@ -252,13 +252,12 @@
         </Grid>
 
         <!-- Row 1: Feature Tabs -->
-        <TabControl Grid.Row="1" Margin="4,0,4,4">
+        <TabControl Grid.Row="1" Margin="4,0,4,4" SelectionChanged="TabControl_SelectionChanged">
 
             <!-- Tab 1: Folder Control -->
             <TabItem Header="Folder Control">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
@@ -281,8 +280,11 @@
                                 <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
                                     <ComboBox ItemsSource="{Binding FolderMatchTypes}"
                                               SelectedItem="{Binding NewFolderSearchMatchType}"
-                                              FontSize="11" Width="80" VerticalContentAlignment="Center"
-                                              Margin="0,0,4,0" />
+                                              FontSize="11" Width="92" VerticalContentAlignment="Center"
+                                              Margin="0,0,2,0" />
+                                    <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                                  Margin="0,0,4,0"
+                                                  Tag="&lt;h&gt;MATCH TYPES&lt;/h&gt;&#x0a;&#x0a;&lt;b&gt;Include&lt;/b&gt; — folder name &lt;b&gt;contains&lt;/b&gt; the text (partial match)&#x0a;Example: &quot;log&quot; matches &lt;b&gt;log&lt;/b&gt;s, change&lt;b&gt;log&lt;/b&gt;, &lt;b&gt;log&lt;/b&gt;-backup&#x0a;&#x0a;&lt;b&gt;Match&lt;/b&gt; — folder name &lt;b&gt;exactly equals&lt;/b&gt; the text&#x0a;Example: &quot;bin&quot; matches only &lt;b&gt;bin&lt;/b&gt;, not binary or recycle-bin&#x0a;&#x0a;&lt;b&gt;Contains&lt;/b&gt; — folder has a &lt;b&gt;child item&lt;/b&gt; (file/subfolder) inside it&#x0a;Example: &quot;.git&quot; finds git repos, &quot;*.sln&quot; finds .NET solutions&#x0a;Supports wildcards: &quot;*.py&quot;, &quot;*.csproj&quot;, &quot;*.json&quot;&#x0a;&#x0a;&lt;b&gt;Exclude&lt;/b&gt; — folder name does &lt;b&gt;NOT contain&lt;/b&gt; the text (opposite of Include)&#x0a;Example: &quot;test&quot; skips folders with &quot;test&quot; in the name&#x0a;&#x0a;&lt;b&gt;Mismatch&lt;/b&gt; — folder name does &lt;b&gt;NOT equal&lt;/b&gt; the text (opposite of Match)&#x0a;Example: &quot;bin&quot; skips only the exact &quot;bin&quot; folder&#x0a;&#x0a;&lt;h&gt;Combining:&lt;/h&gt; All enabled patterns use AND logic.&#x0a;Example: Contains &quot;.git&quot; + Exclude &quot;node_modules&quot;&#x0a;= git repos whose name doesn't include &quot;node_modules&quot;" />
                                     <TextBlock Text="name:" FontWeight="SemiBold" FontSize="11"
                                                Foreground="#333333" VerticalAlignment="Center" Margin="0,0,4,0" />
                                     <TextBox Text="{Binding NewFolderSearchPattern, UpdateSourceTrigger=PropertyChanged}"
@@ -326,7 +328,7 @@
                                         </Button.Style>
                                     </Button>
                                     <ToggleButton Style="{StaticResource HelpButtonStyle}" Margin="6,0,0,0"
-                                                  Tag="&lt;h&gt;SEARCH&lt;/h&gt;&#x0a;Click &lt;b&gt;Search&lt;/b&gt; to find folders matching your patterns.&#x0a;&#x0a;&lt;b&gt;Requirements:&lt;/b&gt;&#x0a;• At least one &lt;b&gt;enabled&lt;/b&gt; search pattern in the list&#x0a;• At least one &lt;b&gt;enabled&lt;/b&gt; target folder (shared from main tab)&#x0a;&#x0a;&lt;b&gt;How it works:&lt;/b&gt;&#x0a;1. Scans all enabled target folders recursively&#x0a;2. Matches folder names against enabled patterns&#x0a;3. Skips excluded folders (shared from main tab)&#x0a;4. Results appear in the list below&#x0a;&#x0a;&lt;h&gt;Then:&lt;/h&gt; Use the &lt;b&gt;Action&lt;/b&gt; section to select and delete/move found folders." />
+                                                  Tag="&lt;h&gt;SEARCH&lt;/h&gt;&#x0a;Click &lt;b&gt;Search&lt;/b&gt; to find folders matching your patterns.&#x0a;&#x0a;&lt;b&gt;Requirements:&lt;/b&gt;&#x0a;• At least one &lt;b&gt;enabled&lt;/b&gt; target folder (shared from main tab)&#x0a;&#x0a;&lt;b&gt;No patterns?&lt;/b&gt; Returns &lt;b&gt;all folders&lt;/b&gt; (no filtering).&#x0a;&#x0a;&lt;b&gt;How it works:&lt;/b&gt;&#x0a;1. Scans all enabled target folders recursively&#x0a;2. Matches folders against enabled patterns (or returns all)&#x0a;3. Skips excluded folders (shared from main tab)&#x0a;4. Results appear in the list below&#x0a;&#x0a;&lt;h&gt;Then:&lt;/h&gt; Use the &lt;b&gt;Action&lt;/b&gt; section to select and delete/move found folders." />
                                     <ProgressBar Width="80" Height="4" Margin="8,0,0,0"
                                                  IsIndeterminate="{Binding IsFolderSearching}"
                                                  Visibility="{Binding IsFolderSearching, Converter={StaticResource BoolToVisibility}}"
@@ -421,7 +423,7 @@
                                                 <!-- Match type badge -->
                                                 <ComboBox ItemsSource="{Binding DataContext.FolderMatchTypes, RelativeSource={RelativeSource AncestorType=Window}}"
                                                           SelectedItem="{Binding MatchType}"
-                                                          FontSize="9" Width="68" VerticalContentAlignment="Center"
+                                                          FontSize="9" Width="80" VerticalContentAlignment="Center"
                                                           Margin="0,0,4,0" />
                                                 <!-- Editable pattern text -->
                                                 <TextBox Text="{Binding Pattern, UpdateSourceTrigger=LostFocus}"
@@ -445,62 +447,11 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Row 1: Action Section (inline) -->
-                    <Border Grid.Row="1" Background="#FFF3E0" CornerRadius="4" Padding="8,2" Margin="0,0,0,4">
-                        <WrapPanel Orientation="Horizontal">
-                            <!-- Label + count -->
-                            <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                                <TextBlock Text="Action" FontSize="11" FontWeight="Bold" Foreground="#E65100"
-                                           VerticalAlignment="Center" Margin="0,0,4,0" />
-                                <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                              Tag="&lt;h&gt;FOLDER ACTIONS&lt;/h&gt;&#x0a;Perform actions on selected folders from search results.&#x0a;&#x0a;&lt;b&gt;Delete&lt;/b&gt;&#x0a;Permanently removes selected folders and all their contents.&#x0a;&lt;w&gt;No Recycle Bin — cannot be undone.&lt;/w&gt;&#x0a;&#x0a;&lt;b&gt;Move&lt;/b&gt;&#x0a;Relocates selected folders to the target path.&#x0a;Folder names are preserved. Original folders are removed.&#x0a;&#x0a;&lt;w&gt;Both actions affect ALL checked folders.&lt;/w&gt; Double-check your selection before proceeding." />
-                                <TextBlock FontSize="10" Foreground="#555555" Margin="8,0,0,0"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Text>
-                                        <Binding Path="SelectedFolderCount" StringFormat="{}{0} folders selected" />
-                                    </TextBlock.Text>
-                                </TextBlock>
-                                <Border Width="1" Background="#E0D0A0" Margin="8,2" />
-                            </StackPanel>
-
-                            <!-- Quick Select buttons -->
-                            <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                                <Button Content="✓ All" Command="{Binding SelectAllFoldersCommand}"
-                                        Padding="6,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
-                                        ToolTip="Select all folders in results" />
-                                <Button Content="✕ Clear" Command="{Binding ClearFolderSelectionCommand}"
-                                        Padding="6,3" FontSize="11" Cursor="Hand"
-                                        Foreground="#888888"
-                                        ToolTip="Clear all folder selections" />
-                                <Border Width="1" Background="#E0D0A0" Margin="8,2" />
-                            </StackPanel>
-
-                            <!-- Delete / Move -->
-                            <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                                <Button Content="🗑 Delete" Command="{Binding DeleteSelectedFoldersCommand}"
-                                        Padding="6,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
-                                        Foreground="#C62828"
-                                        ToolTip="Delete all selected folders" />
-                                <Border Width="1" Background="#E0D0A0" Margin="8,2" />
-                                <TextBlock Text="Move to:" FontSize="11" FontWeight="SemiBold"
-                                           VerticalAlignment="Center" Foreground="#E65100" Margin="0,0,4,0" />
-                                <TextBox Text="{Binding FolderMoveTargetPath, UpdateSourceTrigger=PropertyChanged}"
-                                         Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
-                                <Button Content="..." Command="{Binding BrowseFolderMoveTargetCommand}"
-                                        Padding="6,3" Margin="4,0,4,0" FontSize="11" Cursor="Hand"
-                                        ToolTip="Browse for target folder" />
-                                <Button Content="📁 Move" Command="{Binding MoveSelectedFoldersCommand}"
-                                        Padding="6,3" FontSize="11" Cursor="Hand"
-                                        Foreground="#1565C0"
-                                        ToolTip="Move all selected folders to the target folder" />
-                            </StackPanel>
-                        </WrapPanel>
-                    </Border>
-
-                    <!-- Row 2: Results list -->
-                    <ListView Grid.Row="2" ItemsSource="{Binding FolderSearchResults}"
+                    <!-- Row 1: Results list -->
+                    <ListView Grid.Row="1" ItemsSource="{Binding FolderSearchResults}"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                              BorderThickness="1" BorderBrush="#E0E0E0">
+                              BorderThickness="1" BorderBrush="#E0E0E0"
+                              GridViewColumnHeader.Click="FolderResults_ColumnHeaderClick">
                         <ListView.View>
                             <GridView>
                                 <GridViewColumn Width="30">
@@ -1638,6 +1589,101 @@
                         </StackPanel>
                     </Border>
 
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Column 1: Folder Action Panel (shown when Folder Control tab is active) -->
+        <Border Grid.Column="1" Background="#FAFAFA" CornerRadius="6"
+                BorderBrush="#E0E0E0" BorderThickness="1" Padding="12" Margin="4,4,4,4"
+                Width="320"
+                Visibility="{Binding IsFolderControlActive, Converter={StaticResource BoolToVisibility}}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <!-- Header -->
+                    <TextBlock Text="Folder Action" FontSize="16" FontWeight="Bold"
+                               Foreground="#E65100" Margin="0,0,0,12" />
+
+                    <!-- Selection summary -->
+                    <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Selection" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#333333" Margin="0,0,0,6" />
+                            <TextBlock FontSize="24" FontWeight="Bold" Foreground="#E65100" Margin="0,0,0,4">
+                                <TextBlock.Text>
+                                    <Binding Path="SelectedFolderCount" StringFormat="{}{0}" />
+                                </TextBlock.Text>
+                            </TextBlock>
+                            <TextBlock Text="folders selected" FontSize="11" Foreground="#888888" Margin="0,0,0,8" />
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="✓ All" Command="{Binding SelectAllFoldersCommand}"
+                                        Padding="8,4" Margin="0,0,6,0" FontSize="11" Cursor="Hand" />
+                                <Button Content="✕ Clear" Command="{Binding ClearFolderSelectionCommand}"
+                                        Padding="8,4" FontSize="11" Cursor="Hand" Foreground="#888888" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Delete action -->
+                    <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Delete" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#C62828" Margin="0,0,0,6" />
+                            <TextBlock Text="Permanently removes selected folders and all their contents. Cannot be undone."
+                                       FontSize="10" Foreground="#888888" TextWrapping="Wrap" Margin="0,0,0,8" />
+                            <Button Content="🗑 Delete Selected" Command="{Binding DeleteSelectedFoldersCommand}"
+                                    Padding="10,6" FontSize="11" Cursor="Hand"
+                                    Foreground="#C62828" FontWeight="SemiBold"
+                                    HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Move action -->
+                    <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Move" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#1565C0" Margin="0,0,0,6" />
+                            <TextBlock Text="Relocates selected folders to a target path. Folder names are preserved."
+                                       FontSize="10" Foreground="#888888" TextWrapping="Wrap" Margin="0,0,0,8" />
+                            <TextBlock Text="Move to:" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#E65100" Margin="0,0,0,4" />
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding FolderMoveTargetPath, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="4,4" FontSize="11" VerticalContentAlignment="Center" />
+                                <Button Grid.Column="1" Content="..." Command="{Binding BrowseFolderMoveTargetCommand}"
+                                        Padding="8,4" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
+                                        ToolTip="Browse for target folder" />
+                            </Grid>
+                            <Button Content="📁 Move Selected" Command="{Binding MoveSelectedFoldersCommand}"
+                                    Padding="10,6" FontSize="11" Cursor="Hand"
+                                    Foreground="#1565C0" FontWeight="SemiBold"
+                                    HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Search info -->
+                    <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Results" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#333333" Margin="0,0,0,6" />
+                            <TextBlock FontSize="24" FontWeight="Bold" Foreground="#1565C0" Margin="0,0,0,4">
+                                <TextBlock.Text>
+                                    <Binding Path="FolderSearchCount" StringFormat="{}{0}" />
+                                </TextBlock.Text>
+                            </TextBlock>
+                            <TextBlock Text="folders found" FontSize="11" Foreground="#888888" Margin="0,0,0,4" />
+                            <TextBlock Text="{Binding FolderSearchStatus}" FontSize="10" Foreground="#666666"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
         </Border>

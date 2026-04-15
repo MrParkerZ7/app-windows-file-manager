@@ -7,11 +7,20 @@ namespace WindowsFileManager.Core.Models;
 /// </summary>
 public enum FolderMatchType
 {
-    /// <summary>Folder name contains the pattern text.</summary>
-    Contains,
+    /// <summary>Folder name contains the pattern text (partial match).</summary>
+    Include,
 
     /// <summary>Folder name exactly matches the pattern text.</summary>
     Match,
+
+    /// <summary>Folder contains a child item (subfolder, file, or file type) matching the pattern.</summary>
+    Contains,
+
+    /// <summary>Folder name does NOT contain the pattern text (opposite of Include).</summary>
+    Exclude,
+
+    /// <summary>Folder name does NOT exactly match the pattern text (opposite of Match).</summary>
+    Mismatch,
 }
 
 /// <summary>

@@ -1,7 +1,9 @@
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Threading;
 using WindowsFileManager.ViewModels;
 
@@ -15,6 +17,11 @@ public partial class MainWindow : Window
 {
     private double _videoVolumeBeforeMute = 0.5;
     private double _audioVolumeBeforeMute = 0.5;
+    private GridViewColumnHeader? _lastFolderSortHeader;
+    private ListSortDirection _lastFolderSortDirection = ListSortDirection.Ascending;
+    private bool _savedPreviewVisible;
+    private bool _savedAnalyticsVisible;
+    private bool _isWindowLoaded;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainWindow"/> class.
@@ -28,42 +35,49 @@ public partial class MainWindow : Window
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainViewModel vm)
+        if (DataContext is MainViewModel vm)
         {
-            return;
+            var settings = vm.GetSettings();
+            if (settings.WindowWidth != null && settings.WindowHeight != null)
+            {
+                var left = settings.WindowLeft ?? 0;
+                var top = settings.WindowTop ?? 0;
+                var width = settings.WindowWidth.Value;
+                var height = settings.WindowHeight.Value;
+
+                // Check if the saved position is visible on any current monitor
+                // Uses virtual screen bounds (spans all monitors)
+                var isOnScreen = left < SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth &&
+                                 left + width > SystemParameters.VirtualScreenLeft &&
+                                 top < SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight &&
+                                 top + height > SystemParameters.VirtualScreenTop;
+
+                if (isOnScreen)
+                {
+                    WindowStartupLocation = WindowStartupLocation.Manual;
+                    Left = left;
+                    Top = top;
+                    Width = width;
+                    Height = height;
+                }
+
+                if (settings.IsMaximized)
+                {
+                    WindowState = WindowState.Maximized;
+                }
+            }
+
+            // Save initial panel states for tab switching
+            _savedPreviewVisible = vm.IsPreviewVisible;
+            _savedAnalyticsVisible = vm.IsAnalyticsVisible;
+
+            // Folder Control is the first tab — hide panels on startup
+            vm.IsPreviewVisible = false;
+            vm.IsAnalyticsVisible = false;
+            vm.IsFolderControlActive = true;
         }
 
-        var settings = vm.GetSettings();
-        if (settings.WindowWidth == null || settings.WindowHeight == null)
-        {
-            return;
-        }
-
-        var left = settings.WindowLeft ?? 0;
-        var top = settings.WindowTop ?? 0;
-        var width = settings.WindowWidth.Value;
-        var height = settings.WindowHeight.Value;
-
-        // Check if the saved position is visible on any current monitor
-        // Uses virtual screen bounds (spans all monitors)
-        var isOnScreen = left < SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth &&
-                         left + width > SystemParameters.VirtualScreenLeft &&
-                         top < SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight &&
-                         top + height > SystemParameters.VirtualScreenTop;
-
-        if (isOnScreen)
-        {
-            WindowStartupLocation = WindowStartupLocation.Manual;
-            Left = left;
-            Top = top;
-            Width = width;
-            Height = height;
-        }
-
-        if (settings.IsMaximized)
-        {
-            WindowState = WindowState.Maximized;
-        }
+        _isWindowLoaded = true;
     }
 
     private void CloseAnalytics_Click(object sender, RoutedEventArgs e)
@@ -162,6 +176,95 @@ public partial class MainWindow : Window
         else
         {
             AudioVolumeSlider.Value = _audioVolumeBeforeMute;
+        }
+    }
+
+    private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_isWindowLoaded || sender is not TabControl tabControl || e.Source != tabControl || DataContext is not MainViewModel vm)
+        {
+            return;
+        }
+
+        if (tabControl.SelectedItem is TabItem tab && tab.Header as string == "Folder Control")
+        {
+            // Save current panel states and hide them
+            _savedPreviewVisible = vm.IsPreviewVisible;
+            _savedAnalyticsVisible = vm.IsAnalyticsVisible;
+            vm.IsPreviewVisible = false;
+            vm.IsAnalyticsVisible = false;
+            vm.IsFolderControlActive = true;
+        }
+        else
+        {
+            // Restore panel states when switching back
+            vm.IsFolderControlActive = false;
+            vm.IsPreviewVisible = _savedPreviewVisible;
+            vm.IsAnalyticsVisible = _savedAnalyticsVisible;
+        }
+    }
+
+    private void FolderResults_ColumnHeaderClick(object sender, RoutedEventArgs e)
+    {
+        if (e.OriginalSource is not GridViewColumnHeader header || header.Role == GridViewColumnHeaderRole.Padding)
+        {
+            return;
+        }
+
+        // Determine the sort property from the column binding
+        string? sortBy = null;
+        if (header.Column?.DisplayMemberBinding is Binding binding)
+        {
+            sortBy = binding.Path.Path;
+        }
+        else if (header.Column?.CellTemplate != null)
+        {
+            // For template columns, use the header text as a hint
+            var headerText = header.Column.Header as string;
+            sortBy = headerText switch
+            {
+                "Full Path" => "FullPath",
+                _ => null,
+            };
+        }
+
+        if (sortBy == null)
+        {
+            return;
+        }
+
+        // Toggle direction if same column clicked again
+        var direction = ListSortDirection.Ascending;
+        if (header == _lastFolderSortHeader)
+        {
+            direction = _lastFolderSortDirection == ListSortDirection.Ascending
+                ? ListSortDirection.Descending
+                : ListSortDirection.Ascending;
+        }
+
+        _lastFolderSortHeader = header;
+        _lastFolderSortDirection = direction;
+
+        if (sender is ListView listView)
+        {
+            var view = CollectionViewSource.GetDefaultView(listView.ItemsSource);
+            view.SortDescriptions.Clear();
+            view.SortDescriptions.Add(new SortDescription(sortBy, direction));
+
+            // Update header text with sort indicator
+            foreach (var col in ((GridView)listView.View).Columns)
+            {
+                if (col.Header is string h)
+                {
+                    col.Header = h.TrimEnd(' ', '▲', '▼');
+                }
+            }
+
+            var arrow = direction == ListSortDirection.Ascending ? " ▲" : " ▼";
+            if (header.Column?.Header is string currentHeader)
+            {
+                header.Column.Header = currentHeader.TrimEnd(' ', '▲', '▼') + arrow;
+            }
         }
     }
 

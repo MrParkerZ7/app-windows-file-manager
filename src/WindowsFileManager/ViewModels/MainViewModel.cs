@@ -42,6 +42,7 @@ public class MainViewModel : ViewModelBase
     private string? _previewFileSize;
     private bool _isPreviewVisible;
     private bool _isAnalyticsVisible = true;
+    private bool _isFolderControlActive;
     private long _minFileSizeBytes;
     private string _minFileSizeText = string.Empty;
     private string _selectedSizeUnit = "KB";
@@ -620,7 +621,7 @@ public class MainViewModel : ViewModelBase
         RemoveFolderSearchPatternCommand = new RelayCommand(p => RemoveFolderSearchPattern(p));
         MoveSearchPatternUpCommand = new RelayCommand(p => MoveSearchPatternUp(p as FolderSearchPattern));
         MoveSearchPatternDownCommand = new RelayCommand(p => MoveSearchPatternDown(p as FolderSearchPattern));
-        SearchFoldersCommand = new RelayCommand(_ => SearchFoldersAsync(), _ => !IsFolderSearching && FolderSearchPatterns.Any(t => t.IsEnabled) && TargetPaths.Any(t => t.IsEnabled));
+        SearchFoldersCommand = new RelayCommand(_ => SearchFoldersAsync(), _ => !IsFolderSearching && TargetPaths.Any(t => t.IsEnabled));
         OpenFolderLocationCommand = new RelayCommand(p => OpenFolderLocation(p as string));
 
         // Folder actions
@@ -1062,7 +1063,7 @@ public class MainViewModel : ViewModelBase
     public ObservableCollection<FolderSearchPattern> FolderSearchPatterns { get; } = new();
 
     /// <summary>Gets the available match types for folder search.</summary>
-    public List<FolderMatchType> FolderMatchTypes { get; } = new() { FolderMatchType.Contains, FolderMatchType.Match };
+    public List<FolderMatchType> FolderMatchTypes { get; } = new() { FolderMatchType.Include, FolderMatchType.Match, FolderMatchType.Contains, FolderMatchType.Exclude, FolderMatchType.Mismatch };
 
     /// <summary>Gets the folder search results collection.</summary>
     public ObservableCollection<FolderSearchResult> FolderSearchResults { get; } = new();
@@ -1255,6 +1256,15 @@ public class MainViewModel : ViewModelBase
     {
         get => _isAnalyticsVisible;
         set => SetProperty(ref _isAnalyticsVisible, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the Folder Control tab is active.
+    /// </summary>
+    public bool IsFolderControlActive
+    {
+        get => _isFolderControlActive;
+        set => SetProperty(ref _isFolderControlActive, value);
     }
 
     /// <summary>
@@ -2334,7 +2344,9 @@ public class MainViewModel : ViewModelBase
 
             FolderSearchCount = results.Count;
             SelectedFolderCount = 0;
-            FolderSearchStatus = $"Found {results.Count} folders matching {patterns.Count} patterns.";
+            FolderSearchStatus = patterns.Count > 0
+                ? $"Found {results.Count} folders matching {patterns.Count} patterns."
+                : $"Found {results.Count} folders (no filter).";
         }
         catch (Exception ex)
         {
@@ -2371,29 +2383,100 @@ public class MainViewModel : ViewModelBase
                 continue;
             }
 
-            // Check if folder name matches any enabled pattern
-            foreach (var pattern in patterns)
+            // No patterns = include all folders; otherwise filter by patterns
+            if (patterns.Count == 0)
             {
-                var isMatch = pattern.MatchType == FolderMatchType.Match
-                    ? dirName.Equals(pattern.Pattern, StringComparison.OrdinalIgnoreCase)
-                    : dirName.Contains(pattern.Pattern, StringComparison.OrdinalIgnoreCase);
+                results.Add(new FolderSearchResult
+                {
+                    FullPath = subDir,
+                    FolderName = dirName,
+                    ParentPath = currentPath,
+                    MatchedPattern = string.Empty,
+                });
+            }
+            else
+            {
+                // All patterns must pass for the folder to be included
+                var allMatch = true;
+                var matchedPatternName = string.Empty;
+                foreach (var pattern in patterns)
+                {
+                    bool isMatch = pattern.MatchType switch
+                    {
+                        FolderMatchType.Include => dirName.Contains(pattern.Pattern, StringComparison.OrdinalIgnoreCase),
+                        FolderMatchType.Match => dirName.Equals(pattern.Pattern, StringComparison.OrdinalIgnoreCase),
+                        FolderMatchType.Contains => FolderContainsItem(subDir, pattern.Pattern),
+                        FolderMatchType.Exclude => !dirName.Contains(pattern.Pattern, StringComparison.OrdinalIgnoreCase),
+                        FolderMatchType.Mismatch => !dirName.Equals(pattern.Pattern, StringComparison.OrdinalIgnoreCase),
+                        _ => false,
+                    };
 
-                if (isMatch)
+                    if (!isMatch)
+                    {
+                        allMatch = false;
+                        break;
+                    }
+
+                    if (matchedPatternName.Length == 0)
+                    {
+                        matchedPatternName = pattern.Pattern;
+                    }
+                }
+
+                if (allMatch)
                 {
                     results.Add(new FolderSearchResult
                     {
                         FullPath = subDir,
                         FolderName = dirName,
                         ParentPath = currentPath,
-                        MatchedPattern = pattern.Pattern,
+                        MatchedPattern = matchedPatternName,
                     });
-                    break; // don't duplicate if multiple patterns match
                 }
             }
 
             // Recurse deeper
             SearchFoldersRecursive(subDir, patterns, excludeNames, results);
         }
+    }
+
+    /// <summary>
+    /// Checks if a folder contains a child item matching the pattern.
+    /// Supports: exact name (e.g. ".git", "package.json"), wildcard extension (e.g. "*.py", "*.sln").
+    /// Checks both subfolders and files in the immediate directory.
+    /// </summary>
+    private static bool FolderContainsItem(string folderPath, string pattern)
+    {
+        try
+        {
+            if (pattern.StartsWith("*."))
+            {
+                // Wildcard extension match — check files with that extension
+                var extension = pattern[1..]; // e.g. ".py"
+                foreach (var file in Directory.EnumerateFiles(folderPath))
+                {
+                    if (Path.GetExtension(file).Equals(extension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+            else
+            {
+                // Exact name match — check subfolders and files
+                var targetPath = Path.Combine(folderPath, pattern);
+                if (Directory.Exists(targetPath) || File.Exists(targetPath))
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+            // Access denied or other IO error — skip
+        }
+
+        return false;
     }
 
     private static void OpenFolderLocation(string? path)
