@@ -73,6 +73,8 @@ WindowsFileManager/
 - **ToggleItem pattern**: Target paths and exclude folders use `ToggleItem` wrapper (string + IsEnabled) for temporary enable/disable
 - **FilterRule INotifyPropertyChanged**: `FilterRule.IsEnabled` notifies UI for bulk enable/disable operations
 - **Save on change**: `SaveSettings()` called on every mutation (add/remove/reorder rules, paths, exclusions) — not just on window close
+- **`[JsonIgnore]` on computed properties**: Getter-only properties on serialized models (e.g., `DisplaySummary`, `Priority`) must have `[System.Text.Json.Serialization.JsonIgnore]` to prevent serialization/deserialization issues with old settings files
+- **Enum rename safety**: `System.Text.Json` serializes enums as integers by default. When renaming enum values (e.g., `Select` → `Contains`), keep the same ordinal position to maintain backward compatibility with existing settings
 
 ---
 
@@ -84,6 +86,13 @@ WindowsFileManager/
 - **Markup tags**: `<b>bold</b>`, `<h>heading</h>`, `<w>warning</w>`, `<link=URL>text</link>`
 - **Links**: `<link>` tag creates clickable `Hyperlink` that opens URL in default browser (e.g., regex101.com)
 - **Spec**: See `D:\Programing\claude-prompt-solution-architect\prompts\10-development\feature-common\CONTEXTUAL_HELP_BUTTON.md`
+
+### Inline WrapPanel Layout Pattern
+- **Pattern**: All filter/action/exclude sections use `WrapPanel` with grouped `StackPanel` sub-panels
+- **Spacing**: Each sub-panel has `Margin="0,2,0,2"` for vertical gap when wrapping to a second row
+- **Structure**: `Title (?) | controls | actions` — separated by `Border Width="1"` dividers
+- **Sections using this**: Base Filters, Custom Rules, Exclude Folders, Action
+- **Overflow**: Wraps to multiple rows automatically — no scrollbars, no collapsible panels
 
 ### Window State Persistence
 - **Saves on close**: window position, size, and maximized state to `settings.json` via `AppSettings` (also saved on every settings change)
