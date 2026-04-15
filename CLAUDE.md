@@ -9,8 +9,9 @@
 ```
 BUILD:    dotnet build -c Release
 FORMAT:   dotnet format
-TEST:     dotnet test --collect:"XPlat Code Coverage" --settings tests/WindowsFileManager.Tests/coverlet.runsettings
-COVERAGE: 100% line coverage (enforced by coverlet.collector + runsettings)
+TEST:     dotnet test -p:CollectCoverage=false              (skip coverage threshold)
+TEST+COV: dotnet test                                       (with 100% coverage enforcement)
+COVERAGE: 100% line, branch, method (enforced by coverlet.msbuild in test .csproj)
 MSIX:     dotnet publish src/WindowsFileManager -c Release -r win-x64 --self-contained -p:WindowsPackageType=MSIX
 ```
 
@@ -37,7 +38,8 @@ WindowsFileManager/
 │       │   ├── MainViewModel.cs
 │       │   ├── ViewModelBase.cs
 │       │   ├── ExtensionFilter.cs
-│       │   └── ToggleItem.cs          # Enable/disable wrapper for paths & exclusions
+│       │   ├── ToggleItem.cs          # Enable/disable wrapper for paths & exclusions
+│       │   └── SubfolderItem.cs      # Discovered subfolder with locations & selection
 │       ├── Views/
 │       └── Helpers/
 │           ├── FormattedTextBehavior.cs  # Rich text markup parser (<b>,<h>,<w>,<link>)
@@ -68,7 +70,7 @@ WindowsFileManager/
 - **Nullable**: Enabled project-wide (`<Nullable>enable</Nullable>`)
 - **File-scoped namespaces**: Required (`namespace Foo;`)
 - **Testing**: xUnit + Moq + FluentAssertions, AAA pattern
-- **Coverage exclusions**: Views, ViewModels, Infrastructure, generated code (via runsettings Include filter)
+- **Coverage exclusions**: Views, Infrastructure, generated code (via coverlet.msbuild Include/Exclude in test .csproj). ViewModels and Helpers ARE included in coverage.
 - **Interface abstraction**: All I/O through `IFileSystemService` for mock-friendly testing
 - **ToggleItem pattern**: Target paths and exclude folders use `ToggleItem` wrapper (string + IsEnabled) for temporary enable/disable
 - **FilterRule INotifyPropertyChanged**: `FilterRule.IsEnabled` notifies UI for bulk enable/disable operations
@@ -91,7 +93,7 @@ WindowsFileManager/
 - **Pattern**: All filter/action/exclude sections use `WrapPanel` with grouped `StackPanel` sub-panels
 - **Spacing**: Each sub-panel has `Margin="0,2,0,2"` for vertical gap when wrapping to a second row
 - **Structure**: `Title (?) | controls | actions` — separated by `Border Width="1"` dividers
-- **Sections using this**: Base Filters, Custom Rules, Exclude Folders, Action
+- **Sections using this**: Base Filters, Custom Rules, Exclude Folders, Folder Search toolbar
 - **Overflow**: Wraps to multiple rows automatically — no scrollbars, no collapsible panels
 
 ### Window State Persistence
@@ -101,13 +103,44 @@ WindowsFileManager/
 - **Maximized**: uses `RestoreBounds` to save normal size even when closing maximized
 - **Spec**: See `D:\Programing\claude-prompt-solution-architect\prompts\10-development\feature-common\WINDOW_STATE_PERSISTENCE.md`
 
+### Tab-Aware Sidebar Panels
+- **Pattern**: Right sidebar (Column 1) swaps content based on active tab
+- **Folder Control tab**: Shows "Folder Action" panel (scan subfolders, clear, selection summary, results)
+- **Scan for Duplicates tab**: Shows "Analytics" panel (restores previous visibility state)
+- **Implementation**: `TabControl_SelectionChanged` in code-behind saves/restores `IsPreviewVisible` + `IsAnalyticsVisible`, sets `IsFolderControlActive`
+- **Event bubbling fix**: Must check `e.Source == tabControl` — nested ListView selections bubble up to TabControl handler
+
+### Folder Search with 5 Match Types
+- **Match types**: `Include` (partial name), `Match` (exact name), `Contains` (child item inside folder), `Exclude` (NOT partial), `Mismatch` (NOT exact)
+- **AND logic**: All enabled patterns must pass for a folder to appear in results
+- **No patterns = no filter**: Returns all folders when no patterns are active
+- **Contains wildcard**: `*.py`, `*.sln` matches file extensions; `.git`, `package.json` matches exact child names
+- **Model**: `FolderSearchPattern` with `FolderMatchType` enum, `Priority`, move up/down reordering
+
+### Clear Subfolders (Folder Action Sidebar)
+- **Scan**: Discovers all unique subfolder names across selected search results with occurrence counts
+- **Include Subdirectories**: Toggle to scan recursively into nested subfolders or only immediate children
+- **Expandable items**: Each subfolder name expands to show parent folder locations
+- **Filter**: Text search to narrow subfolder list when many names exist
+- **Select + Clear**: Check subfolders to delete, confirmation dialog, auto re-scan after clearing
+
 ---
 
-## Quality Gates (CI)
+## Quality Gates (CI + Local)
 
-1. `dotnet build -c Release` — Compile + StyleCop + .NET Analyzers
-2. `dotnet test --collect:"XPlat Code Coverage" --settings tests/WindowsFileManager.Tests/coverlet.runsettings` — All tests pass + 100% coverage
-3. `dotnet format --verify-no-changes` — EditorConfig compliance
+| Gate | Tool | Command |
+|------|------|---------|
+| Format | dotnet format | `dotnet format --verify-no-changes` |
+| Build | dotnet build + TreatWarningsAsErrors | `dotnet build -c Release /p:TreatWarningsAsErrors=true` |
+| Lint | StyleCop 1.1.118 + Roslyn analyzers | Runs during build |
+| Test | xUnit + Moq + FluentAssertions | `dotnet test` |
+| Coverage | Coverlet 100% line/branch/method | Enforced in test .csproj via `coverlet.msbuild` |
+| Security | Semgrep SAST (MSIX pipeline) | `semgrep scan --config p/csharp` |
+| Dependency | NuGet vulnerability audit | `dotnet list package --vulnerable` |
+
+- **TreatWarningsAsErrors**: `true` in `Directory.Build.props` — all warnings are build errors
+- **Coverage threshold**: `Threshold=100` in test `.csproj` — fails build if below 100% line, branch, or method
+- **Skip coverage locally**: `dotnet test -p:CollectCoverage=false` to run tests without threshold enforcement
 
 ---
 
@@ -124,6 +157,10 @@ WindowsFileManager/
 
 ## Project Notes
 
+- **[2026-04-16]** Folder Control moved to first tab. Action section moved from inline to right sidebar panel (same position as Analytics). Tab switching saves/restores panel states.
+- **[2026-04-16]** `SelectionChanged` event bubbles from nested ListView to TabControl — must check `e.Source == tabControl` to avoid hiding panels on file click.
+- **[2026-04-16]** Coverage enforcement moved from `coverlet.runsettings` (XPlat Code Coverage) to `coverlet.msbuild` in test `.csproj` for threshold enforcement. Current coverage ~44% — needs `automate-test` to reach 100%.
+- **[2026-04-16]** `TreatWarningsAsErrors` enabled — all StyleCop/Roslyn warnings are now build errors. Inline lambdas without braces trigger SA1503.
 - **[2026-04-15]** `Stop-Process -Force` kills the app without triggering `Window.Closing`, so settings were lost. Fixed by saving settings on every mutation, not just on close.
 - **[2026-04-15]** Filter UI refactored from collapsible panels to always-visible inline WrapPanel rows. No more expand/collapse toggles — everything visible at a glance, wraps responsively.
 - **[2026-04-15]** `FilterAction.Select` renamed to `FilterAction.Contains` for user clarity. Backward compatible with old settings (enum ordinal 0 unchanged).

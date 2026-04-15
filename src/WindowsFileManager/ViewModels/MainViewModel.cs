@@ -85,7 +85,9 @@ public class MainViewModel : ViewModelBase
     private int _folderSearchCount;
     private int _selectedFolderCount;
     private bool _areAllFoldersSelected;
-    private string _folderMoveTargetPath = string.Empty;
+    private string _subfolderFilter = string.Empty;
+    private string _clearSubfolderStatus = string.Empty;
+    private bool _folderSearchIncludeSubdirectories = true;
     private TimeSpan _lastCpuTime;
     private DateTime _lastCheckTime;
     private DuplicateGroup? _selectedDuplicateGroup;
@@ -627,9 +629,10 @@ public class MainViewModel : ViewModelBase
         // Folder actions
         SelectAllFoldersCommand = new RelayCommand(_ => SelectAllFolders(), _ => FolderSearchResults.Count > 0);
         ClearFolderSelectionCommand = new RelayCommand(_ => ClearFolderSelection(), _ => SelectedFolderCount > 0);
-        DeleteSelectedFoldersCommand = new RelayCommand(_ => DeleteSelectedFolders(), _ => SelectedFolderCount > 0);
-        MoveSelectedFoldersCommand = new RelayCommand(_ => MoveSelectedFolders(), _ => SelectedFolderCount > 0 && !string.IsNullOrWhiteSpace(FolderMoveTargetPath));
-        BrowseFolderMoveTargetCommand = new RelayCommand(_ => BrowseFolderMoveTarget());
+        ScanSubfoldersCommand = new RelayCommand(_ => ScanSubfolders(), _ => SelectedFolderCount > 0);
+        ClearSelectedSubfoldersCommand = new RelayCommand(_ => ClearSelectedSubfolders(), _ => DiscoveredSubfolders.Any(s => s.IsSelected));
+        SelectAllSubfoldersCommand = new RelayCommand(_ => SelectAllSubfolders());
+        ClearSubfolderSelectionCommand = new RelayCommand(_ => ClearSubfolderSelection());
 
         DeleteSelectedFilesCommand = new RelayCommand(_ => DeleteSelectedFiles(), _ => SelectedFileCount > 0);
         MoveSelectedFilesCommand = new RelayCommand(_ => MoveSelectedFiles(), _ => SelectedFileCount > 0);
@@ -1126,11 +1129,40 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Gets or sets the move target path for folder actions.</summary>
-    public string FolderMoveTargetPath
+    /// <summary>Gets the discovered subfolders from scanning selected results.</summary>
+    public ObservableCollection<SubfolderItem> DiscoveredSubfolders { get; } = new();
+
+    /// <summary>Gets or sets the subfolder filter text.</summary>
+    public string SubfolderFilter
     {
-        get => _folderMoveTargetPath;
-        set => SetProperty(ref _folderMoveTargetPath, value);
+        get => _subfolderFilter;
+        set
+        {
+            if (SetProperty(ref _subfolderFilter, value))
+            {
+                OnPropertyChanged(nameof(FilteredSubfolders));
+            }
+        }
+    }
+
+    /// <summary>Gets the filtered subfolders based on search text.</summary>
+    public IEnumerable<SubfolderItem> FilteredSubfolders =>
+        string.IsNullOrWhiteSpace(SubfolderFilter)
+            ? DiscoveredSubfolders
+            : DiscoveredSubfolders.Where(s => s.Name.Contains(SubfolderFilter, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Gets or sets the clear subfolder status message.</summary>
+    public string ClearSubfolderStatus
+    {
+        get => _clearSubfolderStatus;
+        set => SetProperty(ref _clearSubfolderStatus, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether folder search recurses into subdirectories.</summary>
+    public bool FolderSearchIncludeSubdirectories
+    {
+        get => _folderSearchIncludeSubdirectories;
+        set => SetProperty(ref _folderSearchIncludeSubdirectories, value);
     }
 
     /// <summary>Gets the add folder search pattern command.</summary>
@@ -1159,14 +1191,17 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the clear folder selection command.</summary>
     public ICommand ClearFolderSelectionCommand { get; }
 
-    /// <summary>Gets the delete selected folders command.</summary>
-    public ICommand DeleteSelectedFoldersCommand { get; }
+    /// <summary>Gets the scan subfolders command.</summary>
+    public ICommand ScanSubfoldersCommand { get; }
 
-    /// <summary>Gets the move selected folders command.</summary>
-    public ICommand MoveSelectedFoldersCommand { get; }
+    /// <summary>Gets the clear selected subfolders command.</summary>
+    public ICommand ClearSelectedSubfoldersCommand { get; }
 
-    /// <summary>Gets the browse folder move target command.</summary>
-    public ICommand BrowseFolderMoveTargetCommand { get; }
+    /// <summary>Gets the select all subfolders command.</summary>
+    public ICommand SelectAllSubfoldersCommand { get; }
+
+    /// <summary>Gets the clear subfolder selection command.</summary>
+    public ICommand ClearSubfolderSelectionCommand { get; }
 
     // -- Action commands --
 
@@ -2317,6 +2352,7 @@ public class MainViewModel : ViewModelBase
             ExcludeFolderNames.Where(t => t.IsEnabled).Select(t => t.Value),
             StringComparer.OrdinalIgnoreCase);
         var patterns = FolderSearchPatterns.Where(t => t.IsEnabled).ToList();
+        var recurse = true;
 
         try
         {
@@ -2330,7 +2366,7 @@ public class MainViewModel : ViewModelBase
                         continue;
                     }
 
-                    SearchFoldersRecursive(rootPath, patterns, excludeNames, found);
+                    SearchFoldersRecursive(rootPath, patterns, excludeNames, found, recurse);
                 }
 
                 return found;
@@ -2362,7 +2398,8 @@ public class MainViewModel : ViewModelBase
         string currentPath,
         List<FolderSearchPattern> patterns,
         HashSet<string> excludeNames,
-        List<FolderSearchResult> results)
+        List<FolderSearchResult> results,
+        bool recurse)
     {
         IEnumerable<string> subDirs;
         try
@@ -2435,8 +2472,11 @@ public class MainViewModel : ViewModelBase
                 }
             }
 
-            // Recurse deeper
-            SearchFoldersRecursive(subDir, patterns, excludeNames, results);
+            // Recurse deeper if enabled
+            if (recurse)
+            {
+                SearchFoldersRecursive(subDir, patterns, excludeNames, results, recurse);
+            }
         }
     }
 
@@ -2514,17 +2554,106 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private void DeleteSelectedFolders()
+    private void ScanSubfolders()
     {
-        var foldersToDelete = FolderSearchResults.Where(r => r.IsSelected).ToList();
-        if (foldersToDelete.Count == 0)
+        DiscoveredSubfolders.Clear();
+        SubfolderFilter = string.Empty;
+        ClearSubfolderStatus = "Scanning...";
+
+        var selectedFolders = FolderSearchResults.Where(r => r.IsSelected).ToList();
+        var subfolderData = new Dictionary<string, List<SubfolderLocation>>(StringComparer.OrdinalIgnoreCase);
+        var includeNested = FolderSearchIncludeSubdirectories;
+
+        foreach (var folder in selectedFolders)
+        {
+            ScanSubfoldersIn(folder.FullPath, folder.FullPath, subfolderData, includeNested);
+        }
+
+        foreach (var kvp in subfolderData.OrderByDescending(k => k.Value.Count).ThenBy(k => k.Key))
+        {
+            DiscoveredSubfolders.Add(new SubfolderItem
+            {
+                Name = kvp.Key,
+                Count = kvp.Value.Count,
+                Locations = kvp.Value,
+            });
+        }
+
+        OnPropertyChanged(nameof(FilteredSubfolders));
+        ClearSubfolderStatus = $"Found {DiscoveredSubfolders.Count} unique subfolder names across {selectedFolders.Count} folders.";
+    }
+
+    private void ScanSubfoldersIn(
+        string path,
+        string rootParent,
+        Dictionary<string, List<SubfolderLocation>> data,
+        bool recurse)
+    {
+        try
+        {
+            foreach (var subDir in _fileSystem.EnumerateDirectories(path))
+            {
+                var name = Path.GetFileName(subDir);
+                var location = new SubfolderLocation
+                {
+                    ParentPath = rootParent,
+                    FullPath = subDir,
+                };
+
+                if (data.TryGetValue(name, out var locations))
+                {
+                    locations.Add(location);
+                }
+                else
+                {
+                    data[name] = new List<SubfolderLocation> { location };
+                }
+
+                if (recurse)
+                {
+                    ScanSubfoldersIn(subDir, rootParent, data, true);
+                }
+            }
+        }
+        catch
+        {
+            // Access denied — skip
+        }
+    }
+
+    private void ClearSelectedSubfolders()
+    {
+        var selectedSubs = DiscoveredSubfolders.Where(s => s.IsSelected).Select(s => s.Name).ToList();
+        var selectedFolders = FolderSearchResults.Where(r => r.IsSelected).ToList();
+
+        if (selectedSubs.Count == 0 || selectedFolders.Count == 0)
         {
             return;
         }
 
+        // Count how many will be affected
+        int totalToDelete = 0;
+        foreach (var folder in selectedFolders)
+        {
+            foreach (var subName in selectedSubs)
+            {
+                var subPath = Path.Combine(folder.FullPath, subName);
+                if (Directory.Exists(subPath))
+                {
+                    totalToDelete++;
+                }
+            }
+        }
+
+        if (totalToDelete == 0)
+        {
+            ClearSubfolderStatus = "No matching subfolders found to delete.";
+            return;
+        }
+
         var result = System.Windows.MessageBox.Show(
-            $"Delete {foldersToDelete.Count} selected folders and all their contents?\nThis cannot be undone.",
-            "Confirm Delete Folders",
+            $"Delete {totalToDelete} subfolders ({string.Join(", ", selectedSubs)}) from {selectedFolders.Count} selected folders?\n\nThis permanently removes these subfolders and all their contents.\nCannot be undone.",
+            "Confirm Clear Subfolders",
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
 
@@ -2534,116 +2663,53 @@ public class MainViewModel : ViewModelBase
         }
 
         int deleted = 0;
-        foreach (var folder in foldersToDelete)
+        int failed = 0;
+        foreach (var folder in selectedFolders)
         {
-            try
+            foreach (var subName in selectedSubs)
             {
-                if (Directory.Exists(folder.FullPath))
+                var subPath = Path.Combine(folder.FullPath, subName);
+                if (!Directory.Exists(subPath))
                 {
-                    Directory.Delete(folder.FullPath, recursive: true);
-                    deleted++;
-                }
-
-                folder.PropertyChanged -= FolderResult_PropertyChanged;
-                FolderSearchResults.Remove(folder);
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show(
-                    $"Failed to delete '{folder.FullPath}':\n{ex.Message}",
-                    "Delete Error",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Error);
-            }
-        }
-
-        FolderSearchCount = FolderSearchResults.Count;
-        SelectedFolderCount = FolderSearchResults.Count(r => r.IsSelected);
-        FolderSearchStatus = $"Deleted {deleted} folders.";
-    }
-
-    private void MoveSelectedFolders()
-    {
-        var foldersToMove = FolderSearchResults.Where(r => r.IsSelected).ToList();
-        if (foldersToMove.Count == 0 || string.IsNullOrWhiteSpace(FolderMoveTargetPath))
-        {
-            return;
-        }
-
-        if (!Directory.Exists(FolderMoveTargetPath))
-        {
-            try
-            {
-                Directory.CreateDirectory(FolderMoveTargetPath);
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show(
-                    $"Cannot create target folder:\n{ex.Message}",
-                    "Move Error",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Error);
-                return;
-            }
-        }
-
-        var result = System.Windows.MessageBox.Show(
-            $"Move {foldersToMove.Count} selected folders to:\n{FolderMoveTargetPath}?",
-            "Confirm Move Folders",
-            System.Windows.MessageBoxButton.YesNo,
-            System.Windows.MessageBoxImage.Question);
-
-        if (result != System.Windows.MessageBoxResult.Yes)
-        {
-            return;
-        }
-
-        int moved = 0;
-        foreach (var folder in foldersToMove)
-        {
-            try
-            {
-                var destPath = Path.Combine(FolderMoveTargetPath, folder.FolderName);
-                if (Directory.Exists(destPath))
-                {
-                    System.Windows.MessageBox.Show(
-                        $"Destination already exists: '{destPath}'\nSkipping.",
-                        "Move Warning",
-                        System.Windows.MessageBoxButton.OK,
-                        System.Windows.MessageBoxImage.Warning);
                     continue;
                 }
 
-                Directory.Move(folder.FullPath, destPath);
-                moved++;
-                folder.PropertyChanged -= FolderResult_PropertyChanged;
-                FolderSearchResults.Remove(folder);
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show(
-                    $"Failed to move '{folder.FullPath}':\n{ex.Message}",
-                    "Move Error",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Error);
+                try
+                {
+                    Directory.Delete(subPath, recursive: true);
+                    deleted++;
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    System.Windows.MessageBox.Show(
+                        $"Failed to delete '{subPath}':\n{ex.Message}",
+                        "Delete Error",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Error);
+                }
             }
         }
 
-        FolderSearchCount = FolderSearchResults.Count;
-        SelectedFolderCount = FolderSearchResults.Count(r => r.IsSelected);
-        FolderSearchStatus = $"Moved {moved} folders to {FolderMoveTargetPath}.";
+        ClearSubfolderStatus = $"Cleared {deleted} subfolders." + (failed > 0 ? $" {failed} failed." : string.Empty);
+
+        // Re-scan to update counts
+        ScanSubfolders();
     }
 
-    private void BrowseFolderMoveTarget()
+    private void SelectAllSubfolders()
     {
-        var dialog = new Microsoft.Win32.OpenFolderDialog
+        foreach (var s in FilteredSubfolders)
         {
-            Title = "Select target folder for move",
-        };
+            s.IsSelected = true;
+        }
+    }
 
-        if (dialog.ShowDialog() == true)
+    private void ClearSubfolderSelection()
+    {
+        foreach (var s in DiscoveredSubfolders)
         {
-            FolderMoveTargetPath = dialog.FolderName;
+            s.IsSelected = false;
         }
     }
 
