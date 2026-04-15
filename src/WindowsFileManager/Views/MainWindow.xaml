@@ -80,158 +80,166 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Row 0: Target Folders (shared, above tabs) -->
-        <GroupBox Grid.Row="0" Header="Target Folders" Padding="8" Margin="4,4,4,4">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+        <!-- Row 0: Target Folders + Exclude Folders (50/50 side by side) -->
+        <Grid Grid.Row="0" Margin="4,4,4,4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-                <!-- Path input + buttons -->
-                <Grid Grid.Row="0" Margin="0,0,0,6">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+            <!-- Left: Target Folders -->
+            <GroupBox Grid.Column="0" Header="Target Folders" Padding="8" Margin="0,0,2,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                    <TextBox Grid.Column="0" Text="{Binding NewFolderPath, UpdateSourceTrigger=PropertyChanged}"
-                             Padding="6,4" VerticalContentAlignment="Center"
-                             IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
-                             helpers:TextBoxEnterKeyBehavior.Command="{Binding AddFolderByPathCommand}" />
+                    <!-- Path input + buttons -->
+                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="1" Content="Add"
-                            Command="{Binding AddFolderByPathCommand}"
-                            Padding="12,4" Margin="6,0,0,0"
-                            IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}" />
+                        <TextBox Grid.Column="0" Text="{Binding NewFolderPath, UpdateSourceTrigger=PropertyChanged}"
+                                 Padding="6,4" VerticalContentAlignment="Center"
+                                 IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
+                                 helpers:TextBoxEnterKeyBehavior.Command="{Binding AddFolderByPathCommand}" />
 
-                    <Button Grid.Column="2" Content="Browse..."
-                            Command="{Binding AddFolderCommand}"
-                            Padding="12,4" Margin="6,0,0,0"
-                            IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}" />
-                </Grid>
+                        <Button Grid.Column="1" Content="Add"
+                                Command="{Binding AddFolderByPathCommand}"
+                                Padding="12,4" Margin="6,0,0,0"
+                                IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}" />
 
-                <!-- Folder list (horizontal chips, wrapping) -->
-                <ItemsControl Grid.Row="1" ItemsSource="{Binding TargetPaths}" Margin="0,0,0,0">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border CornerRadius="3" Padding="6,3" Margin="0,0,6,4">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Setter Property="Background" Value="#E8EAF6" />
-                                        <Setter Property="Opacity" Value="1" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsEnabled}" Value="False">
-                                                <Setter Property="Background" Value="#EEEEEE" />
-                                                <Setter Property="Opacity" Value="0.6" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <StackPanel Orientation="Horizontal">
-                                    <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
-                                              Margin="0,0,4,0" Cursor="Hand"
-                                              ToolTip="Enable or disable this path temporarily" />
-                                    <TextBlock Text="{Binding Value}" VerticalAlignment="Center"
-                                               FontSize="11" Foreground="#333333"
-                                               ToolTip="{Binding Value}" />
-                                    <Button Content="✕"
-                                            Command="{Binding DataContext.RemoveFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}"
-                                            Padding="2,0" Margin="6,0,0,0"
-                                            FontSize="9" Foreground="#C62828" Cursor="Hand"
-                                            Background="Transparent" BorderThickness="0"
-                                            ToolTip="Remove this folder" />
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                        <Button Grid.Column="2" Content="Browse..."
+                                Command="{Binding AddFolderCommand}"
+                                Padding="12,4" Margin="6,0,0,0"
+                                IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}" />
+                    </Grid>
 
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
-                    <CheckBox Content="Include subdirectories"
-                              IsChecked="{Binding IncludeSubdirectories}"
-                              IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
-                              Margin="0,0,16,0" />
-                    <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                  Tag="&lt;h&gt;WHERE TO SCAN&lt;/h&gt;&#x0a;Add folders that may contain duplicate files.&#x0a;&#x0a;&lt;b&gt;Include subdirectories&lt;/b&gt; = scan all nested folders too&#x0a;&lt;b&gt;Multiple folders&lt;/b&gt; = compare files across different locations&#x0a;&#x0a;&lt;h&gt;How it works:&lt;/h&gt; Files are compared by &lt;b&gt;content hash (SHA-256)&lt;/b&gt;, not by name. Two files with different names but identical content are detected as duplicates." />
-                </StackPanel>
+                    <!-- Folder list (horizontal chips, wrapping) -->
+                    <ItemsControl Grid.Row="1" ItemsSource="{Binding TargetPaths}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border CornerRadius="3" Padding="6,3" Margin="0,0,6,4">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#E8EAF6" />
+                                            <Setter Property="Opacity" Value="1" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                    <Setter Property="Background" Value="#EEEEEE" />
+                                                    <Setter Property="Opacity" Value="0.6" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
+                                                  Margin="0,0,4,0" Cursor="Hand"
+                                                  ToolTip="Enable or disable this path temporarily" />
+                                        <TextBlock Text="{Binding Value}" VerticalAlignment="Center"
+                                                   FontSize="11" Foreground="#333333"
+                                                   ToolTip="{Binding Value}" />
+                                        <Button Content="✕"
+                                                Command="{Binding DataContext.RemoveFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"
+                                                Padding="2,0" Margin="6,0,0,0"
+                                                FontSize="9" Foreground="#C62828" Cursor="Hand"
+                                                Background="Transparent" BorderThickness="0"
+                                                ToolTip="Remove this folder" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
 
-                <!-- Exclude Folders (inline) -->
-                <Border Grid.Row="3" Background="#FFF8E1" CornerRadius="4" Padding="8,2" Margin="0,6,0,0"
-                        BorderBrush="#FFE0B2" BorderThickness="1">
-                    <StackPanel>
-                        <!-- Label + input + add (inline row) -->
-                        <WrapPanel Orientation="Horizontal">
-                            <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                                <TextBlock Text="Exclude Folders" FontWeight="SemiBold" FontSize="11"
-                                           Foreground="#E65100" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                              Tag="&lt;h&gt;EXCLUDE FOLDER NAMES&lt;/h&gt;&#x0a;Skip folders with these names during scanning.&#x0a;&#x0a;Matching is by &lt;b&gt;folder name only&lt;/b&gt; (not full path), case-insensitive.&#x0a;Any subfolder matching the name is skipped entirely.&#x0a;&#x0a;&lt;h&gt;Common examples:&lt;/h&gt;&#x0a;&lt;b&gt;node_modules&lt;/b&gt; — JavaScript dependencies&#x0a;&lt;b&gt;.git&lt;/b&gt; — Git internals&#x0a;&lt;b&gt;bin&lt;/b&gt; / &lt;b&gt;obj&lt;/b&gt; — Build output&#x0a;&lt;b&gt;__pycache__&lt;/b&gt; — Python cache" />
-                                <Border Width="1" Background="#E0D0A0" Margin="8,2" />
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                                <TextBox Text="{Binding NewExcludeFolderName, UpdateSourceTrigger=PropertyChanged}"
-                                         Width="180" Padding="4,3" FontSize="11" VerticalContentAlignment="Center"
-                                         helpers:TextBoxEnterKeyBehavior.Command="{Binding AddExcludeFolderCommand}" />
-                                <Button Content="+ Add" Command="{Binding AddExcludeFolderCommand}"
-                                        Padding="8,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
-                                        FontWeight="SemiBold" Foreground="#E65100" />
-                            </StackPanel>
-                        </WrapPanel>
-
-                        <!-- Exclude folder chips (below, wrapping) -->
-                        <ItemsControl ItemsSource="{Binding ExcludeFolderNames}" Margin="0,2,0,0">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel Orientation="Horizontal" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border CornerRadius="3" Padding="6,2" Margin="0,0,6,4">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Background" Value="#FFE0B2" />
-                                                <Setter Property="Opacity" Value="1" />
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsEnabled}" Value="False">
-                                                        <Setter Property="Background" Value="#EEEEEE" />
-                                                        <Setter Property="Opacity" Value="0.6" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <StackPanel Orientation="Horizontal">
-                                            <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
-                                                      Margin="0,0,4,0" Cursor="Hand"
-                                                      ToolTip="Enable or disable this exclusion temporarily" />
-                                            <TextBlock Text="{Binding Value}" VerticalAlignment="Center"
-                                                       FontSize="11" Foreground="#BF360C" FontWeight="SemiBold" />
-                                            <Button Content="✕"
-                                                    Command="{Binding DataContext.RemoveExcludeFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}"
-                                                    Padding="2,0" Margin="6,0,0,0"
-                                                    FontSize="9" Foreground="#C62828" Cursor="Hand"
-                                                    Background="Transparent" BorderThickness="0" />
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                        <CheckBox Content="Include subdirectories"
+                                  IsChecked="{Binding IncludeSubdirectories}"
+                                  IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
+                                  Margin="0,0,8,0" />
+                        <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                      Tag="&lt;h&gt;WHERE TO SCAN&lt;/h&gt;&#x0a;Add folders that may contain duplicate files.&#x0a;&#x0a;&lt;b&gt;Include subdirectories&lt;/b&gt; = scan all nested folders too&#x0a;&lt;b&gt;Multiple folders&lt;/b&gt; = compare files across different locations&#x0a;&#x0a;&lt;h&gt;How it works:&lt;/h&gt; Files are compared by &lt;b&gt;content hash (SHA-256)&lt;/b&gt;, not by name. Two files with different names but identical content are detected as duplicates." />
                     </StackPanel>
-                </Border>
-            </Grid>
-        </GroupBox>
+                </Grid>
+            </GroupBox>
+
+            <!-- Right: Exclude Folders -->
+            <GroupBox Grid.Column="1" Header="Exclude Folders" Padding="8" Margin="2,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Input + add -->
+                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Text="{Binding NewExcludeFolderName, UpdateSourceTrigger=PropertyChanged}"
+                                 Padding="6,4" FontSize="11" VerticalContentAlignment="Center"
+                                 helpers:TextBoxEnterKeyBehavior.Command="{Binding AddExcludeFolderCommand}" />
+                        <Button Grid.Column="1" Content="+ Add" Command="{Binding AddExcludeFolderCommand}"
+                                Padding="8,4" Margin="6,0,0,0" FontSize="11" Cursor="Hand"
+                                FontWeight="SemiBold" Foreground="#E65100" />
+                        <ToggleButton Grid.Column="2" Style="{StaticResource HelpButtonStyle}" Margin="6,0,0,0"
+                                      Tag="&lt;h&gt;EXCLUDE FOLDER NAMES&lt;/h&gt;&#x0a;Skip folders with these names during scanning.&#x0a;&#x0a;Matching is by &lt;b&gt;folder name only&lt;/b&gt; (not full path), case-insensitive.&#x0a;Any subfolder matching the name is skipped entirely.&#x0a;&#x0a;&lt;h&gt;Common examples:&lt;/h&gt;&#x0a;&lt;b&gt;node_modules&lt;/b&gt; — JavaScript dependencies&#x0a;&lt;b&gt;.git&lt;/b&gt; — Git internals&#x0a;&lt;b&gt;bin&lt;/b&gt; / &lt;b&gt;obj&lt;/b&gt; — Build output&#x0a;&lt;b&gt;__pycache__&lt;/b&gt; — Python cache" />
+                    </Grid>
+
+                    <!-- Exclude folder chips -->
+                    <ItemsControl Grid.Row="1" ItemsSource="{Binding ExcludeFolderNames}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border CornerRadius="3" Padding="6,2" Margin="0,0,6,4">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#FFE0B2" />
+                                            <Setter Property="Opacity" Value="1" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                    <Setter Property="Background" Value="#EEEEEE" />
+                                                    <Setter Property="Opacity" Value="0.6" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel Orientation="Horizontal">
+                                        <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
+                                                  Margin="0,0,4,0" Cursor="Hand"
+                                                  ToolTip="Enable or disable this exclusion temporarily" />
+                                        <TextBlock Text="{Binding Value}" VerticalAlignment="Center"
+                                                   FontSize="11" Foreground="#BF360C" FontWeight="SemiBold" />
+                                        <Button Content="✕"
+                                                Command="{Binding DataContext.RemoveExcludeFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"
+                                                Padding="2,0" Margin="6,0,0,0"
+                                                FontSize="9" Foreground="#C62828" Cursor="Hand"
+                                                Background="Transparent" BorderThickness="0" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </GroupBox>
+        </Grid>
 
         <!-- Row 1: Feature Tabs -->
         <TabControl Grid.Row="1" Margin="4,0,4,4">
