@@ -82,6 +82,9 @@ public class MainViewModel : ViewModelBase
     private bool _isFolderSearching;
     private string _folderSearchStatus = string.Empty;
     private int _folderSearchCount;
+    private int _selectedFolderCount;
+    private bool _areAllFoldersSelected;
+    private string _folderMoveTargetPath = string.Empty;
     private TimeSpan _lastCpuTime;
     private DateTime _lastCheckTime;
     private DuplicateGroup? _selectedDuplicateGroup;
@@ -615,8 +618,18 @@ public class MainViewModel : ViewModelBase
         // Folder control
         AddFolderSearchPatternCommand = new RelayCommand(_ => AddFolderSearchPattern(), _ => !string.IsNullOrWhiteSpace(NewFolderSearchPattern));
         RemoveFolderSearchPatternCommand = new RelayCommand(p => RemoveFolderSearchPattern(p));
+        MoveSearchPatternUpCommand = new RelayCommand(p => MoveSearchPatternUp(p as FolderSearchPattern));
+        MoveSearchPatternDownCommand = new RelayCommand(p => MoveSearchPatternDown(p as FolderSearchPattern));
         SearchFoldersCommand = new RelayCommand(_ => SearchFoldersAsync(), _ => !IsFolderSearching && FolderSearchPatterns.Any(t => t.IsEnabled) && TargetPaths.Any(t => t.IsEnabled));
         OpenFolderLocationCommand = new RelayCommand(p => OpenFolderLocation(p as string));
+
+        // Folder actions
+        SelectAllFoldersCommand = new RelayCommand(_ => SelectAllFolders(), _ => FolderSearchResults.Count > 0);
+        ClearFolderSelectionCommand = new RelayCommand(_ => ClearFolderSelection(), _ => SelectedFolderCount > 0);
+        DeleteSelectedFoldersCommand = new RelayCommand(_ => DeleteSelectedFolders(), _ => SelectedFolderCount > 0);
+        MoveSelectedFoldersCommand = new RelayCommand(_ => MoveSelectedFolders(), _ => SelectedFolderCount > 0 && !string.IsNullOrWhiteSpace(FolderMoveTargetPath));
+        BrowseFolderMoveTargetCommand = new RelayCommand(_ => BrowseFolderMoveTarget());
+
         DeleteSelectedFilesCommand = new RelayCommand(_ => DeleteSelectedFiles(), _ => SelectedFileCount > 0);
         MoveSelectedFilesCommand = new RelayCommand(_ => MoveSelectedFiles(), _ => SelectedFileCount > 0);
         BrowseMoveTargetCommand = new RelayCommand(_ => BrowseMoveTarget());
@@ -1089,17 +1102,70 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _folderSearchCount, value);
     }
 
+    /// <summary>Gets or sets the number of selected folder results.</summary>
+    public int SelectedFolderCount
+    {
+        get => _selectedFolderCount;
+        set => SetProperty(ref _selectedFolderCount, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether all folder results are selected (header checkbox).</summary>
+    public bool AreAllFoldersSelected
+    {
+        get => _areAllFoldersSelected;
+        set
+        {
+            if (SetProperty(ref _areAllFoldersSelected, value))
+            {
+                foreach (var result in FolderSearchResults)
+                {
+                    result.IsSelected = value;
+                }
+            }
+        }
+    }
+
+    /// <summary>Gets or sets the move target path for folder actions.</summary>
+    public string FolderMoveTargetPath
+    {
+        get => _folderMoveTargetPath;
+        set => SetProperty(ref _folderMoveTargetPath, value);
+    }
+
     /// <summary>Gets the add folder search pattern command.</summary>
     public ICommand AddFolderSearchPatternCommand { get; }
 
     /// <summary>Gets the remove folder search pattern command.</summary>
     public ICommand RemoveFolderSearchPatternCommand { get; }
 
+    /// <summary>Gets the move search pattern up command.</summary>
+    public ICommand MoveSearchPatternUpCommand { get; }
+
+    /// <summary>Gets the move search pattern down command.</summary>
+    public ICommand MoveSearchPatternDownCommand { get; }
+
     /// <summary>Gets the search folders command.</summary>
     public ICommand SearchFoldersCommand { get; }
 
     /// <summary>Gets the open folder location command.</summary>
     public ICommand OpenFolderLocationCommand { get; }
+
+    // -- Folder action commands --
+
+    /// <summary>Gets the select all folder results command.</summary>
+    public ICommand SelectAllFoldersCommand { get; }
+
+    /// <summary>Gets the clear folder selection command.</summary>
+    public ICommand ClearFolderSelectionCommand { get; }
+
+    /// <summary>Gets the delete selected folders command.</summary>
+    public ICommand DeleteSelectedFoldersCommand { get; }
+
+    /// <summary>Gets the move selected folders command.</summary>
+    public ICommand MoveSelectedFoldersCommand { get; }
+
+    /// <summary>Gets the browse folder move target command.</summary>
+    public ICommand BrowseFolderMoveTargetCommand { get; }
 
     // -- Action commands --
 
@@ -1328,6 +1394,7 @@ public class MainViewModel : ViewModelBase
         }
 
         RefreshRulePriorities();
+        RefreshSearchPatternPriorities();
     }
 
     private bool CanScan() => !IsScanning && TargetPaths.Any(t => t.IsEnabled);
@@ -2167,6 +2234,7 @@ public class MainViewModel : ViewModelBase
         {
             FolderSearchPatterns.Add(new FolderSearchPattern { Pattern = pattern, MatchType = NewFolderSearchMatchType });
             NewFolderSearchPattern = string.Empty;
+            RefreshSearchPatternPriorities();
             SaveSettings();
         }
     }
@@ -2176,15 +2244,62 @@ public class MainViewModel : ViewModelBase
         if (param is FolderSearchPattern item)
         {
             FolderSearchPatterns.Remove(item);
+            RefreshSearchPatternPriorities();
             SaveSettings();
+        }
+    }
+
+    private void MoveSearchPatternUp(FolderSearchPattern? pattern)
+    {
+        if (pattern == null)
+        {
+            return;
+        }
+
+        var index = FolderSearchPatterns.IndexOf(pattern);
+        if (index > 0)
+        {
+            FolderSearchPatterns.Move(index, index - 1);
+            RefreshSearchPatternPriorities();
+            SaveSettings();
+        }
+    }
+
+    private void MoveSearchPatternDown(FolderSearchPattern? pattern)
+    {
+        if (pattern == null)
+        {
+            return;
+        }
+
+        var index = FolderSearchPatterns.IndexOf(pattern);
+        if (index >= 0 && index < FolderSearchPatterns.Count - 1)
+        {
+            FolderSearchPatterns.Move(index, index + 1);
+            RefreshSearchPatternPriorities();
+            SaveSettings();
+        }
+    }
+
+    private void RefreshSearchPatternPriorities()
+    {
+        for (var i = 0; i < FolderSearchPatterns.Count; i++)
+        {
+            FolderSearchPatterns[i].Priority = i + 1;
         }
     }
 
     private async void SearchFoldersAsync()
     {
         IsFolderSearching = true;
+        foreach (var r in FolderSearchResults)
+        {
+            r.PropertyChanged -= FolderResult_PropertyChanged;
+        }
+
         FolderSearchResults.Clear();
         FolderSearchCount = 0;
+        SelectedFolderCount = 0;
         FolderSearchStatus = "Searching folders...";
 
         var targetPaths = TargetPaths.Where(t => t.IsEnabled).Select(t => t.Value).ToList();
@@ -2213,10 +2328,12 @@ public class MainViewModel : ViewModelBase
 
             foreach (var result in results)
             {
+                result.PropertyChanged += FolderResult_PropertyChanged;
                 FolderSearchResults.Add(result);
             }
 
             FolderSearchCount = results.Count;
+            SelectedFolderCount = 0;
             FolderSearchStatus = $"Found {results.Count} folders matching {patterns.Count} patterns.";
         }
         catch (Exception ex)
@@ -2284,6 +2401,166 @@ public class MainViewModel : ViewModelBase
         if (!string.IsNullOrEmpty(path))
         {
             System.Diagnostics.Process.Start("explorer.exe", $"\"{path}\"");
+        }
+    }
+
+    // ── FOLDER ACTION METHODS ──
+    private void FolderResult_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(FolderSearchResult.IsSelected))
+        {
+            SelectedFolderCount = FolderSearchResults.Count(r => r.IsSelected);
+            _areAllFoldersSelected = FolderSearchResults.Count > 0 && FolderSearchResults.All(r => r.IsSelected);
+            OnPropertyChanged(nameof(AreAllFoldersSelected));
+        }
+    }
+
+    private void SelectAllFolders()
+    {
+        foreach (var result in FolderSearchResults)
+        {
+            result.IsSelected = true;
+        }
+    }
+
+    private void ClearFolderSelection()
+    {
+        foreach (var result in FolderSearchResults)
+        {
+            result.IsSelected = false;
+        }
+    }
+
+    private void DeleteSelectedFolders()
+    {
+        var foldersToDelete = FolderSearchResults.Where(r => r.IsSelected).ToList();
+        if (foldersToDelete.Count == 0)
+        {
+            return;
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            $"Delete {foldersToDelete.Count} selected folders and all their contents?\nThis cannot be undone.",
+            "Confirm Delete Folders",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        int deleted = 0;
+        foreach (var folder in foldersToDelete)
+        {
+            try
+            {
+                if (Directory.Exists(folder.FullPath))
+                {
+                    Directory.Delete(folder.FullPath, recursive: true);
+                    deleted++;
+                }
+
+                folder.PropertyChanged -= FolderResult_PropertyChanged;
+                FolderSearchResults.Remove(folder);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Failed to delete '{folder.FullPath}':\n{ex.Message}",
+                    "Delete Error",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        FolderSearchCount = FolderSearchResults.Count;
+        SelectedFolderCount = FolderSearchResults.Count(r => r.IsSelected);
+        FolderSearchStatus = $"Deleted {deleted} folders.";
+    }
+
+    private void MoveSelectedFolders()
+    {
+        var foldersToMove = FolderSearchResults.Where(r => r.IsSelected).ToList();
+        if (foldersToMove.Count == 0 || string.IsNullOrWhiteSpace(FolderMoveTargetPath))
+        {
+            return;
+        }
+
+        if (!Directory.Exists(FolderMoveTargetPath))
+        {
+            try
+            {
+                Directory.CreateDirectory(FolderMoveTargetPath);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Cannot create target folder:\n{ex.Message}",
+                    "Move Error",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+                return;
+            }
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            $"Move {foldersToMove.Count} selected folders to:\n{FolderMoveTargetPath}?",
+            "Confirm Move Folders",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        int moved = 0;
+        foreach (var folder in foldersToMove)
+        {
+            try
+            {
+                var destPath = Path.Combine(FolderMoveTargetPath, folder.FolderName);
+                if (Directory.Exists(destPath))
+                {
+                    System.Windows.MessageBox.Show(
+                        $"Destination already exists: '{destPath}'\nSkipping.",
+                        "Move Warning",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Warning);
+                    continue;
+                }
+
+                Directory.Move(folder.FullPath, destPath);
+                moved++;
+                folder.PropertyChanged -= FolderResult_PropertyChanged;
+                FolderSearchResults.Remove(folder);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Failed to move '{folder.FullPath}':\n{ex.Message}",
+                    "Move Error",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        FolderSearchCount = FolderSearchResults.Count;
+        SelectedFolderCount = FolderSearchResults.Count(r => r.IsSelected);
+        FolderSearchStatus = $"Moved {moved} folders to {FolderMoveTargetPath}.";
+    }
+
+    private void BrowseFolderMoveTarget()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "Select target folder for move",
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            FolderMoveTargetPath = dialog.FolderName;
         }
     }
 

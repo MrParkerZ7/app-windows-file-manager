@@ -21,6 +21,7 @@ public class FolderSearchPattern : INotifyPropertyChanged
 {
     private bool _isEnabled = true;
     private FolderMatchType _matchType = FolderMatchType.Match;
+    private int _priority;
 
     /// <inheritdoc/>
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -29,6 +30,23 @@ public class FolderSearchPattern : INotifyPropertyChanged
     /// Gets or sets the pattern text to search for.
     /// </summary>
     public string Pattern { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the display priority (1-based order).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int Priority
+    {
+        get => _priority;
+        set
+        {
+            if (_priority != value)
+            {
+                _priority = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Priority)));
+            }
+        }
+    }
 
     /// <summary>
     /// Gets or sets a value indicating whether this pattern is enabled.

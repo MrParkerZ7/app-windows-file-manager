@@ -254,7 +254,290 @@
         <!-- Row 1: Feature Tabs -->
         <TabControl Grid.Row="1" Margin="4,0,4,4">
 
-            <!-- Tab 1: Scan for Duplicates -->
+            <!-- Tab 1: Folder Control -->
+            <TabItem Header="Folder Control">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Row 0: Search patterns (configurable chip list) -->
+                    <Border Grid.Row="0" Background="#E8EAF6" CornerRadius="4" Padding="8,2" Margin="0,0,0,4"
+                            BorderBrush="#C5CAE9" BorderThickness="1">
+                        <StackPanel>
+                            <WrapPanel Orientation="Horizontal">
+                                <!-- Label -->
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                                    <TextBlock Text="Folder Search" FontSize="11" FontWeight="Bold" Foreground="#1565C0"
+                                               VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                                  Tag="&lt;h&gt;FOLDER SEARCH&lt;/h&gt;&#x0a;Search for folders by name across all target paths.&#x0a;&#x0a;&lt;b&gt;How it works:&lt;/b&gt;&#x0a;1. Add folder name patterns to the list&#x0a;2. Click &lt;b&gt;Search&lt;/b&gt; to find matching folders&#x0a;3. Results show all folders whose name contains the pattern&#x0a;&#x0a;&lt;b&gt;Scope:&lt;/b&gt; Uses the same Target Folders and Exclude Folders from the main tab.&#x0a;&lt;b&gt;Matching:&lt;/b&gt; Case-insensitive contains match.&#x0a;&#x0a;&lt;h&gt;Tip:&lt;/h&gt; Enable/disable patterns to quickly compare different search sets." />
+                                    <Border Width="1" Background="#C5CAE9" Margin="8,2" />
+                                </StackPanel>
+
+                                <!-- Input -->
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                                    <ComboBox ItemsSource="{Binding FolderMatchTypes}"
+                                              SelectedItem="{Binding NewFolderSearchMatchType}"
+                                              FontSize="11" Width="80" VerticalContentAlignment="Center"
+                                              Margin="0,0,4,0" />
+                                    <TextBlock Text="name:" FontWeight="SemiBold" FontSize="11"
+                                               Foreground="#333333" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <TextBox Text="{Binding NewFolderSearchPattern, UpdateSourceTrigger=PropertyChanged}"
+                                             Width="180" Padding="4,3" FontSize="11" VerticalContentAlignment="Center"
+                                             helpers:TextBoxEnterKeyBehavior.Command="{Binding AddFolderSearchPatternCommand}" />
+                                    <Button Content="+ Add" Command="{Binding AddFolderSearchPatternCommand}"
+                                            Padding="8,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
+                                            FontWeight="SemiBold" Foreground="#1565C0" />
+                                    <Border Width="1" Background="#C5CAE9" Margin="8,2" />
+                                </StackPanel>
+
+                                <!-- Search action + status -->
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                                    <Button Content="▶ Search" Command="{Binding SearchFoldersCommand}"
+                                            Padding="10,5" FontSize="12" Cursor="Hand"
+                                            FontWeight="Bold" Foreground="White"
+                                            BorderThickness="0">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Background" Value="#1565C0" />
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="SearchBorder" Background="{TemplateBinding Background}"
+                                                                    CornerRadius="4" Padding="{TemplateBinding Padding}"
+                                                                    BorderThickness="0">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="SearchBorder" Property="Background" Value="#0D47A1" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter TargetName="SearchBorder" Property="Background" Value="#B0BEC5" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <ToggleButton Style="{StaticResource HelpButtonStyle}" Margin="6,0,0,0"
+                                                  Tag="&lt;h&gt;SEARCH&lt;/h&gt;&#x0a;Click &lt;b&gt;Search&lt;/b&gt; to find folders matching your patterns.&#x0a;&#x0a;&lt;b&gt;Requirements:&lt;/b&gt;&#x0a;• At least one &lt;b&gt;enabled&lt;/b&gt; search pattern in the list&#x0a;• At least one &lt;b&gt;enabled&lt;/b&gt; target folder (shared from main tab)&#x0a;&#x0a;&lt;b&gt;How it works:&lt;/b&gt;&#x0a;1. Scans all enabled target folders recursively&#x0a;2. Matches folder names against enabled patterns&#x0a;3. Skips excluded folders (shared from main tab)&#x0a;4. Results appear in the list below&#x0a;&#x0a;&lt;h&gt;Then:&lt;/h&gt; Use the &lt;b&gt;Action&lt;/b&gt; section to select and delete/move found folders." />
+                                    <ProgressBar Width="80" Height="4" Margin="8,0,0,0"
+                                                 IsIndeterminate="{Binding IsFolderSearching}"
+                                                 Visibility="{Binding IsFolderSearching, Converter={StaticResource BoolToVisibility}}"
+                                                 VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding FolderSearchStatus}" FontSize="10" Foreground="#666666"
+                                               VerticalAlignment="Center" Margin="8,0,0,0" />
+                                </StackPanel>
+                            </WrapPanel>
+
+                            <!-- Search pattern chips -->
+                            <ItemsControl ItemsSource="{Binding FolderSearchPatterns}" Margin="0,4,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="3" Padding="6,3" Margin="0,0,6,4">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#C5CAE9" />
+                                                    <Setter Property="BorderBrush" Value="#7986CB" />
+                                                    <Setter Property="BorderThickness" Value="1" />
+                                                    <Setter Property="Opacity" Value="1" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                            <Setter Property="Background" Value="#EEEEEE" />
+                                                            <Setter Property="BorderBrush" Value="#D0D0D0" />
+                                                            <Setter Property="Opacity" Value="0.6" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
+                                                          Margin="0,0,4,0" Cursor="Hand"
+                                                          ToolTip="Enable or disable this search pattern" />
+                                                <!-- Priority number -->
+                                                <Border CornerRadius="3" Padding="5,1" Margin="0,0,4,0"
+                                                        VerticalAlignment="Center" Width="20">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="#424242" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                                    <Setter Property="Background" Value="#BDBDBD" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding Priority}" FontSize="9" FontWeight="Bold"
+                                                               Foreground="White" HorizontalAlignment="Center" />
+                                                </Border>
+                                                <!-- Move up/down -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,4,0" VerticalAlignment="Center">
+                                                    <Button Command="{Binding DataContext.MoveSearchPatternUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}" Cursor="Hand" ToolTip="Move up (higher priority)">
+                                                        <Button.Template>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="UpBorder" Background="#E0E0E0" CornerRadius="2,0,0,2"
+                                                                        Padding="3,1" BorderThickness="0">
+                                                                    <TextBlock Text="▲" FontSize="8" Foreground="#555555"
+                                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="UpBorder" Property="Background" Value="#1565C0" />
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Button.Template>
+                                                    </Button>
+                                                    <Button Command="{Binding DataContext.MoveSearchPatternDownCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}" Cursor="Hand" ToolTip="Move down (lower priority)">
+                                                        <Button.Template>
+                                                            <ControlTemplate TargetType="Button">
+                                                                <Border x:Name="DownBorder" Background="#E0E0E0" CornerRadius="0,2,2,0"
+                                                                        Padding="3,1" BorderThickness="0">
+                                                                    <TextBlock Text="▼" FontSize="8" Foreground="#555555"
+                                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="DownBorder" Property="Background" Value="#1565C0" />
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Button.Template>
+                                                    </Button>
+                                                </StackPanel>
+                                                <!-- Match type badge -->
+                                                <ComboBox ItemsSource="{Binding DataContext.FolderMatchTypes, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          SelectedItem="{Binding MatchType}"
+                                                          FontSize="9" Width="68" VerticalContentAlignment="Center"
+                                                          Margin="0,0,4,0" />
+                                                <!-- Editable pattern text -->
+                                                <TextBox Text="{Binding Pattern, UpdateSourceTrigger=LostFocus}"
+                                                         MinWidth="80" Padding="4,2" FontSize="11"
+                                                         FontWeight="SemiBold" Foreground="#283593"
+                                                         VerticalContentAlignment="Center"
+                                                         BorderThickness="0,0,0,1.5" BorderBrush="#7986CB"
+                                                         Background="Transparent"
+                                                         ToolTip="Click to edit pattern" />
+                                                <Button Content="✕"
+                                                        Command="{Binding DataContext.RemoveFolderSearchPatternCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"
+                                                        Padding="2,0" Margin="6,0,0,0"
+                                                        FontSize="9" Foreground="#C62828" Cursor="Hand"
+                                                        Background="Transparent" BorderThickness="0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Row 1: Action Section (inline) -->
+                    <Border Grid.Row="1" Background="#FFF3E0" CornerRadius="4" Padding="8,2" Margin="0,0,0,4">
+                        <WrapPanel Orientation="Horizontal">
+                            <!-- Label + count -->
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                                <TextBlock Text="Action" FontSize="11" FontWeight="Bold" Foreground="#E65100"
+                                           VerticalAlignment="Center" Margin="0,0,4,0" />
+                                <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                              Tag="&lt;h&gt;FOLDER ACTIONS&lt;/h&gt;&#x0a;Perform actions on selected folders from search results.&#x0a;&#x0a;&lt;b&gt;Delete&lt;/b&gt;&#x0a;Permanently removes selected folders and all their contents.&#x0a;&lt;w&gt;No Recycle Bin — cannot be undone.&lt;/w&gt;&#x0a;&#x0a;&lt;b&gt;Move&lt;/b&gt;&#x0a;Relocates selected folders to the target path.&#x0a;Folder names are preserved. Original folders are removed.&#x0a;&#x0a;&lt;w&gt;Both actions affect ALL checked folders.&lt;/w&gt; Double-check your selection before proceeding." />
+                                <TextBlock FontSize="10" Foreground="#555555" Margin="8,0,0,0"
+                                           VerticalAlignment="Center">
+                                    <TextBlock.Text>
+                                        <Binding Path="SelectedFolderCount" StringFormat="{}{0} folders selected" />
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <Border Width="1" Background="#E0D0A0" Margin="8,2" />
+                            </StackPanel>
+
+                            <!-- Quick Select buttons -->
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                                <Button Content="✓ All" Command="{Binding SelectAllFoldersCommand}"
+                                        Padding="6,3" Margin="0,0,4,0" FontSize="11" Cursor="Hand"
+                                        ToolTip="Select all folders in results" />
+                                <Button Content="✕ Clear" Command="{Binding ClearFolderSelectionCommand}"
+                                        Padding="6,3" FontSize="11" Cursor="Hand"
+                                        Foreground="#888888"
+                                        ToolTip="Clear all folder selections" />
+                                <Border Width="1" Background="#E0D0A0" Margin="8,2" />
+                            </StackPanel>
+
+                            <!-- Delete / Move -->
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                                <Button Content="🗑 Delete" Command="{Binding DeleteSelectedFoldersCommand}"
+                                        Padding="6,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
+                                        Foreground="#C62828"
+                                        ToolTip="Delete all selected folders" />
+                                <Border Width="1" Background="#E0D0A0" Margin="8,2" />
+                                <TextBlock Text="Move to:" FontSize="11" FontWeight="SemiBold"
+                                           VerticalAlignment="Center" Foreground="#E65100" Margin="0,0,4,0" />
+                                <TextBox Text="{Binding FolderMoveTargetPath, UpdateSourceTrigger=PropertyChanged}"
+                                         Width="200" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
+                                <Button Content="..." Command="{Binding BrowseFolderMoveTargetCommand}"
+                                        Padding="6,3" Margin="4,0,4,0" FontSize="11" Cursor="Hand"
+                                        ToolTip="Browse for target folder" />
+                                <Button Content="📁 Move" Command="{Binding MoveSelectedFoldersCommand}"
+                                        Padding="6,3" FontSize="11" Cursor="Hand"
+                                        Foreground="#1565C0"
+                                        ToolTip="Move all selected folders to the target folder" />
+                            </StackPanel>
+                        </WrapPanel>
+                    </Border>
+
+                    <!-- Row 2: Results list -->
+                    <ListView Grid.Row="2" ItemsSource="{Binding FolderSearchResults}"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              BorderThickness="1" BorderBrush="#E0E0E0">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Width="30">
+                                    <GridViewColumn.HeaderTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding DataContext.AreAllFoldersSelected, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                      Cursor="Hand" ToolTip="Select / deselect all" />
+                                        </DataTemplate>
+                                    </GridViewColumn.HeaderTemplate>
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding IsSelected}" Cursor="Hand" />
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Folder Name" Width="200"
+                                                DisplayMemberBinding="{Binding FolderName}" />
+                                <GridViewColumn Header="Full Path" Width="600">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock>
+                                                <Hyperlink Command="{Binding DataContext.OpenFolderLocationCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                           CommandParameter="{Binding FullPath}"
+                                                           Foreground="#1565C0">
+                                                    <Run Text="{Binding FullPath, Mode=OneWay}" />
+                                                </Hyperlink>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
+            </TabItem>
+
+            <!-- Tab 2: Scan for Duplicates -->
             <TabItem Header="Scan for Duplicates">
     <Grid Margin="8">
         <Grid.ColumnDefinitions>
@@ -1190,159 +1473,6 @@
         </Grid>
 
     </Grid>
-            </TabItem>
-
-            <!-- Tab 2: Folder Control -->
-            <TabItem Header="Folder Control">
-                <Grid Margin="8">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <!-- Row 0: Search patterns (configurable chip list) -->
-                    <Border Grid.Row="0" Background="#E8EAF6" CornerRadius="4" Padding="8,2" Margin="0,0,0,4"
-                            BorderBrush="#C5CAE9" BorderThickness="1">
-                        <StackPanel>
-                            <WrapPanel Orientation="Horizontal">
-                                <!-- Label -->
-                                <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                                    <TextBlock Text="Folder Search" FontSize="11" FontWeight="Bold" Foreground="#1565C0"
-                                               VerticalAlignment="Center" Margin="0,0,4,0" />
-                                    <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                                  Tag="&lt;h&gt;FOLDER SEARCH&lt;/h&gt;&#x0a;Search for folders by name across all target paths.&#x0a;&#x0a;&lt;b&gt;How it works:&lt;/b&gt;&#x0a;1. Add folder name patterns to the list&#x0a;2. Click &lt;b&gt;Search&lt;/b&gt; to find matching folders&#x0a;3. Results show all folders whose name contains the pattern&#x0a;&#x0a;&lt;b&gt;Scope:&lt;/b&gt; Uses the same Target Folders and Exclude Folders from the main tab.&#x0a;&lt;b&gt;Matching:&lt;/b&gt; Case-insensitive contains match.&#x0a;&#x0a;&lt;h&gt;Tip:&lt;/h&gt; Enable/disable patterns to quickly compare different search sets." />
-                                    <Border Width="1" Background="#C5CAE9" Margin="8,2" />
-                                </StackPanel>
-
-                                <!-- Input -->
-                                <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                                    <ComboBox ItemsSource="{Binding FolderMatchTypes}"
-                                              SelectedItem="{Binding NewFolderSearchMatchType}"
-                                              FontSize="11" Width="80" VerticalContentAlignment="Center"
-                                              Margin="0,0,4,0" />
-                                    <TextBlock Text="name:" FontWeight="SemiBold" FontSize="11"
-                                               Foreground="#333333" VerticalAlignment="Center" Margin="0,0,4,0" />
-                                    <TextBox Text="{Binding NewFolderSearchPattern, UpdateSourceTrigger=PropertyChanged}"
-                                             Width="180" Padding="4,3" FontSize="11" VerticalContentAlignment="Center"
-                                             helpers:TextBoxEnterKeyBehavior.Command="{Binding AddFolderSearchPatternCommand}" />
-                                    <Button Content="+ Add" Command="{Binding AddFolderSearchPatternCommand}"
-                                            Padding="8,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
-                                            FontWeight="SemiBold" Foreground="#1565C0" />
-                                    <Border Width="1" Background="#C5CAE9" Margin="8,2" />
-                                </StackPanel>
-
-                                <!-- Search action -->
-                                <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                                    <Button Content="▶ Search" Command="{Binding SearchFoldersCommand}"
-                                            Padding="8,3" FontSize="11" Cursor="Hand"
-                                            FontWeight="SemiBold" Foreground="White" Background="#1565C0"
-                                            BorderThickness="0" />
-                                </StackPanel>
-                            </WrapPanel>
-
-                            <!-- Search pattern chips -->
-                            <ItemsControl ItemsSource="{Binding FolderSearchPatterns}" Margin="0,4,0,0">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border CornerRadius="3" Padding="6,3" Margin="0,0,6,4">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="#C5CAE9" />
-                                                    <Setter Property="BorderBrush" Value="#7986CB" />
-                                                    <Setter Property="BorderThickness" Value="1" />
-                                                    <Setter Property="Opacity" Value="1" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsEnabled}" Value="False">
-                                                            <Setter Property="Background" Value="#EEEEEE" />
-                                                            <Setter Property="BorderBrush" Value="#D0D0D0" />
-                                                            <Setter Property="Opacity" Value="0.6" />
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <StackPanel Orientation="Horizontal">
-                                                <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
-                                                          Margin="0,0,4,0" Cursor="Hand"
-                                                          ToolTip="Enable or disable this search pattern" />
-                                                <!-- Match type badge -->
-                                                <ComboBox ItemsSource="{Binding DataContext.FolderMatchTypes, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                          SelectedItem="{Binding MatchType}"
-                                                          FontSize="9" Width="68" VerticalContentAlignment="Center"
-                                                          Margin="0,0,4,0" />
-                                                <!-- Editable pattern text -->
-                                                <TextBox Text="{Binding Pattern, UpdateSourceTrigger=LostFocus}"
-                                                         MinWidth="80" Padding="4,2" FontSize="11"
-                                                         FontWeight="SemiBold" Foreground="#283593"
-                                                         VerticalContentAlignment="Center"
-                                                         BorderThickness="0,0,0,1.5" BorderBrush="#7986CB"
-                                                         Background="Transparent"
-                                                         ToolTip="Click to edit pattern" />
-                                                <Button Content="✕"
-                                                        Command="{Binding DataContext.RemoveFolderSearchPatternCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                        CommandParameter="{Binding}"
-                                                        Padding="2,0" Margin="6,0,0,0"
-                                                        FontSize="9" Foreground="#C62828" Cursor="Hand"
-                                                        Background="Transparent" BorderThickness="0" />
-                                            </StackPanel>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Row 1: Status -->
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,4">
-                        <TextBlock Text="{Binding FolderSearchStatus}" FontSize="11" Foreground="#666666"
-                                   VerticalAlignment="Center" />
-                        <ProgressBar Width="100" Height="4" Margin="8,0,0,0"
-                                     IsIndeterminate="{Binding IsFolderSearching}"
-                                     Visibility="{Binding IsFolderSearching, Converter={StaticResource BoolToVisibility}}" />
-                    </StackPanel>
-
-                    <!-- Row 2: Result count -->
-                    <TextBlock Grid.Row="2" FontSize="11" Foreground="#888888" Margin="0,0,0,4">
-                        <TextBlock.Text>
-                            <Binding Path="FolderSearchCount" StringFormat="{}{0} folders found" />
-                        </TextBlock.Text>
-                    </TextBlock>
-
-                    <!-- Row 3: Results list -->
-                    <ListView Grid.Row="3" ItemsSource="{Binding FolderSearchResults}"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                              BorderThickness="1" BorderBrush="#E0E0E0">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="Folder Name" Width="200"
-                                                DisplayMemberBinding="{Binding FolderName}" />
-                                <GridViewColumn Header="Matched" Width="120"
-                                                DisplayMemberBinding="{Binding MatchedPattern}" />
-                                <GridViewColumn Header="Parent Path" Width="400"
-                                                DisplayMemberBinding="{Binding ParentPath}" />
-                                <GridViewColumn Header="Full Path" Width="500">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock>
-                                                <Hyperlink Command="{Binding DataContext.OpenFolderLocationCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                           CommandParameter="{Binding FullPath}"
-                                                           Foreground="#1565C0">
-                                                    <Run Text="{Binding FullPath, Mode=OneWay}" />
-                                                </Hyperlink>
-                                            </TextBlock>
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
-                </Grid>
             </TabItem>
 
         </TabControl>
