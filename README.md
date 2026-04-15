@@ -15,11 +15,17 @@ A .NET 8 WPF desktop application for managing files on Windows. The first featur
 - **Minimum Duplicate Count** — Only show groups with N+ duplicates
 - **Sort Options** — Sort by size, file count, wasted space, type, or name (ascending/descending)
 
+### Custom Rules
+- **Pattern-based rules** — Create rules with Contains (select) or Ignore (deselect) actions on filename or filepath
+- **Regex support** — Toggle regex mode per rule with `.*` indicator and contextual help link to regex101.com
+- **Case sensitivity** — Toggle ignore-case per rule with `Aa` indicator
+- **Enable/Disable toggle** — Checkbox on each rule for quick temporary on/off without deleting
+- **Priority ordering** — Move rules up/down, highest priority match wins
+- **Bulk controls** — Enable All / Disable All / Apply buttons
+- **Persistent rules** — Rules saved to settings.json on every change, survive app restarts
+
 ### Selection & Actions
 - **Smart Selection** — Select all, select newer, select older duplicates (keep best copy unselected)
-- **Contain Filters** — Select files by filename or filepath pattern, with independent regex and ignore-case toggles
-- **Ignore Filters** — Deselect files by filename or filepath pattern, with independent regex and ignore-case toggles
-- **Collapsible Filter Sections** — Contain and Ignore filter panels collapse/expand independently
 - **Move Files** — Move selected duplicates to a target folder (browse or type path)
 - **Delete Files** — Delete individual files or all files in a group with confirmation
 - **Open in Explorer** — Open file location in Windows Explorer
@@ -35,8 +41,14 @@ A .NET 8 WPF desktop application for managing files on Windows. The first featur
 - **Analytics Dashboard** — Total files, duplicates found, groups, scan time, wasted space %, top extensions, size distribution
 - **Resource Monitor** — Live CPU, memory, and thread count display
 
+### UX Features
+- **Contextual Help** — `?` buttons with rich popup explanations for complex features, including clickable links to external docs (e.g., regex101.com)
+- **Window State Persistence** — Remembers window position, size, and maximized state across sessions with multi-monitor fallback
+- **Inline Responsive Layout** — Filter, rules, and action bars use WrapPanel — wraps to multiple rows on narrow windows
+- **Enable/Disable Toggles** — Target paths and exclude folders have checkboxes for temporary on/off without removing
+
 ### General
-- **Settings Persistence** — All preferences saved to `%APPDATA%/WindowsFileManager/settings.json` — target folders, filters, sort options, filter text, regex/ignore-case toggles, section visibility
+- **Settings Persistence** — All preferences saved on every change to `%APPDATA%/WindowsFileManager/settings.json` — target folders, filters, rules, sort options, window state
 - **Cancellation Support** — Cancel long-running scans at any time
 - **Progress Reporting** — Live file count with throttled UI updates (every 100 files)
 
@@ -86,6 +98,7 @@ WindowsFileManager/
 │   │   │   ├── ScanOptions.cs             # Scan configuration (paths, filters)
 │   │   │   ├── ScanResult.cs              # Scan output with statistics
 │   │   │   ├── ScanAnalytics.cs           # Computed analytics, extensions, size buckets
+│   │   │   ├── FilterRule.cs              # Dynamic filter rule with enable/disable
 │   │   │   └── AppSettings.cs             # Persisted user preferences
 │   │   └── Services/
 │   │       └── IFileSystemService.cs      # File system abstraction
@@ -103,7 +116,9 @@ WindowsFileManager/
 │   └── WindowsFileManager/               # WPF UI layer (depends on all modules)
 │       ├── ViewModels/
 │       │   ├── ViewModelBase.cs           # INotifyPropertyChanged base
-│       │   └── MainViewModel.cs           # Main window state + commands
+│       │   ├── MainViewModel.cs           # Main window state + commands
+│       │   ├── ExtensionFilter.cs         # File type filter toggle
+│       │   └── ToggleItem.cs              # Enable/disable wrapper for paths & exclusions
 │       ├── Views/
 │       │   ├── MainWindow.xaml            # UI layout
 │       │   └── MainWindow.xaml.cs         # Window code-behind
@@ -112,13 +127,14 @@ WindowsFileManager/
 │           ├── Converters.cs              # Bool/Visibility, Percent/Width converters
 │           ├── FileTypeIconConverter.cs   # File extension → category icon converter
 │           ├── MiniPreviewConverter.cs    # File path → thumbnail (Shell + direct load)
+│           ├── FormattedTextBehavior.cs   # Rich text markup parser (<b>,<h>,<w>,<link>)
 │           └── TextBoxEnterKeyBehavior.cs # Enter key attached behavior
 │
 ├── tests/
-│   └── WindowsFileManager.Tests/          # Unit tests (91 tests, 100% line coverage)
-│       ├── Models/                        # Core model tests
-│       ├── Services/                      # Application service tests with Moq
-│       └── Helpers/                       # UI helper tests
+│   └── WindowsFileManager.Tests/          # Unit tests (105 tests, 100% line coverage)
+│       ├── Models/                        # Core model tests (AppSettings, FilterRule, etc.)
+│       ├── Services/                      # Application service tests with Moq (Scanner, Settings round-trip)
+│       └── Helpers/                       # UI helper tests (Converters, RelayCommand)
 │
 ├── Directory.Build.props                  # Shared analyzers (StyleCop, .NET Analyzers)
 ├── .editorconfig                          # Code style rules
@@ -162,7 +178,7 @@ All file system operations go through `IFileSystemService`, allowing complete mo
 ## Testing
 
 ```bash
-# Run all 91 tests with coverage report
+# Run all 105 tests with coverage report
 dotnet test --collect:"XPlat Code Coverage" \
   --settings tests/WindowsFileManager.Tests/coverlet.runsettings
 

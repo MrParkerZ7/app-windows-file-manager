@@ -123,11 +123,26 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="#E8EAF6" CornerRadius="3" Padding="6,3" Margin="0,0,6,4">
+                            <Border CornerRadius="3" Padding="6,3" Margin="0,0,6,4">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="#E8EAF6" />
+                                        <Setter Property="Opacity" Value="1" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                <Setter Property="Background" Value="#EEEEEE" />
+                                                <Setter Property="Opacity" Value="0.6" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding}" VerticalAlignment="Center"
+                                    <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
+                                              Margin="0,0,4,0" Cursor="Hand"
+                                              ToolTip="Enable or disable this path temporarily" />
+                                    <TextBlock Text="{Binding Value}" VerticalAlignment="Center"
                                                FontSize="11" Foreground="#333333"
-                                               ToolTip="{Binding}" />
+                                               ToolTip="{Binding Value}" />
                                     <Button Content="✕"
                                             Command="{Binding DataContext.RemoveFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding}"
@@ -175,9 +190,24 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#FFE0B2" CornerRadius="3" Padding="6,2" Margin="0,2,6,2">
+                                    <Border CornerRadius="3" Padding="6,2" Margin="0,2,6,2">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#FFE0B2" />
+                                                <Setter Property="Opacity" Value="1" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                        <Setter Property="Background" Value="#EEEEEE" />
+                                                        <Setter Property="Opacity" Value="0.6" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
                                         <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding}" VerticalAlignment="Center"
+                                            <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
+                                                      Margin="0,0,4,0" Cursor="Hand"
+                                                      ToolTip="Enable or disable this exclusion temporarily" />
+                                            <TextBlock Text="{Binding Value}" VerticalAlignment="Center"
                                                        FontSize="11" Foreground="#BF360C" FontWeight="SemiBold" />
                                             <Button Content="✕"
                                                     Command="{Binding DataContext.RemoveExcludeFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -533,7 +563,7 @@
                         <WrapPanel Orientation="Horizontal">
                             <!-- Label -->
                             <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                                <TextBlock Text="Custom Rules" FontSize="11" FontWeight="Bold" Foreground="#2E7D32"
+                                <TextBlock Text="Custom Rules" FontSize="11" FontWeight="Bold" Foreground="#E65100"
                                            VerticalAlignment="Center" Margin="0,0,4,0" />
                                 <ToggleButton Style="{StaticResource HelpButtonStyle}"
                                               Tag="&lt;h&gt;CUSTOM FILTER RULES&lt;/h&gt;&#x0a;Build rules to find or ignore files by pattern.&#x0a;&#x0a;&lt;b&gt;Action:&lt;/b&gt; Contains (check matching files) or Ignore (uncheck matching files)&#x0a;&lt;b&gt;Target:&lt;/b&gt; Filename only or full Filepath&#x0a;&lt;b&gt;Pattern:&lt;/b&gt; Text to match against&#x0a;&lt;b&gt;Regex:&lt;/b&gt; Use regular expressions&#x0a;&lt;b&gt;Ignore Case:&lt;/b&gt; Case-insensitive matching&#x0a;&#x0a;&lt;h&gt;How it works:&lt;/h&gt;&#x0a;1. Set action, target, pattern, and options&#x0a;2. Click &lt;b&gt;+ Add&lt;/b&gt; to add the rule to the list&#x0a;3. Repeat to add more rules&#x0a;4. Click &lt;b&gt;Apply Rules&lt;/b&gt; to execute all rules&#x0a;&#x0a;&lt;w&gt;Ignore ALWAYS overrides Contains.&lt;/w&gt; If a file matches both, it stays unchecked." />
@@ -670,19 +700,24 @@
                                         Padding="8,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
                                         FontWeight="SemiBold" Foreground="#2E7D32"
                                         ToolTip="Add this rule to the list" />
+                                <Border Width="1" Background="#E0D0A0" Margin="8,2" />
                             </StackPanel>
 
-                            <!-- Apply / Clear -->
+                            <!-- All / None | Apply -->
                             <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                                <Border Width="1" Background="#E0D0A0" Margin="0,2,8,2" />
+                                <Button Content="✓ All" Command="{Binding EnableAllRulesCommand}"
+                                        Padding="6,3" FontSize="11" Cursor="Hand"
+                                        Foreground="#2E7D32"
+                                        ToolTip="Enable all rules" />
+                                <Button Content="✕ None" Command="{Binding DisableAllRulesCommand}"
+                                        Padding="6,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
+                                        Foreground="#888888"
+                                        ToolTip="Disable all rules" />
+                                <Border Width="1" Background="#E0D0A0" Margin="8,2" />
                                 <Button Content="▶ Apply" Command="{Binding ApplyFilterRulesCommand}"
                                         Padding="6,3" FontSize="11" Cursor="Hand"
                                         FontWeight="SemiBold" Foreground="#1565C0"
-                                        ToolTip="Apply all rules: Contains rules check files, Ignore rules uncheck files" />
-                                <Button Content="✕ Clear" Command="{Binding ClearAllRulesCommand}"
-                                        Padding="6,3" Margin="4,0,0,0" FontSize="11" Cursor="Hand"
-                                        Foreground="#888888"
-                                        ToolTip="Remove all filter rules" />
+                                        ToolTip="Apply all enabled rules" />
                             </StackPanel>
                         </WrapPanel>
 
@@ -698,21 +733,41 @@
                                     <Border Margin="0,0,6,4" Padding="6,3" CornerRadius="4">
                                         <Border.Style>
                                             <Style TargetType="Border">
-                                                <Setter Property="Background" Value="#C8E6C9" />
-                                                <Setter Property="BorderBrush" Value="#81C784" />
+                                                <Setter Property="Background" Value="#E3F2FD" />
+                                                <Setter Property="BorderBrush" Value="#42A5F5" />
                                                 <Setter Property="BorderThickness" Value="1" />
+                                                <Setter Property="Opacity" Value="1" />
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Action}" Value="Ignore">
-                                                        <Setter Property="Background" Value="#FFCDD2" />
-                                                        <Setter Property="BorderBrush" Value="#E57373" />
+                                                        <Setter Property="Background" Value="#E1F5FE" />
+                                                        <Setter Property="BorderBrush" Value="#29B6F6" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                        <Setter Property="Background" Value="#EEEEEE" />
+                                                        <Setter Property="BorderBrush" Value="#D0D0D0" />
+                                                        <Setter Property="Opacity" Value="0.6" />
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
                                         <StackPanel Orientation="Horizontal">
+                                            <!-- Enable/disable checkbox -->
+                                            <CheckBox IsChecked="{Binding IsEnabled}" VerticalAlignment="Center"
+                                                      Margin="0,0,4,0" Cursor="Hand"
+                                                      ToolTip="Enable or disable this rule temporarily" />
                                             <!-- Priority number -->
-                                            <Border Background="#424242" CornerRadius="3" Padding="5,1" Margin="0,0,4,0"
-                                                    VerticalAlignment="Center" MinWidth="20" HorizontalAlignment="Center">
+                                            <Border CornerRadius="3" Padding="5,1" Margin="0,0,4,0"
+                                                    VerticalAlignment="Center" Width="20">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#424242" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                                <Setter Property="Background" Value="#BDBDBD" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
                                                 <TextBlock Text="{Binding Priority}" FontSize="9" FontWeight="Bold"
                                                            Foreground="White" HorizontalAlignment="Center" />
                                             </Border>
@@ -753,8 +808,8 @@
                                                     </Button.Template>
                                                 </Button>
                                             </StackPanel>
-                                            <!-- Action badge -->
-                                            <Border CornerRadius="3" Padding="4,1" Margin="0,0,4,0" VerticalAlignment="Center">
+                                            <!-- Action badge (fixed width) -->
+                                            <Border CornerRadius="3" Padding="4,1" Margin="0,0,4,0" VerticalAlignment="Center" MinWidth="58">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="#2E7D32" />
@@ -765,7 +820,7 @@
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock FontSize="9" FontWeight="Bold" Foreground="White">
+                                                <TextBlock FontSize="9" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Text" Value="CONTAINS" />
@@ -778,9 +833,10 @@
                                                     </TextBlock.Style>
                                                 </TextBlock>
                                             </Border>
-                                            <!-- Target badge -->
-                                            <Border Background="#E3F2FD" CornerRadius="3" Padding="4,1" Margin="0,0,4,0" VerticalAlignment="Center">
-                                                <TextBlock FontSize="9" Foreground="#1565C0">
+                                            <!-- Target badge (fixed width) -->
+                                            <Border Background="#E3F2FD" CornerRadius="3" Padding="4,1" Margin="0,0,4,0"
+                                                    VerticalAlignment="Center" MinWidth="34">
+                                                <TextBlock FontSize="9" Foreground="#1565C0" HorizontalAlignment="Center">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Text" Value="Name" />
@@ -793,35 +849,101 @@
                                                     </TextBlock.Style>
                                                 </TextBlock>
                                             </Border>
-                                            <!-- Pattern text -->
-                                            <TextBlock Text="{Binding Pattern}" FontSize="11" FontWeight="SemiBold"
-                                                       VerticalAlignment="Center" Margin="0,0,2,0">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="#1B5E20" />
-                                                        <Setter Property="FontFamily" Value="Segoe UI" />
+                                            <!-- Pattern text (fixed width, underlined to distinguish from labels) -->
+                                            <Border Margin="0,0,2,0" VerticalAlignment="Center" MinWidth="80" MaxWidth="200"
+                                                    Padding="4,1" CornerRadius="2">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="BorderThickness" Value="0,0,0,1.5" />
+                                                        <Setter Property="BorderBrush" Value="#42A5F5" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding Action}" Value="Ignore">
-                                                                <Setter Property="Foreground" Value="#B71C1C" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding IsRegex}" Value="True">
-                                                                <Setter Property="FontFamily" Value="Consolas" />
+                                                                <Setter Property="BorderBrush" Value="#29B6F6" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                            <!-- Regex badge -->
-                                            <Border CornerRadius="3" Padding="4,1" Margin="2,0,0,0" VerticalAlignment="Center"
-                                                    Background="#E8EAF6" BorderBrush="#9FA8DA" BorderThickness="1"
-                                                    Visibility="{Binding IsRegex, Converter={StaticResource BoolToVisibility}}">
-                                                <TextBlock Text="Regex" FontSize="9" FontWeight="SemiBold" Foreground="#283593" />
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding Pattern}" FontSize="11" FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" ToolTip="{Binding Pattern}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#1B5E20" />
+                                                            <Setter Property="FontFamily" Value="Segoe UI" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Action}" Value="Ignore">
+                                                                    <Setter Property="Foreground" Value="#B71C1C" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsRegex}" Value="True">
+                                                                    <Setter Property="FontFamily" Value="Consolas" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                             </Border>
-                                            <!-- IgnoreCase badge -->
+                                            <!-- Regex badge (always visible, active/inactive style) -->
+                                            <Border CornerRadius="3" Padding="4,1" Margin="2,0,0,0" VerticalAlignment="Center"
+                                                    MinWidth="38">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#F0F0F0" />
+                                                        <Setter Property="BorderBrush" Value="#D0D0D0" />
+                                                        <Setter Property="BorderThickness" Value="1" />
+                                                        <Setter Property="Opacity" Value="0.5" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRegex}" Value="True">
+                                                                <Setter Property="Background" Value="#E8EAF6" />
+                                                                <Setter Property="BorderBrush" Value="#9FA8DA" />
+                                                                <Setter Property="Opacity" Value="1" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text=".*" FontSize="9" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                           FontFamily="Consolas">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#BBBBBB" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsRegex}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#283593" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                            <!-- IgnoreCase badge (always visible, active/inactive style) -->
                                             <Border CornerRadius="3" Padding="4,1" Margin="2,0,4,0" VerticalAlignment="Center"
-                                                    Background="#FFF3E0" BorderBrush="#FFB74D" BorderThickness="1"
-                                                    Visibility="{Binding IgnoreCase, Converter={StaticResource BoolToVisibility}}">
-                                                <TextBlock Text="IgnoreCase" FontSize="9" FontWeight="SemiBold" Foreground="#E65100" />
+                                                    MinWidth="28">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#F0F0F0" />
+                                                        <Setter Property="BorderBrush" Value="#D0D0D0" />
+                                                        <Setter Property="BorderThickness" Value="1" />
+                                                        <Setter Property="Opacity" Value="0.5" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IgnoreCase}" Value="True">
+                                                                <Setter Property="Background" Value="#FFF3E0" />
+                                                                <Setter Property="BorderBrush" Value="#FFB74D" />
+                                                                <Setter Property="Opacity" Value="1" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="Aa" FontSize="10" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                           FontFamily="Consolas">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#BBBBBB" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IgnoreCase}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#E65100" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                             </Border>
                                             <!-- Remove button -->
                                             <Button Command="{Binding DataContext.RemoveFilterRuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"

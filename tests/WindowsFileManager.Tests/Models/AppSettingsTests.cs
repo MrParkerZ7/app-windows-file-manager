@@ -16,6 +16,11 @@ public class AppSettingsTests
         settings.ExcludeFolderNames.Should().BeEmpty();
         settings.FilterRules.Should().BeEmpty();
         settings.MoveTargetPath.Should().BeEmpty();
+        settings.WindowLeft.Should().BeNull();
+        settings.WindowTop.Should().BeNull();
+        settings.WindowWidth.Should().BeNull();
+        settings.WindowHeight.Should().BeNull();
+        settings.IsMaximized.Should().BeFalse();
     }
 
     [Fact]

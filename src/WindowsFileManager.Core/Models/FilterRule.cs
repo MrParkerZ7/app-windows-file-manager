@@ -27,8 +27,13 @@ public enum FilterTarget
 /// <summary>
 /// A single dynamic filter rule for selecting or ignoring files.
 /// </summary>
-public class FilterRule
+public class FilterRule : System.ComponentModel.INotifyPropertyChanged
 {
+    private bool _isEnabled = true;
+
+    /// <inheritdoc/>
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+
     /// <summary>
     /// Gets or sets the priority (1 = highest). Display only, not serialized for ordering.
     /// </summary>
@@ -39,6 +44,22 @@ public class FilterRule
     /// Gets or sets the text pattern to match.
     /// </summary>
     public string Pattern { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this rule is enabled.
+    /// </summary>
+    public bool IsEnabled
+    {
+        get => _isEnabled;
+        set
+        {
+            if (_isEnabled != value)
+            {
+                _isEnabled = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsEnabled)));
+            }
+        }
+    }
 
     /// <summary>
     /// Gets or sets a value indicating whether to use regex matching.
@@ -63,6 +84,7 @@ public class FilterRule
     /// <summary>
     /// Gets a display summary of the rule.
     /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
     public string DisplaySummary
     {
         get

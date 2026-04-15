@@ -34,8 +34,14 @@ WindowsFileManager/
 │   │   └── Services/FileSystemService.cs
 │   └── WindowsFileManager/               # WPF UI (depends on all)
 │       ├── ViewModels/
+│       │   ├── MainViewModel.cs
+│       │   ├── ViewModelBase.cs
+│       │   ├── ExtensionFilter.cs
+│       │   └── ToggleItem.cs          # Enable/disable wrapper for paths & exclusions
 │       ├── Views/
 │       └── Helpers/
+│           ├── FormattedTextBehavior.cs  # Rich text markup parser (<b>,<h>,<w>,<link>)
+│           └── ...
 └── tests/
     └── WindowsFileManager.Tests/
         ├── Models/                # Core model tests
@@ -64,6 +70,9 @@ WindowsFileManager/
 - **Testing**: xUnit + Moq + FluentAssertions, AAA pattern
 - **Coverage exclusions**: Views, ViewModels, Infrastructure, generated code (via runsettings Include filter)
 - **Interface abstraction**: All I/O through `IFileSystemService` for mock-friendly testing
+- **ToggleItem pattern**: Target paths and exclude folders use `ToggleItem` wrapper (string + IsEnabled) for temporary enable/disable
+- **FilterRule INotifyPropertyChanged**: `FilterRule.IsEnabled` notifies UI for bulk enable/disable operations
+- **Save on change**: `SaveSettings()` called on every mutation (add/remove/reorder rules, paths, exclusions) — not just on window close
 
 ---
 
@@ -77,7 +86,7 @@ WindowsFileManager/
 - **Spec**: See `D:\Programing\claude-prompt-solution-architect\prompts\10-development\feature-common\CONTEXTUAL_HELP_BUTTON.md`
 
 ### Window State Persistence
-- **Saves on close**: window position, size, and maximized state to `settings.json` via `AppSettings`
+- **Saves on close**: window position, size, and maximized state to `settings.json` via `AppSettings` (also saved on every settings change)
 - **Restores on load**: `MainWindow.Loaded` reads settings, validates position is on-screen via `SystemParameters.VirtualScreen*`
 - **Fallback**: if saved position is off-screen (monitor unplugged/changed), defaults to `CenterScreen`
 - **Maximized**: uses `RestoreBounds` to save normal size even when closing maximized
@@ -106,4 +115,7 @@ WindowsFileManager/
 
 ## Project Notes
 
+- **[2026-04-15]** `Stop-Process -Force` kills the app without triggering `Window.Closing`, so settings were lost. Fixed by saving settings on every mutation, not just on close.
+- **[2026-04-15]** Filter UI refactored from collapsible panels to always-visible inline WrapPanel rows. No more expand/collapse toggles — everything visible at a glance, wraps responsively.
+- **[2026-04-15]** `FilterAction.Select` renamed to `FilterAction.Contains` for user clarity. Backward compatible with old settings (enum ordinal 0 unchanged).
 - **[2026-04-14]** `dotnet watch run` does NOT work for WPF apps (watch/hot-reload is web-only). Use `dotnet run` from `src/WindowsFileManager/` to launch the app during development.

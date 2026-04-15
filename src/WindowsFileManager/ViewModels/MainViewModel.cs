@@ -572,7 +572,7 @@ public class MainViewModel : ViewModelBase
         CancelCommand = new RelayCommand(_ => Cancel(), _ => IsScanning);
         AddFolderCommand = new RelayCommand(_ => AddFolder(), _ => !IsScanning);
         AddFolderByPathCommand = new RelayCommand(_ => AddFolderByPath(), _ => !IsScanning && !string.IsNullOrWhiteSpace(NewFolderPath));
-        RemoveFolderCommand = new RelayCommand(p => RemoveFolder(p as string), _ => !IsScanning);
+        RemoveFolderCommand = new RelayCommand(p => RemoveFolder(p), _ => !IsScanning);
         OpenFileLocationCommand = new RelayCommand(p => OpenFileLocation(p as string));
         DeleteFileCommand = new RelayCommand(p => DeleteFile(p as ScannedFile), _ => !IsScanning);
         DeleteAllInGroupCommand = new RelayCommand(p => DeleteAllInGroup(p as DuplicateGroup), _ => !IsScanning);
@@ -593,13 +593,15 @@ public class MainViewModel : ViewModelBase
         AddFilterRuleCommand = new RelayCommand(_ => AddFilterRule(), _ => !string.IsNullOrWhiteSpace(RulePatternText));
         RemoveFilterRuleCommand = new RelayCommand(p => RemoveFilterRule(p as FilterRule));
         ClearAllRulesCommand = new RelayCommand(_ => ClearAllRules(), _ => FilterRules.Count > 0);
+        EnableAllRulesCommand = new RelayCommand(_ => SetAllRulesEnabled(true), _ => FilterRules.Count > 0);
+        DisableAllRulesCommand = new RelayCommand(_ => SetAllRulesEnabled(false), _ => FilterRules.Count > 0);
         ApplyFilterRulesCommand = new RelayCommand(_ => ApplyFilterRules(), _ => DuplicateGroups.Count > 0);
         MoveFilterRuleUpCommand = new RelayCommand(p => MoveFilterRuleUp(p as FilterRule));
         MoveFilterRuleDownCommand = new RelayCommand(p => MoveFilterRuleDown(p as FilterRule));
 
         // Exclude folders
         AddExcludeFolderCommand = new RelayCommand(_ => AddExcludeFolder(), _ => !string.IsNullOrWhiteSpace(NewExcludeFolderName));
-        RemoveExcludeFolderCommand = new RelayCommand(p => RemoveExcludeFolder(p as string));
+        RemoveExcludeFolderCommand = new RelayCommand(p => RemoveExcludeFolder(p));
         DeleteSelectedFilesCommand = new RelayCommand(_ => DeleteSelectedFiles(), _ => SelectedFileCount > 0);
         MoveSelectedFilesCommand = new RelayCommand(_ => MoveSelectedFiles(), _ => SelectedFileCount > 0);
         BrowseMoveTargetCommand = new RelayCommand(_ => BrowseMoveTarget());
@@ -625,7 +627,7 @@ public class MainViewModel : ViewModelBase
     /// <summary>
     /// Gets the list of target folder paths.
     /// </summary>
-    public ObservableCollection<string> TargetPaths { get; } = new();
+    public ObservableCollection<ToggleItem> TargetPaths { get; } = new();
 
     /// <summary>
     /// Gets or sets the new folder path typed in the input box.
@@ -949,6 +951,12 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the clear all rules command.</summary>
     public ICommand ClearAllRulesCommand { get; }
 
+    /// <summary>Gets the enable all rules command.</summary>
+    public ICommand EnableAllRulesCommand { get; }
+
+    /// <summary>Gets the disable all rules command.</summary>
+    public ICommand DisableAllRulesCommand { get; }
+
     /// <summary>Gets the apply filter rules command.</summary>
     public ICommand ApplyFilterRulesCommand { get; }
 
@@ -1005,7 +1013,7 @@ public class MainViewModel : ViewModelBase
     // -- Exclude folders --
 
     /// <summary>Gets the exclude folder names collection.</summary>
-    public ObservableCollection<string> ExcludeFolderNames { get; } = new();
+    public ObservableCollection<ToggleItem> ExcludeFolderNames { get; } = new();
 
     /// <summary>Gets or sets the new exclude folder name input.</summary>
     public string NewExcludeFolderName
@@ -1194,7 +1202,7 @@ public class MainViewModel : ViewModelBase
     {
         var settings = new AppSettings
         {
-            TargetPaths = TargetPaths.ToList(),
+            TargetPaths = TargetPaths.Select(t => t.Value).ToList(),
             IncludeSubdirectories = IncludeSubdirectories,
             IsMiniPreview = IsMiniPreview,
             IsAutoPreview = IsAutoPreview,
@@ -1202,7 +1210,7 @@ public class MainViewModel : ViewModelBase
             SelectedSortOption = SelectedSortOption,
             Volume = MediaVolume,
             MoveTargetPath = MoveTargetPath,
-            ExcludeFolderNames = ExcludeFolderNames.ToList(),
+            ExcludeFolderNames = ExcludeFolderNames.Select(t => t.Value).ToList(),
             FilterRules = FilterRules.ToList(),
             WindowLeft = _windowLeft,
             WindowTop = _windowTop,
@@ -1227,12 +1235,12 @@ public class MainViewModel : ViewModelBase
 
         foreach (var path in settings.TargetPaths)
         {
-            TargetPaths.Add(path);
+            TargetPaths.Add(new ToggleItem(path));
         }
 
         foreach (var name in settings.ExcludeFolderNames)
         {
-            ExcludeFolderNames.Add(name);
+            ExcludeFolderNames.Add(new ToggleItem(name));
         }
 
         foreach (var rule in settings.FilterRules)
@@ -1243,7 +1251,7 @@ public class MainViewModel : ViewModelBase
         RefreshRulePriorities();
     }
 
-    private bool CanScan() => !IsScanning && TargetPaths.Count > 0;
+    private bool CanScan() => !IsScanning && TargetPaths.Any(t => t.IsEnabled);
 
     private async void ScanAsync()
     {
@@ -1262,9 +1270,9 @@ public class MainViewModel : ViewModelBase
         {
             var options = new ScanOptions
             {
-                TargetPaths = TargetPaths.ToList(),
+                TargetPaths = TargetPaths.Where(t => t.IsEnabled).Select(t => t.Value).ToList(),
                 IncludeSubdirectories = IncludeSubdirectories,
-                ExcludeFolderNames = ExcludeFolderNames.ToList(),
+                ExcludeFolderNames = ExcludeFolderNames.Where(t => t.IsEnabled).Select(t => t.Value).ToList(),
             };
 
             var result = await Task.Run(
@@ -1319,27 +1327,30 @@ public class MainViewModel : ViewModelBase
             Title = "Select folder to scan for duplicates",
         };
 
-        if (dialog.ShowDialog() == true && !TargetPaths.Contains(dialog.FolderName))
+        if (dialog.ShowDialog() == true && !TargetPaths.Any(t => t.Value == dialog.FolderName))
         {
-            TargetPaths.Add(dialog.FolderName);
+            TargetPaths.Add(new ToggleItem(dialog.FolderName));
+            SaveSettings();
         }
     }
 
     private void AddFolderByPath()
     {
         var path = NewFolderPath.Trim();
-        if (!string.IsNullOrEmpty(path) && !TargetPaths.Contains(path))
+        if (!string.IsNullOrEmpty(path) && !TargetPaths.Any(t => t.Value == path))
         {
-            TargetPaths.Add(path);
+            TargetPaths.Add(new ToggleItem(path));
             NewFolderPath = string.Empty;
+            SaveSettings();
         }
     }
 
-    private void RemoveFolder(string? path)
+    private void RemoveFolder(object? param)
     {
-        if (!string.IsNullOrEmpty(path))
+        if (param is ToggleItem item)
         {
-            TargetPaths.Remove(path);
+            TargetPaths.Remove(item);
+            SaveSettings();
         }
     }
 
@@ -1896,6 +1907,7 @@ public class MainViewModel : ViewModelBase
         RuleTarget = FilterTarget.Filename;
 
         StatusMessage = $"Added filter rule #{FilterRules.Count}: {FilterRules[^1].DisplaySummary}";
+        SaveSettings();
     }
 
     private void RemoveFilterRule(FilterRule? rule)
@@ -1905,6 +1917,7 @@ public class MainViewModel : ViewModelBase
             FilterRules.Remove(rule);
             RefreshRulePriorities();
             StatusMessage = "Removed filter rule.";
+            SaveSettings();
         }
     }
 
@@ -1920,6 +1933,7 @@ public class MainViewModel : ViewModelBase
         {
             FilterRules.Move(index, index - 1);
             RefreshRulePriorities();
+            SaveSettings();
         }
     }
 
@@ -1935,6 +1949,7 @@ public class MainViewModel : ViewModelBase
         {
             FilterRules.Move(index, index + 1);
             RefreshRulePriorities();
+            SaveSettings();
         }
     }
 
@@ -1964,9 +1979,14 @@ public class MainViewModel : ViewModelBase
         {
             foreach (var file in group.Files)
             {
-                // Find the highest-priority rule that matches this file
+                // Find the highest-priority enabled rule that matches this file
                 foreach (var rule in FilterRules)
                 {
+                    if (!rule.IsEnabled)
+                    {
+                        continue;
+                    }
+
                     var input = rule.Target == FilterTarget.Filename ? file.FileName : file.FilePath;
                     if (MatchesFilter(input, rule.Pattern, rule.IsRegex, rule.IgnoreCase))
                     {
@@ -1979,7 +1999,8 @@ public class MainViewModel : ViewModelBase
 
         RefreshSelectedFileCount();
         var selected = SelectedFileCount;
-        StatusMessage = $"Applied {FilterRules.Count} rules (priority order): {selected} files selected.";
+        var enabledCount = FilterRules.Count(r => r.IsEnabled);
+        StatusMessage = $"Applied {enabledCount}/{FilterRules.Count} rules (priority order): {selected} files selected.";
     }
 
     private static bool MatchesFilter(string input, string filter, bool useRegex, bool ignoreCase)
@@ -2023,23 +2044,39 @@ public class MainViewModel : ViewModelBase
         FilterRules.Clear();
         RefreshRulePriorities();
         StatusMessage = "All filter rules cleared.";
+        SaveSettings();
+    }
+
+    private void SetAllRulesEnabled(bool enabled)
+    {
+        foreach (var rule in FilterRules)
+        {
+            rule.IsEnabled = enabled;
+        }
+
+        StatusMessage = enabled
+            ? $"All {FilterRules.Count} rules enabled."
+            : $"All {FilterRules.Count} rules disabled.";
+        SaveSettings();
     }
 
     private void AddExcludeFolder()
     {
         var name = NewExcludeFolderName.Trim();
-        if (!string.IsNullOrEmpty(name) && !ExcludeFolderNames.Contains(name))
+        if (!string.IsNullOrEmpty(name) && !ExcludeFolderNames.Any(t => t.Value == name))
         {
-            ExcludeFolderNames.Add(name);
+            ExcludeFolderNames.Add(new ToggleItem(name));
             NewExcludeFolderName = string.Empty;
+            SaveSettings();
         }
     }
 
-    private void RemoveExcludeFolder(string? name)
+    private void RemoveExcludeFolder(object? param)
     {
-        if (!string.IsNullOrEmpty(name))
+        if (param is ToggleItem item)
         {
-            ExcludeFolderNames.Remove(name);
+            ExcludeFolderNames.Remove(item);
+            SaveSettings();
         }
     }
 
