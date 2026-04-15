@@ -93,6 +93,17 @@ WindowsFileManager/
 
 ---
 
+## Release Notes
+
+- **Format**: Keep a Changelog (`CHANGELOG.md`)
+- **Versioning**: Semantic Versioning (MAJOR.MINOR.PATCH)
+- **Auto-generate**: From conventional commits, review before commit
+- **Publish**: GitHub Releases on tag push
+- **Version files**: `src/WindowsFileManager/Package.appxmanifest` (Identity Version, 4-part: `x.y.z.0`)
+- **Spec**: See solution-architect `feature-common/RELEASE_NOTES.md`
+
+---
+
 ## Project Notes
 
 - **[2026-04-14]** `dotnet watch run` does NOT work for WPF apps (watch/hot-reload is web-only). Use `dotnet run` from `src/WindowsFileManager/` to launch the app during development.
