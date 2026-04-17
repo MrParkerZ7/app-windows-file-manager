@@ -15,38 +15,38 @@ public class FilterRuleTests
         rule.IsEnabled.Should().BeTrue();
         rule.IsRegex.Should().BeFalse();
         rule.IgnoreCase.Should().BeTrue();
-        rule.Action.Should().Be(FilterAction.Contains);
+        rule.Action.Should().Be(FilterAction.Include);
         rule.Target.Should().Be(FilterTarget.Filename);
     }
 
     [Fact]
-    public void DisplaySummary_ContainsWithFlags_ShouldFormat()
+    public void DisplaySummary_IncludeWithFlags_ShouldFormat()
     {
         var rule = new FilterRule
         {
             Pattern = "*.jpg",
-            Action = FilterAction.Contains,
+            Action = FilterAction.Include,
             Target = FilterTarget.Filename,
             IsRegex = true,
             IgnoreCase = true,
         };
 
-        rule.DisplaySummary.Should().Be("Contains | Filename | \"*.jpg\" [Regex, IgnoreCase]");
+        rule.DisplaySummary.Should().Be("Include | Filename | \"*.jpg\" [Regex, IgnoreCase]");
     }
 
     [Fact]
-    public void DisplaySummary_IgnoreNoFlags_ShouldFormat()
+    public void DisplaySummary_ExcludeNoFlags_ShouldFormat()
     {
         var rule = new FilterRule
         {
             Pattern = "backup",
-            Action = FilterAction.Ignore,
+            Action = FilterAction.Exclude,
             Target = FilterTarget.Filepath,
             IsRegex = false,
             IgnoreCase = false,
         };
 
-        rule.DisplaySummary.Should().Be("Ignore | Filepath | \"backup\"");
+        rule.DisplaySummary.Should().Be("Exclude | Filepath | \"backup\"");
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public class FilterRuleTests
             IsEnabled = false,
             IsRegex = true,
             IgnoreCase = false,
-            Action = FilterAction.Ignore,
+            Action = FilterAction.Exclude,
             Target = FilterTarget.Filepath,
         };
 
@@ -87,7 +87,7 @@ public class FilterRuleTests
         deserialized.IsEnabled.Should().BeFalse();
         deserialized.IsRegex.Should().BeTrue();
         deserialized.IgnoreCase.Should().BeFalse();
-        deserialized.Action.Should().Be(FilterAction.Ignore);
+        deserialized.Action.Should().Be(FilterAction.Exclude);
         deserialized.Target.Should().Be(FilterTarget.Filepath);
     }
 
@@ -107,6 +107,6 @@ public class FilterRuleTests
         var rule = JsonSerializer.Deserialize<FilterRule>(json)!;
 
         rule.Pattern.Should().Be("old");
-        rule.Action.Should().Be(FilterAction.Contains);
+        rule.Action.Should().Be(FilterAction.Include);
     }
 }

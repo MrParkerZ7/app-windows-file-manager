@@ -316,13 +316,14 @@
 
                                 <!-- Search action + status -->
                                 <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                                    <Button Content="▶ Search" Command="{Binding SearchFoldersCommand}"
+                                    <Button Command="{Binding SearchFoldersCommand}"
                                             Padding="10,5" FontSize="12" Cursor="Hand"
                                             FontWeight="Bold" Foreground="White"
                                             BorderThickness="0">
                                         <Button.Style>
                                             <Style TargetType="Button">
                                                 <Setter Property="Background" Value="#1565C0" />
+                                                <Setter Property="Content" Value="▶ Search" />
                                                 <Setter Property="Template">
                                                     <Setter.Value>
                                                         <ControlTemplate TargetType="Button">
@@ -342,6 +343,12 @@
                                                         </ControlTemplate>
                                                     </Setter.Value>
                                                 </Setter>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsFolderSearching}" Value="True">
+                                                        <Setter Property="Content" Value="⏳ Searching…" />
+                                                        <Setter Property="Background" Value="#90A4AE" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
                                             </Style>
                                         </Button.Style>
                                     </Button>
@@ -356,12 +363,25 @@
                                             Padding="8,3" Margin="8,0,0,0" FontSize="11" Cursor="Hand"
                                             FontWeight="SemiBold" Foreground="#C62828"
                                             ToolTip="Clear search results and discovered subfolders" />
-                                    <ProgressBar Width="80" Height="4" Margin="8,0,0,0"
+                                    <ProgressBar Width="120" Height="8" Margin="8,0,0,0"
                                                  IsIndeterminate="{Binding IsFolderSearching}"
                                                  Visibility="{Binding IsFolderSearching, Converter={StaticResource BoolToVisibility}}"
-                                                 VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding FolderSearchStatus}" FontSize="10" Foreground="#666666"
-                                               VerticalAlignment="Center" Margin="8,0,0,0" />
+                                                 Foreground="#1565C0" Background="#E3F2FD"
+                                                 BorderThickness="0" VerticalAlignment="Center" />
+                                    <TextBlock FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#666666" />
+                                                <Setter Property="Text" Value="{Binding FolderSearchStatus}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsFolderSearching}" Value="True">
+                                                        <Setter Property="Foreground" Value="#1565C0" />
+                                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                     <TextBlock Text="{Binding FolderPatternAddStatus}" Foreground="#C62828"
                                                FontSize="11" FontStyle="Italic" VerticalAlignment="Center"
                                                Margin="12,0,0,0" />
@@ -1040,7 +1060,7 @@
                                                 <Setter Property="BorderThickness" Value="1" />
                                                 <Setter Property="Opacity" Value="1" />
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Action}" Value="Ignore">
+                                                    <DataTrigger Binding="{Binding Action}" Value="Exclude">
                                                         <Setter Property="Background" Value="#E1F5FE" />
                                                         <Setter Property="BorderBrush" Value="#29B6F6" />
                                                     </DataTrigger>
@@ -1291,7 +1311,11 @@
                             <Button Content="🗑 Delete" Command="{Binding DeleteSelectedFilesCommand}"
                                     Padding="6,3" Margin="0,0,0,0" FontSize="11" Cursor="Hand"
                                     Foreground="#C62828"
-                                    ToolTip="Delete all selected files" />
+                                    ToolTip="Send selected files to Recycle Bin" />
+                            <Button Content="↶" Command="{Binding UndoLastActionCommand}"
+                                    ToolTip="{Binding UndoTooltip}"
+                                    Padding="6,3" Margin="4,0,0,0" FontSize="13" Cursor="Hand"
+                                    FontWeight="Bold" Foreground="#388E3C" />
                             <Border Width="1" Background="#E0D0A0" Margin="8,2" />
                             <TextBlock Text="Move to:" FontSize="11" FontWeight="SemiBold"
                                        VerticalAlignment="Center" Foreground="#E65100" Margin="0,0,4,0" />
@@ -1657,11 +1681,42 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Action List -->
+                    <!-- Flatten Folders -->
                     <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
                             BorderBrush="#E0E0E0" BorderThickness="1">
                         <StackPanel>
-                            <TextBlock Text="Action List" FontSize="12" FontWeight="SemiBold"
+                            <TextBlock Text="Flatten Folders" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#C62828" Margin="0,0,0,4" />
+                            <TextBlock Text="Move every file from subdirectories up to the root of each selected folder. Empty subdirectories are removed. Name conflicts get (2), (3)."
+                                       FontSize="10" Foreground="#888888" TextWrapping="Wrap" Margin="0,0,0,8" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Content="📦 Move Files to Root"
+                                        Command="{Binding FlattenSelectedFoldersCommand}"
+                                        Padding="10,6" FontSize="11" Cursor="Hand"
+                                        Foreground="#C62828" FontWeight="SemiBold"
+                                        HorizontalAlignment="Stretch"
+                                        ToolTip="Move every file from subdirectories up to the root of each selected folder" />
+                                <Button Grid.Column="1" Content="↶" Command="{Binding UndoLastActionCommand}"
+                                        ToolTip="{Binding UndoTooltip}"
+                                        Padding="6,3" Margin="4,0,0,0" FontSize="13" Cursor="Hand"
+                                        FontWeight="Bold" Foreground="#388E3C" />
+                                <ToggleButton Grid.Column="2" Style="{StaticResource HelpButtonStyle}"
+                                              Margin="6,0,0,0"
+                                              Tag="&lt;h&gt;MOVE FILES TO ROOT&lt;/h&gt;&#x0a;Flattens every selected folder — moves all files from nested subdirectories up to the folder's own root.&#x0a;&#x0a;&lt;b&gt;Example:&lt;/b&gt;&#x0a;Before:&#x0a;  Photos\2024\Jan\a.jpg&#x0a;  Photos\2024\Feb\b.jpg&#x0a;  Photos\2024\Feb\sub\c.jpg&#x0a;&#x0a;After:&#x0a;  Photos\2024\a.jpg&#x0a;  Photos\2024\b.jpg&#x0a;  Photos\2024\c.jpg&#x0a;&#x0a;&lt;b&gt;What it does:&lt;/b&gt;&#x0a;• Recursively walks every selected folder&#x0a;• Moves each file (regardless of depth) to the root&#x0a;• Appends (2), (3) to resolve name conflicts&#x0a;• Deletes empty subdirectories afterward&#x0a;&#x0a;&lt;b&gt;Safety:&lt;/b&gt;&#x0a;• Confirmation dialog shows affected file count&#x0a;• Skips files that are locked or access-denied&#x0a;&#x0a;&lt;h&gt;Undo (↶) reverses the last action.&lt;/h&gt;" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Scan Action -->
+                    <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Scan Action" FontSize="12" FontWeight="SemiBold"
                                        Foreground="#C62828" Margin="0,0,0,4" />
                             <TextBlock Text="Click Scan Folders to discover subfolder names and file types inside selected result folders. Select items and clear them."
                                        FontSize="10" Foreground="#888888" TextWrapping="Wrap" Margin="0,0,0,8" />
@@ -1673,25 +1728,56 @@
                                       ToolTip="When checked, scan recursively into nested subfolders. When unchecked, only scan immediate children." />
 
                             <!-- Scan button + help -->
-                            <Grid Margin="0,0,0,8">
+                            <Grid Margin="0,0,0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Content="🔍 Scan Folders"
+                                <Button Grid.Column="0"
                                         Command="{Binding ScanSubfoldersCommand}"
                                         Padding="10,6" FontSize="11" Cursor="Hand"
                                         FontWeight="SemiBold" Foreground="#1565C0"
                                         HorizontalAlignment="Stretch"
-                                        ToolTip="Discover subfolders and file types inside the selected result folders" />
+                                        ToolTip="Discover subfolders and file types inside the selected result folders">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Content" Value="🔍 Scan Folders" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsScanningFolders}" Value="True">
+                                                    <Setter Property="Content" Value="⏳ Scanning…" />
+                                                    <Setter Property="Foreground" Value="#999999" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                                 <ToggleButton Grid.Column="1" Style="{StaticResource HelpButtonStyle}"
                                               Margin="6,0,0,0"
                                               Tag="&lt;h&gt;SCAN FOLDERS&lt;/h&gt;&#x0a;Inspects the folders you &lt;b&gt;checked&lt;/b&gt; in the Folder Search results and builds two inventories:&#x0a;&#x0a;&lt;b&gt;Subfolders&lt;/b&gt; — unique subfolder names, ranked by how many result folders contain them.&#x0a;Example: &lt;b&gt;node_modules (in 14 folders)&lt;/b&gt;&#x0a;&#x0a;&lt;b&gt;File Types&lt;/b&gt; — unique file extensions, ranked by total file count.&#x0a;Example: &lt;b&gt;.log (237 files)&lt;/b&gt;&#x0a;&#x0a;&lt;b&gt;Scope:&lt;/b&gt;&#x0a;• &lt;b&gt;Include Subdirectories&lt;/b&gt; off — only immediate children of each selected folder&#x0a;• &lt;b&gt;Include Subdirectories&lt;/b&gt; on — recurses through every nested level&#x0a;&#x0a;&lt;b&gt;Expand any item&lt;/b&gt; to see the exact paths it was found in.&#x0a;&#x0a;&lt;h&gt;Next:&lt;/h&gt; Check items then click &lt;b&gt;Clear Selected Subfolders&lt;/b&gt; or &lt;b&gt;Clear Selected Files&lt;/b&gt; to delete them." />
                             </Grid>
 
+                            <!-- Scan progress bar -->
+                            <ProgressBar Height="4" Margin="0,0,0,4"
+                                         IsIndeterminate="{Binding IsScanningFolders}"
+                                         Visibility="{Binding IsScanningFolders, Converter={StaticResource BoolToVisibility}}"
+                                         Foreground="#1565C0" Background="#E3F2FD"
+                                         BorderThickness="0" />
+
                             <!-- Scan status -->
-                            <TextBlock Text="{Binding ClearSubfolderStatus}" FontSize="10" Foreground="#666666"
-                                       TextWrapping="Wrap" Margin="0,0,0,8" />
+                            <TextBlock FontSize="10" TextWrapping="Wrap" Margin="0,0,0,8">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#666666" />
+                                        <Setter Property="Text" Value="{Binding ClearSubfolderStatus}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsScanningFolders}" Value="True">
+                                                <Setter Property="Foreground" Value="#1565C0" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
 
                             <!-- ── Subfolders section ── -->
                             <TextBlock Text="Subfolders" FontSize="11" FontWeight="SemiBold"
@@ -1805,10 +1891,11 @@
                                 </ItemsControl>
                             </Border>
 
-                            <!-- Clear subfolders button + help -->
+                            <!-- Clear subfolders button + undo + help -->
                             <Grid Margin="0,6,0,12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <Button Grid.Column="0" Content="🗑 Clear Selected Subfolders"
@@ -1817,9 +1904,13 @@
                                         Foreground="#C62828" FontWeight="SemiBold"
                                         HorizontalAlignment="Stretch"
                                         ToolTip="Delete checked subfolders from all selected result folders" />
-                                <ToggleButton Grid.Column="1" Style="{StaticResource HelpButtonStyle}"
+                                <Button Grid.Column="1" Content="↶" Command="{Binding UndoLastActionCommand}"
+                                        ToolTip="{Binding UndoTooltip}"
+                                        Padding="6,3" Margin="4,0,0,0" FontSize="13" Cursor="Hand"
+                                        FontWeight="Bold" Foreground="#388E3C" />
+                                <ToggleButton Grid.Column="2" Style="{StaticResource HelpButtonStyle}"
                                               Margin="6,0,0,0"
-                                              Tag="&lt;h&gt;CLEAR SELECTED SUBFOLDERS&lt;/h&gt;&#x0a;Deletes every checked subfolder from inside each selected result folder.&#x0a;&#x0a;&lt;b&gt;What it deletes:&lt;/b&gt;&#x0a;• The subfolder itself and all its contents (files and nested subfolders)&#x0a;&#x0a;&lt;b&gt;Common uses:&lt;/b&gt;&#x0a;• Clean &lt;b&gt;node_modules&lt;/b&gt; from many projects at once&#x0a;• Wipe &lt;b&gt;bin&lt;/b&gt;, &lt;b&gt;obj&lt;/b&gt;, &lt;b&gt;.vs&lt;/b&gt; from .NET solutions&#x0a;• Remove &lt;b&gt;__pycache__&lt;/b&gt; across Python repos&#x0a;&#x0a;&lt;b&gt;Safety:&lt;/b&gt;&#x0a;• Confirmation dialog shows affected folder count&#x0a;• Skips subfolders that are locked or access-denied&#x0a;&#x0a;&lt;h&gt;Permanent — not moved to Recycle Bin.&lt;/h&gt;" />
+                                              Tag="&lt;h&gt;CLEAR SELECTED SUBFOLDERS&lt;/h&gt;&#x0a;Sends every checked subfolder to the Recycle Bin from inside each selected result folder.&#x0a;&#x0a;&lt;b&gt;What it removes:&lt;/b&gt;&#x0a;• The subfolder itself and all its contents (files and nested subfolders)&#x0a;&#x0a;&lt;b&gt;Common uses:&lt;/b&gt;&#x0a;• Clean &lt;b&gt;node_modules&lt;/b&gt; from many projects at once&#x0a;• Wipe &lt;b&gt;bin&lt;/b&gt;, &lt;b&gt;obj&lt;/b&gt;, &lt;b&gt;.vs&lt;/b&gt; from .NET solutions&#x0a;• Remove &lt;b&gt;__pycache__&lt;/b&gt; across Python repos&#x0a;&#x0a;&lt;b&gt;Safety:&lt;/b&gt;&#x0a;• Confirmation dialog shows affected folder count&#x0a;• Skips subfolders that are locked or access-denied&#x0a;&#x0a;&lt;h&gt;Sent to Recycle Bin — restorable from there.&lt;/h&gt;" />
                             </Grid>
 
                             <!-- ── File Types section ── -->
@@ -1934,10 +2025,11 @@
                                 </ItemsControl>
                             </Border>
 
-                            <!-- Clear files button + help -->
+                            <!-- Clear files button + undo + help -->
                             <Grid Margin="0,6,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <Button Grid.Column="0" Content="🗑 Clear Selected Files"
@@ -1946,9 +2038,13 @@
                                         Foreground="#C62828" FontWeight="SemiBold"
                                         HorizontalAlignment="Stretch"
                                         ToolTip="Delete all files of checked types inside selected result folders" />
-                                <ToggleButton Grid.Column="1" Style="{StaticResource HelpButtonStyle}"
+                                <Button Grid.Column="1" Content="↶" Command="{Binding UndoLastActionCommand}"
+                                        ToolTip="{Binding UndoTooltip}"
+                                        Padding="6,3" Margin="4,0,0,0" FontSize="13" Cursor="Hand"
+                                        FontWeight="Bold" Foreground="#388E3C" />
+                                <ToggleButton Grid.Column="2" Style="{StaticResource HelpButtonStyle}"
                                               Margin="6,0,0,0"
-                                              Tag="&lt;h&gt;CLEAR SELECTED FILES&lt;/h&gt;&#x0a;Deletes every file whose extension is checked, from inside each selected result folder.&#x0a;&#x0a;&lt;b&gt;What it deletes:&lt;/b&gt;&#x0a;• Each matching file found during &lt;b&gt;Scan Folders&lt;/b&gt;&#x0a;• Only files — subfolders are never touched by this action&#x0a;&#x0a;&lt;b&gt;Scope:&lt;/b&gt;&#x0a;• Follows the same &lt;b&gt;Include Subdirectories&lt;/b&gt; setting used during the scan&#x0a;&#x0a;&lt;b&gt;Common uses:&lt;/b&gt;&#x0a;• Purge &lt;b&gt;.log&lt;/b&gt;, &lt;b&gt;.tmp&lt;/b&gt;, &lt;b&gt;.bak&lt;/b&gt; files across many folders&#x0a;• Remove stray &lt;b&gt;.DS_Store&lt;/b&gt; / &lt;b&gt;Thumbs.db&lt;/b&gt;&#x0a;&#x0a;&lt;b&gt;Safety:&lt;/b&gt;&#x0a;• Confirmation dialog shows exact file count + extension list&#x0a;• Skips files that are locked or access-denied&#x0a;&#x0a;&lt;h&gt;Permanent — not moved to Recycle Bin.&lt;/h&gt;" />
+                                              Tag="&lt;h&gt;CLEAR SELECTED FILES&lt;/h&gt;&#x0a;Sends every file whose extension is checked to the Recycle Bin, from inside each selected result folder.&#x0a;&#x0a;&lt;b&gt;What it removes:&lt;/b&gt;&#x0a;• Each matching file found during &lt;b&gt;Scan Folders&lt;/b&gt;&#x0a;• Only files — subfolders are never touched by this action&#x0a;&#x0a;&lt;b&gt;Scope:&lt;/b&gt;&#x0a;• Follows the same &lt;b&gt;Include Subdirectories&lt;/b&gt; setting used during the scan&#x0a;&#x0a;&lt;b&gt;Common uses:&lt;/b&gt;&#x0a;• Purge &lt;b&gt;.log&lt;/b&gt;, &lt;b&gt;.tmp&lt;/b&gt;, &lt;b&gt;.bak&lt;/b&gt; files across many folders&#x0a;• Remove stray &lt;b&gt;.DS_Store&lt;/b&gt; / &lt;b&gt;Thumbs.db&lt;/b&gt;&#x0a;&#x0a;&lt;b&gt;Safety:&lt;/b&gt;&#x0a;• Confirmation dialog shows exact file count + extension list&#x0a;• Skips files that are locked or access-denied&#x0a;&#x0a;&lt;h&gt;Sent to Recycle Bin — restorable from there.&lt;/h&gt;" />
                             </Grid>
                         </StackPanel>
                     </Border>

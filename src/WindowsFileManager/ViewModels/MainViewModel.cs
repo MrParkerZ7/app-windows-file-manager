@@ -12,6 +12,9 @@ using WindowsFileManager.Core.Models;
 using WindowsFileManager.Core.Services;
 using WindowsFileManager.Helpers;
 using WindowsFileManager.Infrastructure.Services;
+using VbFileSystem = Microsoft.VisualBasic.FileIO.FileSystem;
+using VbRecycleOption = Microsoft.VisualBasic.FileIO.RecycleOption;
+using VbUIOption = Microsoft.VisualBasic.FileIO.UIOption;
 
 namespace WindowsFileManager.ViewModels;
 
@@ -21,6 +24,8 @@ namespace WindowsFileManager.ViewModels;
 [ExcludeFromCodeCoverage]
 public class MainViewModel : ViewModelBase
 {
+    private const int MaxHistoryEntries = 30;
+
     private readonly DuplicateScannerService _scannerService;
     private readonly IFileSystemService _fileSystem;
     private readonly SettingsService _settingsService;
@@ -64,7 +69,7 @@ public class MainViewModel : ViewModelBase
     private string _rulePatternText = string.Empty;
     private bool _ruleIsRegex;
     private bool _ruleIgnoreCase = true;
-    private FilterAction _ruleAction = FilterAction.Contains;
+    private FilterAction _ruleAction = FilterAction.Include;
     private FilterTarget _ruleTarget = FilterTarget.Filename;
 
     // Window state
@@ -81,6 +86,7 @@ public class MainViewModel : ViewModelBase
     private string _newFolderSearchPattern = string.Empty;
     private FolderMatchType _newFolderSearchMatchType = FolderMatchType.Match;
     private bool _isFolderSearching;
+    private bool _isScanningFolders;
     private string _folderSearchStatus = string.Empty;
     private string _folderPatternAddStatus = string.Empty;
     private int _folderSearchCount;
@@ -629,12 +635,14 @@ public class MainViewModel : ViewModelBase
         SearchFoldersCommand = new RelayCommand(_ => SearchFoldersAsync(), _ => !IsFolderSearching && TargetPaths.Any(t => t.IsEnabled));
         StopFolderSearchCommand = new RelayCommand(_ => StopFolderSearch(), _ => IsFolderSearching);
         ClearFolderSearchCommand = new RelayCommand(_ => ClearFolderSearch(), _ => FolderSearchResults.Count > 0 || DiscoveredSubfolders.Count > 0 || DiscoveredFileTypes.Count > 0);
+        UndoLastActionCommand = new RelayCommand(_ => UndoLastAction(), _ => ActionHistory.Count > 0);
         OpenFolderLocationCommand = new RelayCommand(p => OpenFolderLocation(p as string));
 
         // Folder actions
         SelectAllFoldersCommand = new RelayCommand(_ => SelectAllFolders(), _ => FolderSearchResults.Count > 0);
         ClearFolderSelectionCommand = new RelayCommand(_ => ClearFolderSelection(), _ => SelectedFolderCount > 0);
-        ScanSubfoldersCommand = new RelayCommand(_ => ScanSubfolders(), _ => SelectedFolderCount > 0);
+        ScanSubfoldersCommand = new RelayCommand(_ => ScanSubfolders(), _ => SelectedFolderCount > 0 && !IsScanningFolders);
+        FlattenSelectedFoldersCommand = new RelayCommand(_ => FlattenSelectedFolders(), _ => SelectedFolderCount > 0);
         ClearSelectedSubfoldersCommand = new RelayCommand(_ => ClearSelectedSubfolders(), _ => DiscoveredSubfolders.Any(s => s.IsSelected));
         SelectAllSubfoldersCommand = new RelayCommand(_ => SelectAllSubfolders());
         ClearSubfolderSelectionCommand = new RelayCommand(_ => ClearSubfolderSelection());
@@ -1010,7 +1018,7 @@ public class MainViewModel : ViewModelBase
     public ObservableCollection<FilterRule> FilterRules { get; } = new();
 
     /// <summary>Gets the available filter actions for the rule builder.</summary>
-    public List<FilterAction> FilterActions { get; } = new() { FilterAction.Contains, FilterAction.Ignore };
+    public List<FilterAction> FilterActions { get; } = new() { FilterAction.Include, FilterAction.Exclude };
 
     /// <summary>Gets the available filter targets for the rule builder.</summary>
     public List<FilterTarget> FilterTargets { get; } = new() { FilterTarget.Filename, FilterTarget.Filepath };
@@ -1111,6 +1119,13 @@ public class MainViewModel : ViewModelBase
     {
         get => _isFolderSearching;
         set => SetProperty(ref _isFolderSearching, value);
+    }
+
+    /// <summary>Gets or sets a value indicating whether Scan Folders is running.</summary>
+    public bool IsScanningFolders
+    {
+        get => _isScanningFolders;
+        set => SetProperty(ref _isScanningFolders, value);
     }
 
     /// <summary>Gets or sets the folder search status message.</summary>
@@ -1229,6 +1244,17 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the clear folder search results command.</summary>
     public ICommand ClearFolderSearchCommand { get; }
 
+    /// <summary>Gets the undo last action command.</summary>
+    public ICommand UndoLastActionCommand { get; }
+
+    /// <summary>Gets the reversible action history (most recent first).</summary>
+    public ObservableCollection<ActionHistoryEntry> ActionHistory { get; } = new();
+
+    /// <summary>Gets the tooltip summary for the Undo button, or empty if nothing to undo.</summary>
+    public string UndoTooltip => ActionHistory.Count == 0
+        ? "Nothing to undo"
+        : $"Undo: {ActionHistory[0].Summary}";
+
     /// <summary>Gets the open folder location command.</summary>
     public ICommand OpenFolderLocationCommand { get; }
 
@@ -1242,6 +1268,9 @@ public class MainViewModel : ViewModelBase
 
     /// <summary>Gets the scan subfolders command.</summary>
     public ICommand ScanSubfoldersCommand { get; }
+
+    /// <summary>Gets the flatten (move all files to root) command.</summary>
+    public ICommand FlattenSelectedFoldersCommand { get; }
 
     /// <summary>Gets the clear selected subfolders command.</summary>
     public ICommand ClearSelectedSubfoldersCommand { get; }
@@ -1663,8 +1692,8 @@ public class MainViewModel : ViewModelBase
         }
 
         var result = System.Windows.MessageBox.Show(
-            $"Delete this file?\n\n{file.FilePath}",
-            "Confirm Delete",
+            $"Send this file to the Recycle Bin?\n\n{file.FilePath}",
+            "Confirm Recycle File",
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
 
@@ -1675,7 +1704,14 @@ public class MainViewModel : ViewModelBase
 
         try
         {
-            File.Delete(file.FilePath);
+            var recycledPath = file.FilePath;
+            RecycleFile(recycledPath);
+            PushHistory(new ActionHistoryEntry
+            {
+                Kind = ActionHistoryKind.RecycleFiles,
+                RecycledPaths = new List<string> { recycledPath },
+                Summary = $"Recycled {Path.GetFileName(recycledPath)}",
+            });
 
             foreach (var group in DuplicateGroups.ToList())
             {
@@ -1707,8 +1743,8 @@ public class MainViewModel : ViewModelBase
 
         var fileList = string.Join("\n", group.Files.Select(f => f.FilePath));
         var result = System.Windows.MessageBox.Show(
-            $"Delete ALL {group.Files.Count} files in this group?\n\n{fileList}",
-            "Confirm Delete All",
+            $"Send ALL {group.Files.Count} files in this group to the Recycle Bin?\n\n{fileList}",
+            "Confirm Recycle All",
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
 
@@ -1720,11 +1756,13 @@ public class MainViewModel : ViewModelBase
         var deleted = 0;
         var failed = 0;
 
+        var recycled = new List<string>();
         foreach (var file in group.Files.ToList())
         {
             try
             {
-                File.Delete(file.FilePath);
+                RecycleFile(file.FilePath);
+                recycled.Add(file.FilePath);
                 deleted++;
             }
             catch
@@ -1733,12 +1771,22 @@ public class MainViewModel : ViewModelBase
             }
         }
 
+        if (recycled.Count > 0)
+        {
+            PushHistory(new ActionHistoryEntry
+            {
+                Kind = ActionHistoryKind.RecycleFiles,
+                RecycledPaths = recycled,
+                Summary = $"Recycled {recycled.Count} duplicate files",
+            });
+        }
+
         DuplicateGroups.Remove(group);
         ClosePreview();
 
         StatusMessage = failed == 0
-            ? $"Deleted all {deleted} files in group"
-            : $"Deleted {deleted} files, {failed} failed";
+            ? $"Sent all {deleted} files in group to Recycle Bin"
+            : $"Sent {deleted} files to Recycle Bin, {failed} failed";
     }
 
     private void BuildExtensionFilters(IReadOnlyList<DuplicateGroup> groups)
@@ -2138,7 +2186,7 @@ public class MainViewModel : ViewModelBase
 
     private int ApplyIgnoreRules()
     {
-        var ignoreRules = FilterRules.Where(r => r.Action == FilterAction.Ignore).ToList();
+        var ignoreRules = FilterRules.Where(r => r.Action == FilterAction.Exclude).ToList();
         if (ignoreRules.Count == 0)
         {
             return 0;
@@ -2194,7 +2242,7 @@ public class MainViewModel : ViewModelBase
         RulePatternText = string.Empty;
         RuleIsRegex = false;
         RuleIgnoreCase = true;
-        RuleAction = FilterAction.Contains;
+        RuleAction = FilterAction.Include;
         RuleTarget = FilterTarget.Filename;
 
         StatusMessage = $"Added filter rule #{FilterRules.Count}: {FilterRules[^1].DisplaySummary}";
@@ -2281,7 +2329,7 @@ public class MainViewModel : ViewModelBase
                     var input = rule.Target == FilterTarget.Filename ? file.FileName : file.FilePath;
                     if (MatchesFilter(input, rule.Pattern, rule.IsRegex, rule.IgnoreCase))
                     {
-                        file.IsFileSelected = rule.Action == FilterAction.Contains;
+                        file.IsFileSelected = rule.Action == FilterAction.Include;
                         break; // highest priority match wins
                     }
                 }
@@ -2720,71 +2768,243 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    private async void FlattenSelectedFolders()
+    {
+        var selected = FolderSearchResults.Where(r => r.IsSelected).ToList();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        int totalFiles;
+        try
+        {
+            totalFiles = selected.Sum(f =>
+                CountFilesInSubdirectories(f.FullPath));
+        }
+        catch (Exception ex)
+        {
+            ClearSubfolderStatus = $"Error counting files: {ex.Message}";
+            return;
+        }
+
+        if (totalFiles == 0)
+        {
+            ClearSubfolderStatus = "No files in subdirectories to move.";
+            return;
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            $"Move {totalFiles} files from subdirectories up to the root of {selected.Count} selected folder(s)?\n\n• Name conflicts resolved with (2), (3), etc.\n• Empty subdirectories will be removed.\n• This cannot be undone.",
+            "Confirm Move Files to Root",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        ClearSubfolderStatus = "Moving files...";
+        var moves = new List<(string Source, string Destination)>();
+        var failed = await System.Threading.Tasks.Task.Run(() =>
+        {
+            int f = 0;
+            foreach (var folder in selected)
+            {
+                (int mv, int fl) = FlattenFolder(folder.FullPath, moves);
+                f += fl;
+            }
+
+            return f;
+        });
+
+        if (moves.Count > 0)
+        {
+            PushHistory(new ActionHistoryEntry
+            {
+                Kind = ActionHistoryKind.MoveFiles,
+                Moves = moves,
+                Summary = $"Moved {moves.Count} files to folder root",
+            });
+        }
+
+        ClearSubfolderStatus = failed == 0
+            ? $"Moved {moves.Count} files to root of {selected.Count} folder(s). Empty subdirectories removed."
+            : $"Moved {moves.Count} files. {failed} failed (access denied, in use, or name conflict).";
+    }
+
+    private int CountFilesInSubdirectories(string rootPath)
+    {
+        try
+        {
+            var allCount = _fileSystem.EnumerateFiles(rootPath, "*", SearchOption.AllDirectories).Count();
+            var topCount = _fileSystem.EnumerateFiles(rootPath, "*", SearchOption.TopDirectoryOnly).Count();
+            return allCount - topCount;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private (int moved, int failed) FlattenFolder(string rootPath, List<(string Source, string Destination)> moves)
+    {
+        int moved = 0, failed = 0;
+        List<string> files;
+        try
+        {
+            files = _fileSystem.EnumerateFiles(rootPath, "*", SearchOption.AllDirectories).ToList();
+        }
+        catch
+        {
+            return (0, 0);
+        }
+
+        foreach (var file in files)
+        {
+            var parent = Path.GetDirectoryName(file);
+            if (string.Equals(parent, rootPath, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var destPath = Path.Combine(rootPath, Path.GetFileName(file));
+            if (File.Exists(destPath))
+            {
+                var nameOnly = Path.GetFileNameWithoutExtension(destPath);
+                var ext = Path.GetExtension(destPath);
+                var i = 2;
+                do
+                {
+                    destPath = Path.Combine(rootPath, $"{nameOnly} ({i}){ext}");
+                    i++;
+                }
+                while (File.Exists(destPath));
+            }
+
+            try
+            {
+                File.Move(file, destPath);
+                moves.Add((file, destPath));
+                moved++;
+            }
+            catch
+            {
+                failed++;
+            }
+        }
+
+        // Remove empty subdirectories bottom-up
+        try
+        {
+            foreach (var sub in _fileSystem.EnumerateDirectories(rootPath).ToList())
+            {
+                RemoveEmptyDirectoriesRecursive(sub);
+            }
+        }
+        catch
+        {
+            // Directory enumeration failed — skip cleanup
+        }
+
+        return (moved, failed);
+    }
+
+    private void RemoveEmptyDirectoriesRecursive(string path)
+    {
+        try
+        {
+            foreach (var sub in _fileSystem.EnumerateDirectories(path).ToList())
+            {
+                RemoveEmptyDirectoriesRecursive(sub);
+            }
+
+            if (!_fileSystem.EnumerateFiles(path, "*", SearchOption.TopDirectoryOnly).Any() &&
+                !_fileSystem.EnumerateDirectories(path).Any())
+            {
+                Directory.Delete(path, recursive: false);
+            }
+        }
+        catch
+        {
+            // Skip on error
+        }
+    }
+
     private async void ScanSubfolders()
     {
+        IsScanningFolders = true;
         DiscoveredSubfolders.Clear();
         DiscoveredFileTypes.Clear();
         SubfolderFilter = string.Empty;
         FileTypeFilter = string.Empty;
         OnPropertyChanged(nameof(FilteredSubfolders));
         OnPropertyChanged(nameof(FilteredFileTypes));
-        ClearSubfolderStatus = "Scanning...";
+        ClearSubfolderStatus = "Scanning folders and files...";
 
         var selectedFolders = FolderSearchResults.Where(r => r.IsSelected).ToList();
         var includeNested = FolderSearchIncludeSubdirectories;
         var folderPaths = selectedFolders.Select(f => f.FullPath).ToList();
 
-        var (subfolderItems, fileTypeItems) = await Task.Run(() =>
+        try
         {
-            var subfolders = new Dictionary<string, List<SubfolderLocation>>(StringComparer.OrdinalIgnoreCase);
-            var fileTypes = new Dictionary<string, List<SubfolderLocation>>(StringComparer.OrdinalIgnoreCase);
-            foreach (var path in folderPaths)
+            var (subfolderItems, fileTypeItems) = await Task.Run(() =>
             {
-                ScanFolderContents(path, path, subfolders, fileTypes, includeNested);
+                var subfolders = new Dictionary<string, List<SubfolderLocation>>(StringComparer.OrdinalIgnoreCase);
+                var fileTypes = new Dictionary<string, List<SubfolderLocation>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var path in folderPaths)
+                {
+                    ScanFolderContents(path, path, subfolders, fileTypes, includeNested);
+                }
+
+                var subItems = subfolders
+                    .OrderByDescending(k => k.Value.Count)
+                    .ThenBy(k => k.Key)
+                    .Select(kvp => new SubfolderItem
+                    {
+                        Name = kvp.Key,
+                        Count = kvp.Value.Count,
+                        Locations = kvp.Value,
+                        TotalSize = kvp.Value.Sum(loc => GetDirectorySize(loc.FullPath)),
+                    })
+                    .ToList();
+
+                var typeItems = fileTypes
+                    .OrderByDescending(k => k.Value.Count)
+                    .ThenBy(k => k.Key)
+                    .Select(kvp => new SubfolderItem
+                    {
+                        Name = kvp.Key,
+                        Count = kvp.Value.Count,
+                        Locations = kvp.Value,
+                        TotalSize = kvp.Value.Sum(loc => SafeFileSize(loc.FullPath)),
+                    })
+                    .ToList();
+
+                return (subItems, typeItems);
+            }).ConfigureAwait(true);
+
+            foreach (var item in subfolderItems)
+            {
+                DiscoveredSubfolders.Add(item);
             }
 
-            var subItems = subfolders
-                .OrderByDescending(k => k.Value.Count)
-                .ThenBy(k => k.Key)
-                .Select(kvp => new SubfolderItem
-                {
-                    Name = kvp.Key,
-                    Count = kvp.Value.Count,
-                    Locations = kvp.Value,
-                    TotalSize = kvp.Value.Sum(loc => GetDirectorySize(loc.FullPath)),
-                })
-                .ToList();
+            foreach (var item in fileTypeItems)
+            {
+                DiscoveredFileTypes.Add(item);
+            }
 
-            var typeItems = fileTypes
-                .OrderByDescending(k => k.Value.Count)
-                .ThenBy(k => k.Key)
-                .Select(kvp => new SubfolderItem
-                {
-                    Name = kvp.Key,
-                    Count = kvp.Value.Count,
-                    Locations = kvp.Value,
-                    TotalSize = kvp.Value.Sum(loc => SafeFileSize(loc.FullPath)),
-                })
-                .ToList();
-
-            return (subItems, typeItems);
-        }).ConfigureAwait(true);
-
-        foreach (var item in subfolderItems)
-        {
-            DiscoveredSubfolders.Add(item);
+            OnPropertyChanged(nameof(FilteredSubfolders));
+            OnPropertyChanged(nameof(FilteredFileTypes));
+            var totalSubfolderSize = new SubfolderItem { TotalSize = DiscoveredSubfolders.Sum(s => s.TotalSize) }.TotalSizeDisplay;
+            var totalFileSize = new SubfolderItem { TotalSize = DiscoveredFileTypes.Sum(t => t.TotalSize) }.TotalSizeDisplay;
+            ClearSubfolderStatus = $"Found {DiscoveredSubfolders.Count} subfolder names ({totalSubfolderSize}) and {DiscoveredFileTypes.Count} file types ({totalFileSize}) across {selectedFolders.Count} folders.";
         }
-
-        foreach (var item in fileTypeItems)
+        finally
         {
-            DiscoveredFileTypes.Add(item);
+            IsScanningFolders = false;
         }
-
-        OnPropertyChanged(nameof(FilteredSubfolders));
-        OnPropertyChanged(nameof(FilteredFileTypes));
-        var totalSubfolderSize = new SubfolderItem { TotalSize = DiscoveredSubfolders.Sum(s => s.TotalSize) }.TotalSizeDisplay;
-        var totalFileSize = new SubfolderItem { TotalSize = DiscoveredFileTypes.Sum(t => t.TotalSize) }.TotalSizeDisplay;
-        ClearSubfolderStatus = $"Found {DiscoveredSubfolders.Count} subfolder names ({totalSubfolderSize}) and {DiscoveredFileTypes.Count} file types ({totalFileSize}) across {selectedFolders.Count} folders.";
     }
 
     private async System.Threading.Tasks.Task ComputeRestoredSizesAsync()
@@ -2800,6 +3020,149 @@ public class MainViewModel : ViewModelBase
                 r.TotalSize = size;
             }
         }
+    }
+
+    private static void RecycleFile(string path) =>
+        VbFileSystem.DeleteFile(path, VbUIOption.OnlyErrorDialogs, VbRecycleOption.SendToRecycleBin);
+
+    private static void RecycleDirectory(string path) =>
+        VbFileSystem.DeleteDirectory(path, VbUIOption.OnlyErrorDialogs, VbRecycleOption.SendToRecycleBin);
+
+    private void PushHistory(ActionHistoryEntry entry)
+    {
+        ActionHistory.Insert(0, entry);
+        while (ActionHistory.Count > MaxHistoryEntries)
+        {
+            ActionHistory.RemoveAt(ActionHistory.Count - 1);
+        }
+
+        OnPropertyChanged(nameof(UndoTooltip));
+    }
+
+    private void UndoLastAction()
+    {
+        if (ActionHistory.Count == 0)
+        {
+            return;
+        }
+
+        var entry = ActionHistory[0];
+        int restored = 0, failed = 0;
+
+        switch (entry.Kind)
+        {
+            case ActionHistoryKind.MoveFiles:
+                // Reverse moves in REVERSE order so later (2) conflict resolution unwinds correctly
+                for (int i = entry.Moves.Count - 1; i >= 0; i--)
+                {
+                    var (src, dst) = entry.Moves[i];
+                    try
+                    {
+                        if (File.Exists(src))
+                        {
+                            failed++;
+                            continue;
+                        }
+
+                        if (!Directory.Exists(Path.GetDirectoryName(src) ?? string.Empty))
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(src)!);
+                        }
+
+                        File.Move(dst, src);
+                        restored++;
+                    }
+                    catch
+                    {
+                        failed++;
+                    }
+                }
+
+                StatusMessage = failed == 0
+                    ? $"Undone: restored {restored} files to their original folders."
+                    : $"Undone: {restored} restored, {failed} failed (destination occupied or locked).";
+                break;
+
+            case ActionHistoryKind.RecycleFiles:
+            case ActionHistoryKind.RecycleDirectories:
+                restored = RestoreFromRecycleBin(entry.RecycledPaths);
+                failed = entry.RecycledPaths.Count - restored;
+                StatusMessage = failed == 0
+                    ? $"Undone: restored {restored} item(s) from Recycle Bin."
+                    : $"Undone: {restored} restored, {failed} not found in Recycle Bin (may have been emptied).";
+                break;
+        }
+
+        ActionHistory.RemoveAt(0);
+        OnPropertyChanged(nameof(UndoTooltip));
+    }
+
+    private static int RestoreFromRecycleBin(IEnumerable<string> originalPaths)
+    {
+        var wanted = new HashSet<string>(originalPaths, StringComparer.OrdinalIgnoreCase);
+        if (wanted.Count == 0)
+        {
+            return 0;
+        }
+
+        int restored = 0;
+        try
+        {
+            var shellType = Type.GetTypeFromProgID("Shell.Application");
+            if (shellType == null)
+            {
+                return 0;
+            }
+
+            dynamic? shell = Activator.CreateInstance(shellType);
+            if (shell == null)
+            {
+                return 0;
+            }
+
+            dynamic bin = shell.NameSpace(10); // ssfBITBUCKET
+            if (bin == null)
+            {
+                return 0;
+            }
+
+            dynamic items = bin.Items();
+            int count = items.Count;
+
+            // Iterate in reverse — invoking Restore removes the item from the bin
+            for (int i = count - 1; i >= 0; i--)
+            {
+                dynamic item = items.Item(i);
+                string? originalFolder = bin.GetDetailsOf(item, 1) as string; // column 1 = Original Location
+                string? name = item.Name as string;
+                if (string.IsNullOrEmpty(originalFolder) || string.IsNullOrEmpty(name))
+                {
+                    continue;
+                }
+
+                var fullOriginal = Path.Combine(originalFolder, name);
+                if (!wanted.Contains(fullOriginal))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    item.InvokeVerb("&Restore");
+                    restored++;
+                }
+                catch
+                {
+                    // Skip items that can't be restored
+                }
+            }
+        }
+        catch
+        {
+            // Shell unavailable or access denied
+        }
+
+        return restored;
     }
 
     private long SafeFileSize(string path)
@@ -2933,8 +3296,8 @@ public class MainViewModel : ViewModelBase
         }
 
         var result = System.Windows.MessageBox.Show(
-            $"Delete {totalToDelete} subfolders ({string.Join(", ", selectedSubs)}) from {selectedFolders.Count} selected folders?\n\nThis permanently removes these subfolders and all their contents.\nCannot be undone.",
-            "Confirm Clear Subfolders",
+            $"Send {totalToDelete} subfolders ({string.Join(", ", selectedSubs)}) from {selectedFolders.Count} selected folders to the Recycle Bin?\n\nYou can restore them from the Recycle Bin if needed.",
+            "Confirm Recycle Subfolders",
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
 
@@ -2945,6 +3308,7 @@ public class MainViewModel : ViewModelBase
 
         int deleted = 0;
         int failed = 0;
+        var recycled = new List<string>();
         foreach (var folder in selectedFolders)
         {
             foreach (var subName in selectedSubs)
@@ -2957,19 +3321,30 @@ public class MainViewModel : ViewModelBase
 
                 try
                 {
-                    Directory.Delete(subPath, recursive: true);
+                    RecycleDirectory(subPath);
+                    recycled.Add(subPath);
                     deleted++;
                 }
                 catch (Exception ex)
                 {
                     failed++;
                     System.Windows.MessageBox.Show(
-                        $"Failed to delete '{subPath}':\n{ex.Message}",
+                        $"Failed to recycle '{subPath}':\n{ex.Message}",
                         "Delete Error",
                         System.Windows.MessageBoxButton.OK,
                         System.Windows.MessageBoxImage.Error);
                 }
             }
+        }
+
+        if (recycled.Count > 0)
+        {
+            PushHistory(new ActionHistoryEntry
+            {
+                Kind = ActionHistoryKind.RecycleDirectories,
+                RecycledPaths = recycled,
+                Summary = $"Recycled {recycled.Count} subfolders ({string.Join(", ", selectedSubs)})",
+            });
         }
 
         ClearSubfolderStatus = $"Cleared {deleted} subfolders." + (failed > 0 ? $" {failed} failed." : string.Empty);
@@ -3022,8 +3397,8 @@ public class MainViewModel : ViewModelBase
         var typeList = string.Join(", ", selected.Select(t => t.Name));
 
         var result = System.Windows.MessageBox.Show(
-            $"Delete {totalFiles} files of type(s) [{typeList}] from the scanned folders?\n\nThis cannot be undone.",
-            "Confirm Delete Files",
+            $"Send {totalFiles} files of type(s) [{typeList}] to the Recycle Bin?\n\nYou can restore them from the Recycle Bin if needed.",
+            "Confirm Recycle Files",
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
 
@@ -3034,13 +3409,15 @@ public class MainViewModel : ViewModelBase
 
         var deleted = 0;
         var failed = 0;
+        var recycled = new List<string>();
         foreach (var type in selected)
         {
             foreach (var loc in type.Locations)
             {
                 try
                 {
-                    File.Delete(loc.FullPath);
+                    RecycleFile(loc.FullPath);
+                    recycled.Add(loc.FullPath);
                     deleted++;
                 }
                 catch
@@ -3050,9 +3427,20 @@ public class MainViewModel : ViewModelBase
             }
         }
 
+        if (recycled.Count > 0)
+        {
+            var recycledTypeList = string.Join(", ", selected.Select(t => t.Name));
+            PushHistory(new ActionHistoryEntry
+            {
+                Kind = ActionHistoryKind.RecycleFiles,
+                RecycledPaths = recycled,
+                Summary = $"Recycled {recycled.Count} files ({recycledTypeList})",
+            });
+        }
+
         ClearSubfolderStatus = failed == 0
-            ? $"Deleted {deleted} files."
-            : $"Deleted {deleted} files. {failed} failed (access denied or in use).";
+            ? $"Sent {deleted} files to Recycle Bin."
+            : $"Sent {deleted} files to Recycle Bin. {failed} failed (access denied or in use).";
 
         ScanSubfolders();
     }
@@ -3070,8 +3458,8 @@ public class MainViewModel : ViewModelBase
         }
 
         var result = System.Windows.MessageBox.Show(
-            $"Delete {filesToDelete.Count} selected files?\nThis cannot be undone.",
-            "Confirm Delete",
+            $"Send {filesToDelete.Count} selected files to the Recycle Bin?",
+            "Confirm Recycle",
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
 
@@ -3083,11 +3471,13 @@ public class MainViewModel : ViewModelBase
         var deleted = 0;
         var failed = 0;
 
+        var recycled = new List<string>();
         foreach (var item in filesToDelete)
         {
             try
             {
-                File.Delete(item.File.FilePath);
+                RecycleFile(item.File.FilePath);
+                recycled.Add(item.File.FilePath);
                 item.Group.Files.Remove(item.File);
                 deleted++;
             }
@@ -3103,9 +3493,19 @@ public class MainViewModel : ViewModelBase
             DuplicateGroups.Remove(group);
         }
 
+        if (recycled.Count > 0)
+        {
+            PushHistory(new ActionHistoryEntry
+            {
+                Kind = ActionHistoryKind.RecycleFiles,
+                RecycledPaths = recycled,
+                Summary = $"Recycled {recycled.Count} duplicate files",
+            });
+        }
+
         ClosePreview();
         RefreshSelectedFileCount();
-        StatusMessage = $"Deleted {deleted} files" + (failed > 0 ? $", {failed} failed" : string.Empty);
+        StatusMessage = $"Sent {deleted} files to Recycle Bin" + (failed > 0 ? $", {failed} failed" : string.Empty);
     }
 
     private void MoveSelectedFiles()

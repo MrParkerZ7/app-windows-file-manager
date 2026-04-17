@@ -5,11 +5,11 @@ namespace WindowsFileManager.Core.Models;
 /// </summary>
 public enum FilterAction
 {
-    /// <summary>Contains (check) files matching the pattern.</summary>
-    Contains,
+    /// <summary>Include (check) files matching the pattern.</summary>
+    Include,
 
-    /// <summary>Ignore (uncheck) files matching the pattern.</summary>
-    Ignore,
+    /// <summary>Exclude (uncheck) files matching the pattern.</summary>
+    Exclude,
 }
 
 /// <summary>
@@ -74,7 +74,7 @@ public class FilterRule : System.ComponentModel.INotifyPropertyChanged
     /// <summary>
     /// Gets or sets the filter action (Select or Ignore).
     /// </summary>
-    public FilterAction Action { get; set; } = FilterAction.Contains;
+    public FilterAction Action { get; set; } = FilterAction.Include;
 
     /// <summary>
     /// Gets or sets the filter target (Filename or Filepath).

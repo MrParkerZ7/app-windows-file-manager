@@ -114,8 +114,8 @@ public class SettingsServiceTests
         {
             FilterRules = new List<FilterRule>
             {
-                new() { Pattern = "*.jpg", Action = FilterAction.Contains, Target = FilterTarget.Filename, IsRegex = false, IgnoreCase = true, IsEnabled = true },
-                new() { Pattern = "backup", Action = FilterAction.Ignore, Target = FilterTarget.Filepath, IsRegex = true, IgnoreCase = false, IsEnabled = false },
+                new() { Pattern = "*.jpg", Action = FilterAction.Include, Target = FilterTarget.Filename, IsRegex = false, IgnoreCase = true, IsEnabled = true },
+                new() { Pattern = "backup", Action = FilterAction.Exclude, Target = FilterTarget.Filepath, IsRegex = true, IgnoreCase = false, IsEnabled = false },
             },
         };
 
@@ -128,11 +128,11 @@ public class SettingsServiceTests
 
         loaded.FilterRules.Should().HaveCount(2);
         loaded.FilterRules[0].Pattern.Should().Be("*.jpg");
-        loaded.FilterRules[0].Action.Should().Be(FilterAction.Contains);
+        loaded.FilterRules[0].Action.Should().Be(FilterAction.Include);
         loaded.FilterRules[0].IsEnabled.Should().BeTrue();
         loaded.FilterRules[0].IgnoreCase.Should().BeTrue();
         loaded.FilterRules[1].Pattern.Should().Be("backup");
-        loaded.FilterRules[1].Action.Should().Be(FilterAction.Ignore);
+        loaded.FilterRules[1].Action.Should().Be(FilterAction.Exclude);
         loaded.FilterRules[1].Target.Should().Be(FilterTarget.Filepath);
         loaded.FilterRules[1].IsRegex.Should().BeTrue();
         loaded.FilterRules[1].IgnoreCase.Should().BeFalse();
@@ -218,7 +218,7 @@ public class SettingsServiceTests
 
         settings.FilterRules.Should().HaveCount(1);
         settings.FilterRules[0].Pattern.Should().Be("test");
-        settings.FilterRules[0].Action.Should().Be(FilterAction.Contains);
+        settings.FilterRules[0].Action.Should().Be(FilterAction.Include);
         settings.FilterRules[0].IsEnabled.Should().BeTrue();
     }
 
@@ -245,7 +245,7 @@ public class SettingsServiceTests
 
         settings.FilterRules.Should().HaveCount(1);
         settings.FilterRules[0].IsEnabled.Should().BeTrue();
-        settings.FilterRules[0].Action.Should().Be(FilterAction.Ignore);
+        settings.FilterRules[0].Action.Should().Be(FilterAction.Exclude);
     }
 
     [Fact]

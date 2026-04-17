@@ -31,7 +31,7 @@ public class AppSettingsTests
             Pattern = "*.txt",
             IsRegex = true,
             IgnoreCase = false,
-            Action = FilterAction.Ignore,
+            Action = FilterAction.Exclude,
             Target = FilterTarget.Filepath,
         };
 
@@ -51,7 +51,7 @@ public class AppSettingsTests
         settings.ExcludeFolderNames.Should().Contain("node_modules");
         settings.FilterRules.Should().HaveCount(1);
         settings.FilterRules[0].Pattern.Should().Be("*.txt");
-        settings.FilterRules[0].Action.Should().Be(FilterAction.Ignore);
+        settings.FilterRules[0].Action.Should().Be(FilterAction.Exclude);
         settings.FilterRules[0].Target.Should().Be(FilterTarget.Filepath);
     }
 }
