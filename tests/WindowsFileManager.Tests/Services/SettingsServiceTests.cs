@@ -18,6 +18,18 @@ public class SettingsServiceTests
     }
 
     [Fact]
+    public void Load_JsonDeserializesToNull_ShouldReturnDefaults()
+    {
+        _mockFileSystem.Setup(fs => fs.FileExists(@"C:\app\settings.json")).Returns(true);
+        _mockFileSystem.Setup(fs => fs.ReadAllText(@"C:\app\settings.json")).Returns("null");
+
+        var settings = _service.Load();
+
+        settings.Should().NotBeNull();
+        settings.TargetPaths.Should().BeEmpty();
+    }
+
+    [Fact]
     public void Load_FileNotExists_ShouldReturnDefaults()
     {
         _mockFileSystem.Setup(fs => fs.FileExists(@"C:\app\settings.json")).Returns(false);

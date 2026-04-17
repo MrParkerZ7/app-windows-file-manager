@@ -109,4 +109,26 @@ public class FilterRuleTests
         rule.Pattern.Should().Be("old");
         rule.Action.Should().Be(FilterAction.Include);
     }
+
+    [Fact]
+    public void IsEnabled_NoSubscribers_ShouldNotThrow()
+    {
+        var rule = new FilterRule();
+        rule.IsEnabled = false;
+        rule.IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsEnabled_Change_AfterUnsubscribe_ShouldNotRaise()
+    {
+        var rule = new FilterRule();
+        var changes = 0;
+        void Handler(object? s, System.ComponentModel.PropertyChangedEventArgs e) => changes++;
+        rule.PropertyChanged += Handler;
+        rule.IsEnabled = false;
+        rule.PropertyChanged -= Handler;
+        rule.IsEnabled = true;
+
+        changes.Should().Be(1);
+    }
 }

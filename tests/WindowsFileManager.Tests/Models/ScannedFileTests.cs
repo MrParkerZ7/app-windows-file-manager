@@ -62,4 +62,31 @@ public class ScannedFileTests
     {
         ScannedFile.FormatFileSize(bytes).Should().Be(expected);
     }
+
+    [Fact]
+    public void IsFileSelected_DefaultFalse()
+    {
+        new ScannedFile().IsFileSelected.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsFileSelected_WhenChanged_ShouldRaisePropertyChanged()
+    {
+        var file = new ScannedFile();
+        var changes = new List<string>();
+        file.PropertyChanged += (_, e) => changes.Add(e.PropertyName!);
+
+        file.IsFileSelected = true;
+        file.IsFileSelected = true; // no change
+
+        changes.Should().ContainSingle(p => p == nameof(ScannedFile.IsFileSelected));
+    }
+
+    [Fact]
+    public void IsFileSelected_NoSubscribers_ShouldNotThrow()
+    {
+        var file = new ScannedFile();
+        var act = () => file.IsFileSelected = true;
+        act.Should().NotThrow();
+    }
 }

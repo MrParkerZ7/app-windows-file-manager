@@ -340,6 +340,80 @@ public class DuplicateScannerServiceTests
             .WithMessage("*C:\\missing*");
     }
 
+    [Fact]
+    public void Scan_WithExcludeFolderNames_ShouldSkipExcludedSubfolders()
+    {
+        _mockFileSystem.Setup(fs => fs.DirectoryExists(@"C:\root")).Returns(true);
+
+        // Root has a few files
+        _mockFileSystem.Setup(fs => fs.EnumerateFiles(@"C:\root", "*.*", SearchOption.TopDirectoryOnly))
+            .Returns(new[] { @"C:\root\a.txt", @"C:\root\b.txt" });
+
+        // Root contains "src" (kept) and "node_modules" (excluded)
+        _mockFileSystem.Setup(fs => fs.EnumerateDirectories(@"C:\root"))
+            .Returns(new[] { @"C:\root\src", @"C:\root\node_modules" });
+
+        _mockFileSystem.Setup(fs => fs.EnumerateFiles(@"C:\root\src", "*.*", SearchOption.TopDirectoryOnly))
+            .Returns(new[] { @"C:\root\src\code.cs" });
+        _mockFileSystem.Setup(fs => fs.EnumerateDirectories(@"C:\root\src"))
+            .Returns(Array.Empty<string>());
+
+        _mockFileSystem.Setup(fs => fs.GetFileSize(It.IsAny<string>())).Returns(100L);
+        _mockFileSystem.Setup(fs => fs.GetFileName(It.IsAny<string>()))
+            .Returns((string p) => Path.GetFileName(p));
+        _mockFileSystem.Setup(fs => fs.GetLastWriteTime(It.IsAny<string>())).Returns(DateTime.Now);
+        _mockFileSystem.Setup(fs => fs.OpenRead(It.IsAny<string>()))
+            .Returns(() => new MemoryStream(Encoding.UTF8.GetBytes("unique")));
+
+        var options = new ScanOptions
+        {
+            TargetPaths = new List<string> { @"C:\root" },
+            ExcludeFolderNames = new List<string> { "node_modules" },
+        };
+        var result = _service.Scan(options);
+
+        result.TotalFilesScanned.Should().Be(3); // a.txt, b.txt, src/code.cs — node_modules never enumerated
+        _mockFileSystem.Verify(fs => fs.EnumerateDirectories(@"C:\root\node_modules"), Times.Never);
+    }
+
+    [Fact]
+    public void Scan_WithExcludeFolderNames_UnauthorizedAccess_ShouldYieldBreak()
+    {
+        _mockFileSystem.Setup(fs => fs.DirectoryExists(@"C:\locked")).Returns(true);
+        _mockFileSystem.Setup(fs => fs.EnumerateFiles(@"C:\locked", "*.*", SearchOption.TopDirectoryOnly))
+            .Returns(Array.Empty<string>());
+        _mockFileSystem.Setup(fs => fs.EnumerateDirectories(@"C:\locked"))
+            .Throws(new UnauthorizedAccessException("denied"));
+
+        var options = new ScanOptions
+        {
+            TargetPaths = new List<string> { @"C:\locked" },
+            ExcludeFolderNames = new List<string> { "skip" },
+        };
+        var result = _service.Scan(options);
+
+        result.TotalFilesScanned.Should().Be(0);
+    }
+
+    [Fact]
+    public void Scan_WithExcludeFolderNames_IOException_ShouldYieldBreak()
+    {
+        _mockFileSystem.Setup(fs => fs.DirectoryExists(@"C:\ioerr")).Returns(true);
+        _mockFileSystem.Setup(fs => fs.EnumerateFiles(@"C:\ioerr", "*.*", SearchOption.TopDirectoryOnly))
+            .Returns(Array.Empty<string>());
+        _mockFileSystem.Setup(fs => fs.EnumerateDirectories(@"C:\ioerr"))
+            .Throws(new IOException("bad"));
+
+        var options = new ScanOptions
+        {
+            TargetPaths = new List<string> { @"C:\ioerr" },
+            ExcludeFolderNames = new List<string> { "skip" },
+        };
+        var result = _service.Scan(options);
+
+        result.TotalFilesScanned.Should().Be(0);
+    }
+
     private void SetupDirectory(string path, (string name, long size, string content)[] files)
     {
         _mockFileSystem.Setup(fs => fs.DirectoryExists(path)).Returns(true);

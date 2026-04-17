@@ -172,7 +172,7 @@ public class DuplicateScannerService
         IEnumerable<string> subDirs;
         try
         {
-            subDirs = Directory.EnumerateDirectories(rootPath);
+            subDirs = _fileSystem.EnumerateDirectories(rootPath);
         }
         catch (UnauthorizedAccessException)
         {
