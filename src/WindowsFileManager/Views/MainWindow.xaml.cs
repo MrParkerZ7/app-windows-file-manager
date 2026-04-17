@@ -187,7 +187,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (tabControl.SelectedItem is TabItem tab && tab.Header as string == "Folder Control")
+        var header = (tabControl.SelectedItem as TabItem)?.Header as string;
+
+        if (header == "Folder")
         {
             // Save current panel states and hide them
             _savedPreviewVisible = vm.IsPreviewVisible;
@@ -195,11 +197,22 @@ public partial class MainWindow : Window
             vm.IsPreviewVisible = false;
             vm.IsAnalyticsVisible = false;
             vm.IsFolderControlActive = true;
+            vm.IsHistoryActive = false;
+        }
+        else if (header == "History")
+        {
+            _savedPreviewVisible = vm.IsPreviewVisible;
+            _savedAnalyticsVisible = vm.IsAnalyticsVisible;
+            vm.IsPreviewVisible = false;
+            vm.IsAnalyticsVisible = false;
+            vm.IsFolderControlActive = false;
+            vm.IsHistoryActive = true;
         }
         else
         {
             // Restore panel states when switching back
             vm.IsFolderControlActive = false;
+            vm.IsHistoryActive = false;
             vm.IsPreviewVisible = _savedPreviewVisible;
             vm.IsAnalyticsVisible = _savedAnalyticsVisible;
         }

@@ -12,7 +12,7 @@
     ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>Folder File Manager</DisplayName>
+    <DisplayName>Folder File Control</DisplayName>
     <PublisherDisplayName>WindowsFileManager</PublisherDisplayName>
     <Description>A Windows desktop application for folder and file management — folder search, duplicate detection, analytics, and disk space reclamation.</Description>
     <Logo>Assets\StoreLogo.png</Logo>
@@ -39,7 +39,7 @@
       Executable="WindowsFileManager.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-        DisplayName="Folder File Manager"
+        DisplayName="Folder File Control"
         Description="Find and manage duplicate files"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png"

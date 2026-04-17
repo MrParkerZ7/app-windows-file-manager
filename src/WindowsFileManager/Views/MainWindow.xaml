@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:WindowsFileManager.ViewModels"
         xmlns:helpers="clr-namespace:WindowsFileManager.Helpers"
-        Title="Folder File Manager"
+        Title="Folder File Control"
         Height="900" Width="1600"
         MinHeight="500" MinWidth="1000"
         WindowStartupLocation="CenterScreen">
@@ -106,7 +106,14 @@
                                       IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}"
                                       VerticalAlignment="Center" Margin="0,0,4,0" />
                             <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                          Tag="&lt;h&gt;WHERE TO SCAN&lt;/h&gt;&#x0a;Add folders that may contain duplicate files.&#x0a;&#x0a;&lt;b&gt;Include subdirectories&lt;/b&gt; = scan all nested folders too&#x0a;&lt;b&gt;Multiple folders&lt;/b&gt; = compare files across different locations&#x0a;&#x0a;&lt;h&gt;How it works:&lt;/h&gt; Files are compared by &lt;b&gt;content hash (SHA-256)&lt;/b&gt;, not by name. Two files with different names but identical content are detected as duplicates." />
+                                          Margin="0,0,8,0"
+                                          Tag="&lt;h&gt;WHERE TO SCAN&lt;/h&gt;&#x0a;Add folders that may contain duplicate files.&#x0a;&#x0a;&lt;b&gt;Include subdirectories&lt;/b&gt; = scan all nested folders too&#x0a;&lt;b&gt;Multiple folders&lt;/b&gt; = compare files across different locations&#x0a;&lt;b&gt;✓ All / ✕ Clear&lt;/b&gt; = enable or disable every target at once&#x0a;&#x0a;&lt;h&gt;How it works:&lt;/h&gt; Files are compared by &lt;b&gt;content hash (SHA-256)&lt;/b&gt;, not by name. Two files with different names but identical content are detected as duplicates." />
+                            <Button Content="✓ All" Command="{Binding SelectAllTargetsCommand}"
+                                    Padding="6,2" Margin="0,0,4,0" FontSize="10" Cursor="Hand"
+                                    ToolTip="Enable all target folders" />
+                            <Button Content="✕ Clear" Command="{Binding ClearAllTargetsCommand}"
+                                    Padding="6,2" FontSize="10" Cursor="Hand"
+                                    Foreground="#888888" ToolTip="Disable all target folders" />
                         </StackPanel>
                     </Grid>
 
@@ -188,8 +195,18 @@
                     </Grid.RowDefinitions>
 
                     <!-- Header row -->
-                    <TextBlock Grid.Row="0" Text="Exclude Folders" FontWeight="Bold" FontSize="12"
-                               Foreground="#E65100" Margin="0,0,0,6" />
+                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                        <TextBlock Text="Exclude Folders" FontWeight="Bold" FontSize="12"
+                                   Foreground="#E65100" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="✓ All" Command="{Binding SelectAllExcludesCommand}"
+                                    Padding="6,2" Margin="0,0,4,0" FontSize="10" Cursor="Hand"
+                                    Foreground="#E65100" ToolTip="Enable all exclude folders" />
+                            <Button Content="✕ Clear" Command="{Binding ClearAllExcludesCommand}"
+                                    Padding="6,2" FontSize="10" Cursor="Hand"
+                                    Foreground="#888888" ToolTip="Disable all exclude folders" />
+                        </StackPanel>
+                    </Grid>
 
                     <!-- Input + add -->
                     <Grid Grid.Row="1" Margin="0,0,0,6">
@@ -254,8 +271,8 @@
         <!-- Row 1: Feature Tabs -->
         <TabControl Grid.Row="1" Margin="4,0,4,4" SelectionChanged="TabControl_SelectionChanged">
 
-            <!-- Tab 1: Folder Control -->
-            <TabItem Header="Folder Control">
+            <!-- Tab 1: Folder -->
+            <TabItem Header="Folder">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -540,8 +557,8 @@
                 </Grid>
             </TabItem>
 
-            <!-- Tab 2: Duplicates Control -->
-            <TabItem Header="Duplicates Control">
+            <!-- Tab 2: Duplication -->
+            <TabItem Header="Duplication">
     <Grid Margin="8">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="400" />
@@ -1328,6 +1345,10 @@
                                     Padding="6,3" FontSize="11" Cursor="Hand"
                                     Foreground="#1565C0"
                                     ToolTip="Move all selected files to the target folder" />
+                            <Button Content="↶" Command="{Binding UndoLastActionCommand}"
+                                    ToolTip="{Binding UndoTooltip}"
+                                    Padding="6,3" Margin="4,0,0,0" FontSize="13" Cursor="Hand"
+                                    FontWeight="Bold" Foreground="#388E3C" />
                         </StackPanel>
                     </WrapPanel>
                 </Border>
@@ -1480,6 +1501,130 @@
         </Grid>
 
     </Grid>
+            </TabItem>
+
+            <!-- Tab 3: History -->
+            <TabItem Header="History">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Analytics strip -->
+                    <Border Grid.Row="0" Background="#E8EAF6" CornerRadius="4" Padding="12,8"
+                            BorderBrush="#C5CAE9" BorderThickness="1" Margin="0,0,0,6">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📊 Analytics" FontSize="12" FontWeight="Bold"
+                                       Foreground="#1565C0" VerticalAlignment="Center" Margin="0,0,20,0" />
+
+                            <StackPanel Margin="0,0,24,0">
+                                <TextBlock FontSize="18" FontWeight="Bold" Foreground="#1565C0">
+                                    <TextBlock.Text>
+                                        <Binding Path="HistoryTotalEntries" StringFormat="{}{0}" />
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <TextBlock Text="Operations" FontSize="10" Foreground="#666666" />
+                            </StackPanel>
+
+                            <StackPanel Margin="0,0,24,0">
+                                <TextBlock FontSize="18" FontWeight="Bold" Foreground="#388E3C">
+                                    <TextBlock.Text>
+                                        <Binding Path="HistoryMoveItemCount" StringFormat="{}{0}" />
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <TextBlock FontSize="10" Foreground="#666666">
+                                    <TextBlock.Text>
+                                        <Binding Path="HistoryMoveOperationCount" StringFormat="files moved ({0} ops)" />
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <StackPanel Margin="0,0,24,0">
+                                <TextBlock FontSize="18" FontWeight="Bold" Foreground="#C62828">
+                                    <TextBlock.Text>
+                                        <Binding Path="HistoryRecycleFileItemCount" StringFormat="{}{0}" />
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <TextBlock FontSize="10" Foreground="#666666">
+                                    <TextBlock.Text>
+                                        <Binding Path="HistoryRecycleFileOperationCount" StringFormat="files recycled ({0} ops)" />
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <StackPanel Margin="0,0,24,0">
+                                <TextBlock FontSize="18" FontWeight="Bold" Foreground="#C62828">
+                                    <TextBlock.Text>
+                                        <Binding Path="HistoryRecycleDirItemCount" StringFormat="{}{0}" />
+                                    </TextBlock.Text>
+                                </TextBlock>
+                                <TextBlock FontSize="10" Foreground="#666666">
+                                    <TextBlock.Text>
+                                        <Binding Path="HistoryRecycleDirOperationCount" StringFormat="subfolders recycled ({0} ops)" />
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Header actions -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="Transaction History" FontSize="13" FontWeight="Bold"
+                                   Foreground="#333333" VerticalAlignment="Center" Margin="0,0,16,0" />
+                        <Button Content="↶ Undo Last" Command="{Binding UndoLastActionCommand}"
+                                ToolTip="{Binding UndoTooltip}"
+                                Padding="10,4" Margin="0,0,6,0" FontSize="11" Cursor="Hand"
+                                FontWeight="SemiBold" Foreground="#388E3C" />
+                        <Button Content="🗑 Clear History" Command="{Binding ClearHistoryCommand}"
+                                Padding="10,4" FontSize="11" Cursor="Hand"
+                                Foreground="#888888"
+                                ToolTip="Remove all entries from this list. Files are NOT affected." />
+                    </StackPanel>
+
+                    <!-- History list -->
+                    <Border Grid.Row="2" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4">
+                        <ListView ItemsSource="{Binding ActionHistory}" BorderThickness="0"
+                                  ScrollViewer.CanContentScroll="True"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.ScrollUnit="Pixel">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Time" Width="140">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock FontSize="11">
+                                                    <TextBlock.Text>
+                                                        <Binding Path="Timestamp" StringFormat="yyyy-MM-dd HH:mm:ss" />
+                                                    </TextBlock.Text>
+                                                </TextBlock>
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                    <GridViewColumn Header="Action" Width="150"
+                                                    DisplayMemberBinding="{Binding Kind}" />
+                                    <GridViewColumn Header="Items" Width="60"
+                                                    DisplayMemberBinding="{Binding ItemCount}" />
+                                    <GridViewColumn Header="Summary" Width="500"
+                                                    DisplayMemberBinding="{Binding Summary}" />
+                                    <GridViewColumn Header="Undo" Width="80">
+                                        <GridViewColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Content="↶ Undo"
+                                                        Command="{Binding DataContext.UndoSpecificActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"
+                                                        Padding="6,2" FontSize="10" Cursor="Hand"
+                                                        FontWeight="SemiBold" Foreground="#388E3C"
+                                                        ToolTip="Undo this specific action" />
+                                            </DataTemplate>
+                                        </GridViewColumn.CellTemplate>
+                                    </GridViewColumn>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </Border>
+                </Grid>
             </TabItem>
 
         </TabControl>
@@ -1678,37 +1823,6 @@
                                 <Button Content="✕ Clear" Command="{Binding ClearFolderSelectionCommand}"
                                         Padding="8,4" FontSize="11" Cursor="Hand" Foreground="#888888" />
                             </StackPanel>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Flatten Folders -->
-                    <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
-                            BorderBrush="#E0E0E0" BorderThickness="1">
-                        <StackPanel>
-                            <TextBlock Text="Flatten Folders" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="#C62828" Margin="0,0,0,4" />
-                            <TextBlock Text="Move every file from subdirectories up to the root of each selected folder. Empty subdirectories are removed. Name conflicts get (2), (3)."
-                                       FontSize="10" Foreground="#888888" TextWrapping="Wrap" Margin="0,0,0,8" />
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Content="📦 Move Files to Root"
-                                        Command="{Binding FlattenSelectedFoldersCommand}"
-                                        Padding="10,6" FontSize="11" Cursor="Hand"
-                                        Foreground="#C62828" FontWeight="SemiBold"
-                                        HorizontalAlignment="Stretch"
-                                        ToolTip="Move every file from subdirectories up to the root of each selected folder" />
-                                <Button Grid.Column="1" Content="↶" Command="{Binding UndoLastActionCommand}"
-                                        ToolTip="{Binding UndoTooltip}"
-                                        Padding="6,3" Margin="4,0,0,0" FontSize="13" Cursor="Hand"
-                                        FontWeight="Bold" Foreground="#388E3C" />
-                                <ToggleButton Grid.Column="2" Style="{StaticResource HelpButtonStyle}"
-                                              Margin="6,0,0,0"
-                                              Tag="&lt;h&gt;MOVE FILES TO ROOT&lt;/h&gt;&#x0a;Flattens every selected folder — moves all files from nested subdirectories up to the folder's own root.&#x0a;&#x0a;&lt;b&gt;Example:&lt;/b&gt;&#x0a;Before:&#x0a;  Photos\2024\Jan\a.jpg&#x0a;  Photos\2024\Feb\b.jpg&#x0a;  Photos\2024\Feb\sub\c.jpg&#x0a;&#x0a;After:&#x0a;  Photos\2024\a.jpg&#x0a;  Photos\2024\b.jpg&#x0a;  Photos\2024\c.jpg&#x0a;&#x0a;&lt;b&gt;What it does:&lt;/b&gt;&#x0a;• Recursively walks every selected folder&#x0a;• Moves each file (regardless of depth) to the root&#x0a;• Appends (2), (3) to resolve name conflicts&#x0a;• Deletes empty subdirectories afterward&#x0a;&#x0a;&lt;b&gt;Safety:&lt;/b&gt;&#x0a;• Confirmation dialog shows affected file count&#x0a;• Skips files that are locked or access-denied&#x0a;&#x0a;&lt;h&gt;Undo (↶) reverses the last action.&lt;/h&gt;" />
-                            </Grid>
                         </StackPanel>
                     </Border>
 
@@ -2045,6 +2159,147 @@
                                 <ToggleButton Grid.Column="2" Style="{StaticResource HelpButtonStyle}"
                                               Margin="6,0,0,0"
                                               Tag="&lt;h&gt;CLEAR SELECTED FILES&lt;/h&gt;&#x0a;Sends every file whose extension is checked to the Recycle Bin, from inside each selected result folder.&#x0a;&#x0a;&lt;b&gt;What it removes:&lt;/b&gt;&#x0a;• Each matching file found during &lt;b&gt;Scan Folders&lt;/b&gt;&#x0a;• Only files — subfolders are never touched by this action&#x0a;&#x0a;&lt;b&gt;Scope:&lt;/b&gt;&#x0a;• Follows the same &lt;b&gt;Include Subdirectories&lt;/b&gt; setting used during the scan&#x0a;&#x0a;&lt;b&gt;Common uses:&lt;/b&gt;&#x0a;• Purge &lt;b&gt;.log&lt;/b&gt;, &lt;b&gt;.tmp&lt;/b&gt;, &lt;b&gt;.bak&lt;/b&gt; files across many folders&#x0a;• Remove stray &lt;b&gt;.DS_Store&lt;/b&gt; / &lt;b&gt;Thumbs.db&lt;/b&gt;&#x0a;&#x0a;&lt;b&gt;Safety:&lt;/b&gt;&#x0a;• Confirmation dialog shows exact file count + extension list&#x0a;• Skips files that are locked or access-denied&#x0a;&#x0a;&lt;h&gt;Sent to Recycle Bin — restorable from there.&lt;/h&gt;" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Flatten Folders (dedicated subfolder file-type scan) -->
+                    <Border Background="White" CornerRadius="4" Padding="10" Margin="0,0,0,8"
+                            BorderBrush="#E0E0E0" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="Flatten Folders" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#C62828" Margin="0,0,0,4" />
+                            <TextBlock Text="Move files from subdirectories up to the root of each selected folder. Name conflicts resolved with (2), (3)."
+                                       FontSize="10" Foreground="#888888" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+                            <CheckBox IsChecked="{Binding FlattenRemoveEmptyFolders}"
+                                      Content="Remove empty subfolders after move" FontSize="11"
+                                      Cursor="Hand" Margin="0,0,0,4"
+                                      ToolTip="When on, deletes now-empty subdirectories after flattening. When off, the directory structure stays intact with only its files moved to the root." />
+                            <TextBlock Text="If any file types are checked below, only those are moved. If none are checked, all files move."
+                                       FontSize="10" Foreground="#888888" FontStyle="Italic"
+                                       TextWrapping="Wrap" Margin="0,0,0,8" />
+
+                            <!-- Subfolder file-type scan (root files excluded) -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0"
+                                        Command="{Binding ScanFlattenFileTypesCommand}"
+                                        Padding="8,5" FontSize="11" Cursor="Hand"
+                                        FontWeight="SemiBold" Foreground="#1565C0"
+                                        HorizontalAlignment="Stretch"
+                                        ToolTip="Discover file types inside subfolders only (root-level files excluded)">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Content" Value="🔍 Scan Subfolder File Types" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsScanningFlattenTypes}" Value="True">
+                                                    <Setter Property="Content" Value="⏳ Scanning…" />
+                                                    <Setter Property="Foreground" Value="#999999" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
+                            <ProgressBar Height="3" Margin="0,0,0,4"
+                                         IsIndeterminate="{Binding IsScanningFlattenTypes}"
+                                         Visibility="{Binding IsScanningFlattenTypes, Converter={StaticResource BoolToVisibility}}"
+                                         Foreground="#1565C0" Background="#E3F2FD" BorderThickness="0" />
+
+                            <Grid Margin="0,4,0,4">
+                                <TextBox Text="{Binding FlattenFileTypeFilter, UpdateSourceTrigger=PropertyChanged}"
+                                         x:Name="FlattenFileTypeFilterBox"
+                                         Padding="6,3" FontSize="11"
+                                         VerticalContentAlignment="Center" />
+                                <TextBlock Text="🔍 Filter extensions (e.g. .mp4)..."
+                                           Padding="8,5" FontSize="11" Foreground="#AAAAAA"
+                                           VerticalAlignment="Center" IsHitTestVisible="False">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=FlattenFileTypeFilterBox}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <Button Content="✓ All" Command="{Binding SelectAllFlattenFileTypesCommand}"
+                                        Padding="8,3" Margin="0,0,6,0" FontSize="10" Cursor="Hand" />
+                                <Button Content="✕ None" Command="{Binding ClearFlattenFileTypeSelectionCommand}"
+                                        Padding="8,3" FontSize="10" Cursor="Hand" Foreground="#888888" />
+                            </StackPanel>
+
+                            <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="3" MaxHeight="200" Margin="0,0,0,8">
+                                <ItemsControl ItemsSource="{Binding FilteredFlattenFileTypes}"
+                                              ScrollViewer.CanContentScroll="True"
+                                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                              VirtualizingPanel.IsVirtualizing="True"
+                                              VirtualizingPanel.VirtualizationMode="Recycling"
+                                              VirtualizingPanel.ScrollUnit="Pixel">
+                                    <ItemsControl.Template>
+                                        <ControlTemplate TargetType="ItemsControl">
+                                            <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False" CanContentScroll="True">
+                                                <ItemsPresenter />
+                                            </ScrollViewer>
+                                        </ControlTemplate>
+                                    </ItemsControl.Template>
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <VirtualizingStackPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="4,2" BorderBrush="#F0F0F0" BorderThickness="0,0,0,1">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <CheckBox IsChecked="{Binding IsSelected}" Cursor="Hand"
+                                                              VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                    <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold"
+                                                               Foreground="#333333" VerticalAlignment="Center" />
+                                                    <TextBlock FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="6,0,0,0">
+                                                        <TextBlock.Text>
+                                                            <Binding Path="Count" StringFormat="{}{0} files" />
+                                                        </TextBlock.Text>
+                                                    </TextBlock>
+                                                    <TextBlock Text="·" FontSize="10" Foreground="#CCCCCC"
+                                                               VerticalAlignment="Center" Margin="6,0,0,0" />
+                                                    <TextBlock Text="{Binding TotalSizeDisplay}" FontSize="10"
+                                                               Foreground="#1565C0" FontWeight="SemiBold"
+                                                               VerticalAlignment="Center" Margin="6,0,0,0" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Border>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Content="📦 Move Files to Root"
+                                        Command="{Binding FlattenSelectedFoldersCommand}"
+                                        Padding="10,6" FontSize="11" Cursor="Hand"
+                                        Foreground="#C62828" FontWeight="SemiBold"
+                                        HorizontalAlignment="Stretch"
+                                        ToolTip="Move files from subdirectories up to the root of each selected folder" />
+                                <Button Grid.Column="1" Content="↶" Command="{Binding UndoLastActionCommand}"
+                                        ToolTip="{Binding UndoTooltip}"
+                                        Padding="6,3" Margin="4,0,0,0" FontSize="13" Cursor="Hand"
+                                        FontWeight="Bold" Foreground="#388E3C" />
+                                <ToggleButton Grid.Column="2" Style="{StaticResource HelpButtonStyle}"
+                                              Margin="6,0,0,0"
+                                              Tag="&lt;h&gt;MOVE FILES TO ROOT&lt;/h&gt;&#x0a;Flattens every selected result folder — moves files from nested subdirectories up to the folder's own root.&#x0a;&#x0a;&lt;b&gt;Example:&lt;/b&gt;&#x0a;Before:&#x0a;  Photos\2024\Jan\a.jpg&#x0a;  Photos\2024\Feb\b.jpg&#x0a;  Photos\2024\Feb\sub\c.jpg&#x0a;&#x0a;After:&#x0a;  Photos\2024\a.jpg&#x0a;  Photos\2024\b.jpg&#x0a;  Photos\2024\c.jpg&#x0a;&#x0a;&lt;b&gt;Options:&lt;/b&gt;&#x0a;• &lt;b&gt;Remove empty subfolders&lt;/b&gt; — deletes empty directories after flattening&#x0a;• &lt;b&gt;Only selected file types&lt;/b&gt; — limits the move to extensions checked in the list above&#x0a;&#x0a;&lt;b&gt;Note:&lt;/b&gt; The file-type list above shows only files found in &lt;b&gt;subfolders&lt;/b&gt; (root-level files are excluded — they stay put anyway).&#x0a;&#x0a;&lt;b&gt;Safety:&lt;/b&gt;&#x0a;• Confirmation dialog shows affected file count + the filter in effect&#x0a;• Skips files that are locked or access-denied&#x0a;• Appends (2), (3) to resolve name conflicts&#x0a;&#x0a;&lt;h&gt;Undo (↶) reverses the last action.&lt;/h&gt;" />
                             </Grid>
                         </StackPanel>
                     </Border>

@@ -24,11 +24,11 @@ public class ActionHistoryEntryTests
         var entry = new ActionHistoryEntry
         {
             Kind = ActionHistoryKind.MoveFiles,
-            Moves = new List<(string Source, string Destination)>
+            Moves = new List<ActionHistoryMove>
             {
-                (@"C:\a\1.txt", @"C:\b\1.txt"),
-                (@"C:\a\2.txt", @"C:\b\2.txt"),
-                (@"C:\a\3.txt", @"C:\b\3.txt"),
+                new() { Source = @"C:\a\1.txt", Destination = @"C:\b\1.txt" },
+                new() { Source = @"C:\a\2.txt", Destination = @"C:\b\2.txt" },
+                new() { Source = @"C:\a\3.txt", Destination = @"C:\b\3.txt" },
             },
             RecycledPaths = new List<string> { "unused" },
         };
@@ -42,7 +42,7 @@ public class ActionHistoryEntryTests
         var entry = new ActionHistoryEntry
         {
             Kind = ActionHistoryKind.RecycleFiles,
-            Moves = new List<(string Source, string Destination)> { (@"C:\a", @"C:\b") },
+            Moves = new List<ActionHistoryMove> { new() { Source = @"C:\a", Destination = @"C:\b" } },
             RecycledPaths = new List<string> { @"C:\x\1.log", @"C:\x\2.log" },
         };
 
@@ -59,6 +59,24 @@ public class ActionHistoryEntryTests
         };
 
         entry.ItemCount.Should().Be(4);
+    }
+
+    [Fact]
+    public void ActionHistoryMove_Defaults_AreEmpty()
+    {
+        var m = new ActionHistoryMove();
+
+        m.Source.Should().BeEmpty();
+        m.Destination.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void ActionHistoryMove_Properties_RoundTrip()
+    {
+        var m = new ActionHistoryMove { Source = @"C:\src\a.txt", Destination = @"D:\dst\a.txt" };
+
+        m.Source.Should().Be(@"C:\src\a.txt");
+        m.Destination.Should().Be(@"D:\dst\a.txt");
     }
 
     [Fact]

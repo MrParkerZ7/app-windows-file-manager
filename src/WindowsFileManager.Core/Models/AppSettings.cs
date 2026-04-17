@@ -86,6 +86,11 @@ public class AppSettings
     public List<string> SelectedFolderSearchResultPaths { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the persisted transaction history (most recent first) for undo-across-sessions.
+    /// </summary>
+    public List<ActionHistoryEntry> ActionHistory { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets the window left position.
     /// </summary>
     public double? WindowLeft { get; set; }

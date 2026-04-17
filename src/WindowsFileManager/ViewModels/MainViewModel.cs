@@ -48,6 +48,7 @@ public class MainViewModel : ViewModelBase
     private bool _isPreviewVisible;
     private bool _isAnalyticsVisible = true;
     private bool _isFolderControlActive;
+    private bool _isHistoryActive;
     private long _minFileSizeBytes;
     private string _minFileSizeText = string.Empty;
     private string _selectedSizeUnit = "KB";
@@ -96,6 +97,9 @@ public class MainViewModel : ViewModelBase
     private string _fileTypeFilter = string.Empty;
     private string _clearSubfolderStatus = string.Empty;
     private bool _folderSearchIncludeSubdirectories = true;
+    private bool _flattenRemoveEmptyFolders = true;
+    private string _flattenFileTypeFilter = string.Empty;
+    private bool _isScanningFlattenTypes;
     private TimeSpan _lastCpuTime;
     private DateTime _lastCheckTime;
     private DuplicateGroup? _selectedDuplicateGroup;
@@ -597,6 +601,10 @@ public class MainViewModel : ViewModelBase
         AddFolderCommand = new RelayCommand(_ => AddFolder(), _ => !IsScanning);
         AddFolderByPathCommand = new RelayCommand(_ => AddFolderByPath(), _ => !IsScanning && !string.IsNullOrWhiteSpace(NewFolderPath));
         RemoveFolderCommand = new RelayCommand(p => RemoveFolder(p), _ => !IsScanning);
+        SelectAllTargetsCommand = new RelayCommand(_ => SetAllToggles(TargetPaths, true), _ => TargetPaths.Count > 0);
+        ClearAllTargetsCommand = new RelayCommand(_ => SetAllToggles(TargetPaths, false), _ => TargetPaths.Count > 0);
+        SelectAllExcludesCommand = new RelayCommand(_ => SetAllToggles(ExcludeFolderNames, true), _ => ExcludeFolderNames.Count > 0);
+        ClearAllExcludesCommand = new RelayCommand(_ => SetAllToggles(ExcludeFolderNames, false), _ => ExcludeFolderNames.Count > 0);
         OpenFileLocationCommand = new RelayCommand(p => OpenFileLocation(p as string));
         DeleteFileCommand = new RelayCommand(p => DeleteFile(p as ScannedFile), _ => !IsScanning);
         DeleteAllInGroupCommand = new RelayCommand(p => DeleteAllInGroup(p as DuplicateGroup), _ => !IsScanning);
@@ -636,6 +644,9 @@ public class MainViewModel : ViewModelBase
         StopFolderSearchCommand = new RelayCommand(_ => StopFolderSearch(), _ => IsFolderSearching);
         ClearFolderSearchCommand = new RelayCommand(_ => ClearFolderSearch(), _ => FolderSearchResults.Count > 0 || DiscoveredSubfolders.Count > 0 || DiscoveredFileTypes.Count > 0);
         UndoLastActionCommand = new RelayCommand(_ => UndoLastAction(), _ => ActionHistory.Count > 0);
+        UndoSpecificActionCommand = new RelayCommand(p => UndoSpecificAction(p as ActionHistoryEntry));
+        ClearHistoryCommand = new RelayCommand(_ => ClearHistory(), _ => ActionHistory.Count > 0);
+        ActionHistory.CollectionChanged += (_, _) => RaiseHistoryAnalytics();
         OpenFolderLocationCommand = new RelayCommand(p => OpenFolderLocation(p as string));
 
         // Folder actions
@@ -643,6 +654,9 @@ public class MainViewModel : ViewModelBase
         ClearFolderSelectionCommand = new RelayCommand(_ => ClearFolderSelection(), _ => SelectedFolderCount > 0);
         ScanSubfoldersCommand = new RelayCommand(_ => ScanSubfolders(), _ => SelectedFolderCount > 0 && !IsScanningFolders);
         FlattenSelectedFoldersCommand = new RelayCommand(_ => FlattenSelectedFolders(), _ => SelectedFolderCount > 0);
+        ScanFlattenFileTypesCommand = new RelayCommand(_ => ScanFlattenFileTypes(), _ => SelectedFolderCount > 0 && !IsScanningFlattenTypes);
+        SelectAllFlattenFileTypesCommand = new RelayCommand(_ => SelectAllFlattenFileTypes());
+        ClearFlattenFileTypeSelectionCommand = new RelayCommand(_ => ClearFlattenFileTypeSelection());
         ClearSelectedSubfoldersCommand = new RelayCommand(_ => ClearSelectedSubfolders(), _ => DiscoveredSubfolders.Any(s => s.IsSelected));
         SelectAllSubfoldersCommand = new RelayCommand(_ => SelectAllSubfolders());
         ClearSubfolderSelectionCommand = new RelayCommand(_ => ClearSubfolderSelection());
@@ -769,6 +783,18 @@ public class MainViewModel : ViewModelBase
     /// Gets the remove folder command.
     /// </summary>
     public ICommand RemoveFolderCommand { get; }
+
+    /// <summary>Gets the enable-all target paths command.</summary>
+    public ICommand SelectAllTargetsCommand { get; }
+
+    /// <summary>Gets the disable-all target paths command.</summary>
+    public ICommand ClearAllTargetsCommand { get; }
+
+    /// <summary>Gets the enable-all exclude folders command.</summary>
+    public ICommand SelectAllExcludesCommand { get; }
+
+    /// <summary>Gets the disable-all exclude folders command.</summary>
+    public ICommand ClearAllExcludesCommand { get; }
 
     /// <summary>
     /// Gets the open file location command.
@@ -1223,6 +1249,42 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _folderSearchIncludeSubdirectories, value);
     }
 
+    /// <summary>Gets or sets a value indicating whether gets or sets whether flatten removes empty subfolders after moving files.</summary>
+    public bool FlattenRemoveEmptyFolders
+    {
+        get => _flattenRemoveEmptyFolders;
+        set => SetProperty(ref _flattenRemoveEmptyFolders, value);
+    }
+
+    /// <summary>Gets the file types discovered inside subfolders only (root-level files excluded) — for Flatten filtering.</summary>
+    public ObservableCollection<SubfolderItem> DiscoveredFlattenFileTypes { get; } = new();
+
+    /// <summary>Gets or sets the filter text for the flatten file-types list.</summary>
+    public string FlattenFileTypeFilter
+    {
+        get => _flattenFileTypeFilter;
+        set
+        {
+            if (SetProperty(ref _flattenFileTypeFilter, value))
+            {
+                OnPropertyChanged(nameof(FilteredFlattenFileTypes));
+            }
+        }
+    }
+
+    /// <summary>Gets the filtered flatten file types based on search text.</summary>
+    public IEnumerable<SubfolderItem> FilteredFlattenFileTypes =>
+        string.IsNullOrWhiteSpace(FlattenFileTypeFilter)
+            ? DiscoveredFlattenFileTypes
+            : DiscoveredFlattenFileTypes.Where(t => t.Name.Contains(FlattenFileTypeFilter, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Gets or sets a value indicating whether the flatten file-type scan is running.</summary>
+    public bool IsScanningFlattenTypes
+    {
+        get => _isScanningFlattenTypes;
+        set => SetProperty(ref _isScanningFlattenTypes, value);
+    }
+
     /// <summary>Gets the add folder search pattern command.</summary>
     public ICommand AddFolderSearchPatternCommand { get; }
 
@@ -1247,6 +1309,12 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the undo last action command.</summary>
     public ICommand UndoLastActionCommand { get; }
 
+    /// <summary>Gets the undo specific action command (expects ActionHistoryEntry parameter).</summary>
+    public ICommand UndoSpecificActionCommand { get; }
+
+    /// <summary>Gets the clear-history command (removes all entries; does NOT undo them).</summary>
+    public ICommand ClearHistoryCommand { get; }
+
     /// <summary>Gets the reversible action history (most recent first).</summary>
     public ObservableCollection<ActionHistoryEntry> ActionHistory { get; } = new();
 
@@ -1254,6 +1322,27 @@ public class MainViewModel : ViewModelBase
     public string UndoTooltip => ActionHistory.Count == 0
         ? "Nothing to undo"
         : $"Undo: {ActionHistory[0].Summary}";
+
+    /// <summary>Gets the total number of history entries.</summary>
+    public int HistoryTotalEntries => ActionHistory.Count;
+
+    /// <summary>Gets the total number of move operations in history.</summary>
+    public int HistoryMoveOperationCount => ActionHistory.Count(e => e.Kind == ActionHistoryKind.MoveFiles);
+
+    /// <summary>Gets the total number of files moved across all move operations.</summary>
+    public int HistoryMoveItemCount => ActionHistory.Where(e => e.Kind == ActionHistoryKind.MoveFiles).Sum(e => e.Moves.Count);
+
+    /// <summary>Gets the total number of recycle-file operations.</summary>
+    public int HistoryRecycleFileOperationCount => ActionHistory.Count(e => e.Kind == ActionHistoryKind.RecycleFiles);
+
+    /// <summary>Gets the total number of files sent to Recycle Bin across all such operations.</summary>
+    public int HistoryRecycleFileItemCount => ActionHistory.Where(e => e.Kind == ActionHistoryKind.RecycleFiles).Sum(e => e.RecycledPaths.Count);
+
+    /// <summary>Gets the total number of recycle-directory operations.</summary>
+    public int HistoryRecycleDirOperationCount => ActionHistory.Count(e => e.Kind == ActionHistoryKind.RecycleDirectories);
+
+    /// <summary>Gets the total number of directories sent to Recycle Bin across all such operations.</summary>
+    public int HistoryRecycleDirItemCount => ActionHistory.Where(e => e.Kind == ActionHistoryKind.RecycleDirectories).Sum(e => e.RecycledPaths.Count);
 
     /// <summary>Gets the open folder location command.</summary>
     public ICommand OpenFolderLocationCommand { get; }
@@ -1271,6 +1360,15 @@ public class MainViewModel : ViewModelBase
 
     /// <summary>Gets the flatten (move all files to root) command.</summary>
     public ICommand FlattenSelectedFoldersCommand { get; }
+
+    /// <summary>Gets the scan-subfolder-file-types command for Flatten.</summary>
+    public ICommand ScanFlattenFileTypesCommand { get; }
+
+    /// <summary>Gets the select-all-flatten-file-types command.</summary>
+    public ICommand SelectAllFlattenFileTypesCommand { get; }
+
+    /// <summary>Gets the clear-flatten-file-type-selection command.</summary>
+    public ICommand ClearFlattenFileTypeSelectionCommand { get; }
 
     /// <summary>Gets the clear selected subfolders command.</summary>
     public ICommand ClearSelectedSubfoldersCommand { get; }
@@ -1389,6 +1487,13 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _isFolderControlActive, value);
     }
 
+    /// <summary>Gets or sets a value indicating whether the History tab is active.</summary>
+    public bool IsHistoryActive
+    {
+        get => _isHistoryActive;
+        set => SetProperty(ref _isHistoryActive, value);
+    }
+
     /// <summary>
     /// Gets or sets the preview type: "image", "video", "audio", "pdf", "text", or "none".
     /// </summary>
@@ -1488,6 +1593,7 @@ public class MainViewModel : ViewModelBase
             FolderSearchPatterns = FolderSearchPatterns.ToList(),
             FolderSearchResultPaths = FolderSearchResults.Select(r => r.FullPath).ToList(),
             SelectedFolderSearchResultPaths = FolderSearchResults.Where(r => r.IsSelected).Select(r => r.FullPath).ToList(),
+            ActionHistory = ActionHistory.ToList(),
             WindowLeft = _windowLeft,
             WindowTop = _windowTop,
             WindowWidth = _windowWidth,
@@ -1561,6 +1667,11 @@ public class MainViewModel : ViewModelBase
         {
             FolderSearchStatus = $"Restored {FolderSearchCount} folders from last session.";
             _ = ComputeRestoredSizesAsync();
+        }
+
+        foreach (var entry in settings.ActionHistory)
+        {
+            ActionHistory.Add(entry);
         }
 
         RefreshRulePriorities();
@@ -2776,11 +2887,17 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
+        var selectedTypes = DiscoveredFlattenFileTypes.Where(t => t.IsSelected).Select(t => t.Name).ToList();
+        HashSet<string>? extensionFilter = selectedTypes.Count > 0
+            ? new HashSet<string>(selectedTypes, StringComparer.OrdinalIgnoreCase)
+            : null;
+
+        var removeEmpty = FlattenRemoveEmptyFolders;
         int totalFiles;
         try
         {
             totalFiles = selected.Sum(f =>
-                CountFilesInSubdirectories(f.FullPath));
+                CountFilesInSubdirectories(f.FullPath, extensionFilter));
         }
         catch (Exception ex)
         {
@@ -2790,12 +2907,19 @@ public class MainViewModel : ViewModelBase
 
         if (totalFiles == 0)
         {
-            ClearSubfolderStatus = "No files in subdirectories to move.";
+            ClearSubfolderStatus = extensionFilter != null
+                ? "No files of selected types found in subdirectories."
+                : "No files in subdirectories to move.";
             return;
         }
 
+        var filterDesc = extensionFilter != null
+            ? $"\n• Only file types: {string.Join(", ", extensionFilter)}"
+            : string.Empty;
+        var emptyDesc = removeEmpty ? "\n• Empty subdirectories will be removed." : string.Empty;
+
         var result = System.Windows.MessageBox.Show(
-            $"Move {totalFiles} files from subdirectories up to the root of {selected.Count} selected folder(s)?\n\n• Name conflicts resolved with (2), (3), etc.\n• Empty subdirectories will be removed.\n• This cannot be undone.",
+            $"Move {totalFiles} files from subdirectories up to the root of {selected.Count} selected folder(s)?{filterDesc}\n• Name conflicts resolved with (2), (3), etc.{emptyDesc}\n• Undo is available in the History tab.",
             "Confirm Move Files to Root",
             System.Windows.MessageBoxButton.YesNo,
             System.Windows.MessageBoxImage.Warning);
@@ -2806,13 +2930,13 @@ public class MainViewModel : ViewModelBase
         }
 
         ClearSubfolderStatus = "Moving files...";
-        var moves = new List<(string Source, string Destination)>();
+        var moves = new List<ActionHistoryMove>();
         var failed = await System.Threading.Tasks.Task.Run(() =>
         {
             int f = 0;
             foreach (var folder in selected)
             {
-                (int mv, int fl) = FlattenFolder(folder.FullPath, moves);
+                (int mv, int fl) = FlattenFolder(folder.FullPath, moves, extensionFilter, removeEmpty);
                 f += fl;
             }
 
@@ -2829,18 +2953,133 @@ public class MainViewModel : ViewModelBase
             });
         }
 
+        var removedDesc = removeEmpty ? " Empty subdirectories removed." : string.Empty;
         ClearSubfolderStatus = failed == 0
-            ? $"Moved {moves.Count} files to root of {selected.Count} folder(s). Empty subdirectories removed."
+            ? $"Moved {moves.Count} files to root of {selected.Count} folder(s).{removedDesc}"
             : $"Moved {moves.Count} files. {failed} failed (access denied, in use, or name conflict).";
+
+        if (moves.Count > 0)
+        {
+            ScanFlattenFileTypes();
+        }
     }
 
-    private int CountFilesInSubdirectories(string rootPath)
+    private void SelectAllFlattenFileTypes()
+    {
+        foreach (var t in FilteredFlattenFileTypes)
+        {
+            t.IsSelected = true;
+        }
+    }
+
+    private void ClearFlattenFileTypeSelection()
+    {
+        foreach (var t in DiscoveredFlattenFileTypes)
+        {
+            t.IsSelected = false;
+        }
+    }
+
+    private async void ScanFlattenFileTypes()
+    {
+        var selected = FolderSearchResults.Where(r => r.IsSelected).ToList();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        IsScanningFlattenTypes = true;
+        DiscoveredFlattenFileTypes.Clear();
+        FlattenFileTypeFilter = string.Empty;
+        OnPropertyChanged(nameof(FilteredFlattenFileTypes));
+        var folderPaths = selected.Select(f => f.FullPath).ToList();
+
+        try
+        {
+            var items = await System.Threading.Tasks.Task.Run(() =>
+            {
+                var data = new Dictionary<string, List<SubfolderLocation>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var root in folderPaths)
+                {
+                    CollectSubfolderFileTypes(root, root, data);
+                }
+
+                return data
+                    .OrderByDescending(k => k.Value.Count)
+                    .ThenBy(k => k.Key)
+                    .Select(kvp => new SubfolderItem
+                    {
+                        Name = kvp.Key,
+                        Count = kvp.Value.Count,
+                        Locations = kvp.Value,
+                        TotalSize = kvp.Value.Sum(loc => SafeFileSize(loc.FullPath)),
+                    })
+                    .ToList();
+            }).ConfigureAwait(true);
+
+            foreach (var item in items)
+            {
+                DiscoveredFlattenFileTypes.Add(item);
+            }
+
+            OnPropertyChanged(nameof(FilteredFlattenFileTypes));
+        }
+        finally
+        {
+            IsScanningFlattenTypes = false;
+        }
+    }
+
+    private void CollectSubfolderFileTypes(string path, string rootParent, Dictionary<string, List<SubfolderLocation>> data)
+    {
+        IEnumerable<string> subDirs;
+        try
+        {
+            subDirs = _fileSystem.EnumerateDirectories(path).ToList();
+        }
+        catch
+        {
+            return;
+        }
+
+        foreach (var subDir in subDirs)
+        {
+            try
+            {
+                foreach (var file in _fileSystem.EnumerateFiles(subDir, "*", SearchOption.AllDirectories))
+                {
+                    var ext = GetExtensionForFilter(file);
+                    var loc = new SubfolderLocation { ParentPath = rootParent, FullPath = file };
+                    if (data.TryGetValue(ext, out var list))
+                    {
+                        list.Add(loc);
+                    }
+                    else
+                    {
+                        data[ext] = new List<SubfolderLocation> { loc };
+                    }
+                }
+            }
+            catch
+            {
+                // Skip inaccessible subtree
+            }
+        }
+    }
+
+    private int CountFilesInSubdirectories(string rootPath, HashSet<string>? extensionFilter)
     {
         try
         {
-            var allCount = _fileSystem.EnumerateFiles(rootPath, "*", SearchOption.AllDirectories).Count();
-            var topCount = _fileSystem.EnumerateFiles(rootPath, "*", SearchOption.TopDirectoryOnly).Count();
-            return allCount - topCount;
+            var all = _fileSystem.EnumerateFiles(rootPath, "*", SearchOption.AllDirectories)
+                .Where(f => !string.Equals(Path.GetDirectoryName(f), rootPath, StringComparison.OrdinalIgnoreCase));
+
+            if (extensionFilter != null)
+            {
+                all = all.Where(f => extensionFilter.Contains(GetExtensionForFilter(f)));
+            }
+
+            return all.Count();
         }
         catch
         {
@@ -2848,7 +3087,13 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private (int moved, int failed) FlattenFolder(string rootPath, List<(string Source, string Destination)> moves)
+    private static string GetExtensionForFilter(string path)
+    {
+        var ext = Path.GetExtension(path);
+        return string.IsNullOrEmpty(ext) ? "(no extension)" : ext;
+    }
+
+    private (int moved, int failed) FlattenFolder(string rootPath, List<ActionHistoryMove> moves, HashSet<string>? extensionFilter, bool removeEmpty)
     {
         int moved = 0, failed = 0;
         List<string> files;
@@ -2865,6 +3110,11 @@ public class MainViewModel : ViewModelBase
         {
             var parent = Path.GetDirectoryName(file);
             if (string.Equals(parent, rootPath, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (extensionFilter != null && !extensionFilter.Contains(GetExtensionForFilter(file)))
             {
                 continue;
             }
@@ -2886,7 +3136,7 @@ public class MainViewModel : ViewModelBase
             try
             {
                 File.Move(file, destPath);
-                moves.Add((file, destPath));
+                moves.Add(new ActionHistoryMove { Source = file, Destination = destPath });
                 moved++;
             }
             catch
@@ -2895,7 +3145,12 @@ public class MainViewModel : ViewModelBase
             }
         }
 
-        // Remove empty subdirectories bottom-up
+        // Remove empty subdirectories bottom-up (optional)
+        if (!removeEmpty)
+        {
+            return (moved, failed);
+        }
+
         try
         {
             foreach (var sub in _fileSystem.EnumerateDirectories(rootPath).ToList())
@@ -3022,6 +3277,14 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    private static void SetAllToggles(ObservableCollection<ToggleItem> items, bool enabled)
+    {
+        foreach (var item in items)
+        {
+            item.IsEnabled = enabled;
+        }
+    }
+
     private static void RecycleFile(string path) =>
         VbFileSystem.DeleteFile(path, VbUIOption.OnlyErrorDialogs, VbRecycleOption.SendToRecycleBin);
 
@@ -3037,6 +3300,7 @@ public class MainViewModel : ViewModelBase
         }
 
         OnPropertyChanged(nameof(UndoTooltip));
+        SaveSettings();
     }
 
     private void UndoLastAction()
@@ -3046,7 +3310,21 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        var entry = ActionHistory[0];
+        UndoEntry(ActionHistory[0]);
+    }
+
+    private void UndoSpecificAction(ActionHistoryEntry? entry)
+    {
+        if (entry == null || !ActionHistory.Contains(entry))
+        {
+            return;
+        }
+
+        UndoEntry(entry);
+    }
+
+    private void UndoEntry(ActionHistoryEntry entry)
+    {
         int restored = 0, failed = 0;
 
         switch (entry.Kind)
@@ -3055,7 +3333,8 @@ public class MainViewModel : ViewModelBase
                 // Reverse moves in REVERSE order so later (2) conflict resolution unwinds correctly
                 for (int i = entry.Moves.Count - 1; i >= 0; i--)
                 {
-                    var (src, dst) = entry.Moves[i];
+                    var src = entry.Moves[i].Source;
+                    var dst = entry.Moves[i].Destination;
                     try
                     {
                         if (File.Exists(src))
@@ -3093,8 +3372,28 @@ public class MainViewModel : ViewModelBase
                 break;
         }
 
-        ActionHistory.RemoveAt(0);
+        ActionHistory.Remove(entry);
         OnPropertyChanged(nameof(UndoTooltip));
+        SaveSettings();
+    }
+
+    private void ClearHistory()
+    {
+        ActionHistory.Clear();
+        OnPropertyChanged(nameof(UndoTooltip));
+        StatusMessage = "History cleared (files were not affected).";
+        SaveSettings();
+    }
+
+    private void RaiseHistoryAnalytics()
+    {
+        OnPropertyChanged(nameof(HistoryTotalEntries));
+        OnPropertyChanged(nameof(HistoryMoveOperationCount));
+        OnPropertyChanged(nameof(HistoryMoveItemCount));
+        OnPropertyChanged(nameof(HistoryRecycleFileOperationCount));
+        OnPropertyChanged(nameof(HistoryRecycleFileItemCount));
+        OnPropertyChanged(nameof(HistoryRecycleDirOperationCount));
+        OnPropertyChanged(nameof(HistoryRecycleDirItemCount));
     }
 
     private static int RestoreFromRecycleBin(IEnumerable<string> originalPaths)
@@ -3541,15 +3840,16 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        var moved = 0;
         var failed = 0;
+        var moves = new List<ActionHistoryMove>();
 
         foreach (var item in filesToMove)
         {
-            if (MoveFileToTarget(item.File.FilePath))
+            var destPath = MoveFileToTarget(item.File.FilePath);
+            if (destPath != null)
             {
+                moves.Add(new ActionHistoryMove { Source = item.File.FilePath, Destination = destPath });
                 item.Group.Files.Remove(item.File);
-                moved++;
             }
             else
             {
@@ -3563,9 +3863,19 @@ public class MainViewModel : ViewModelBase
             DuplicateGroups.Remove(group);
         }
 
+        if (moves.Count > 0)
+        {
+            PushHistory(new ActionHistoryEntry
+            {
+                Kind = ActionHistoryKind.MoveFiles,
+                Moves = moves,
+                Summary = $"Moved {moves.Count} files to {MoveTargetPath}",
+            });
+        }
+
         ClosePreview();
         RefreshSelectedFileCount();
-        StatusMessage = $"Moved {moved} files to {MoveTargetPath}" + (failed > 0 ? $", {failed} failed" : string.Empty);
+        StatusMessage = $"Moved {moves.Count} files to {MoveTargetPath}" + (failed > 0 ? $", {failed} failed" : string.Empty);
     }
 
     private void BrowseMoveTarget()
@@ -3600,7 +3910,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private bool MoveFileToTarget(string sourcePath)
+    private string? MoveFileToTarget(string sourcePath)
     {
         try
         {
@@ -3614,11 +3924,11 @@ public class MainViewModel : ViewModelBase
             }
 
             File.Move(sourcePath, destPath);
-            return true;
+            return destPath;
         }
         catch
         {
-            return false;
+            return null;
         }
     }
 

@@ -18,6 +18,16 @@ public enum ActionHistoryKind
     RecycleDirectories,
 }
 
+/// <summary>A (source → destination) pair for a move that can be reversed.</summary>
+public class ActionHistoryMove
+{
+    /// <summary>Gets or sets the original source path.</summary>
+    public string Source { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the destination path (where the file currently is).</summary>
+    public string Destination { get; set; } = string.Empty;
+}
+
 /// <summary>
 /// A single reversible action in the undo history stack. Represents one user operation
 /// that may have affected many files or folders.
@@ -28,7 +38,7 @@ public class ActionHistoryEntry
     public ActionHistoryKind Kind { get; set; }
 
     /// <summary>Gets or sets the (source → destination) pairs for <see cref="ActionHistoryKind.MoveFiles"/>.</summary>
-    public List<(string Source, string Destination)> Moves { get; set; } = new();
+    public List<ActionHistoryMove> Moves { get; set; } = new();
 
     /// <summary>Gets or sets the original paths sent to Recycle Bin (for recycle kinds).</summary>
     public List<string> RecycledPaths { get; set; } = new();
