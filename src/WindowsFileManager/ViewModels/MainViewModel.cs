@@ -82,10 +82,12 @@ public class MainViewModel : ViewModelBase
     private FolderMatchType _newFolderSearchMatchType = FolderMatchType.Match;
     private bool _isFolderSearching;
     private string _folderSearchStatus = string.Empty;
+    private string _folderPatternAddStatus = string.Empty;
     private int _folderSearchCount;
     private int _selectedFolderCount;
     private bool _areAllFoldersSelected;
     private string _subfolderFilter = string.Empty;
+    private string _fileTypeFilter = string.Empty;
     private string _clearSubfolderStatus = string.Empty;
     private bool _folderSearchIncludeSubdirectories = true;
     private TimeSpan _lastCpuTime;
@@ -93,6 +95,7 @@ public class MainViewModel : ViewModelBase
     private DuplicateGroup? _selectedDuplicateGroup;
     private string _selectedSortOption = "Size (largest)";
     private int _minDuplicateCount = 2;
+    private System.Threading.CancellationTokenSource? _folderSearchCts;
 
     private static readonly List<string> SortOptionsList = new()
     {
@@ -619,11 +622,13 @@ public class MainViewModel : ViewModelBase
         RemoveExcludeFolderCommand = new RelayCommand(p => RemoveExcludeFolder(p));
 
         // Folder control
-        AddFolderSearchPatternCommand = new RelayCommand(_ => AddFolderSearchPattern(), _ => !string.IsNullOrWhiteSpace(NewFolderSearchPattern));
+        AddFolderSearchPatternCommand = new RelayCommand(p => AddFolderSearchPattern(p as string));
         RemoveFolderSearchPatternCommand = new RelayCommand(p => RemoveFolderSearchPattern(p));
         MoveSearchPatternUpCommand = new RelayCommand(p => MoveSearchPatternUp(p as FolderSearchPattern));
         MoveSearchPatternDownCommand = new RelayCommand(p => MoveSearchPatternDown(p as FolderSearchPattern));
         SearchFoldersCommand = new RelayCommand(_ => SearchFoldersAsync(), _ => !IsFolderSearching && TargetPaths.Any(t => t.IsEnabled));
+        StopFolderSearchCommand = new RelayCommand(_ => StopFolderSearch(), _ => IsFolderSearching);
+        ClearFolderSearchCommand = new RelayCommand(_ => ClearFolderSearch(), _ => FolderSearchResults.Count > 0 || DiscoveredSubfolders.Count > 0 || DiscoveredFileTypes.Count > 0);
         OpenFolderLocationCommand = new RelayCommand(p => OpenFolderLocation(p as string));
 
         // Folder actions
@@ -633,6 +638,9 @@ public class MainViewModel : ViewModelBase
         ClearSelectedSubfoldersCommand = new RelayCommand(_ => ClearSelectedSubfolders(), _ => DiscoveredSubfolders.Any(s => s.IsSelected));
         SelectAllSubfoldersCommand = new RelayCommand(_ => SelectAllSubfolders());
         ClearSubfolderSelectionCommand = new RelayCommand(_ => ClearSubfolderSelection());
+        ClearSelectedFileTypesCommand = new RelayCommand(_ => ClearSelectedFileTypes(), _ => DiscoveredFileTypes.Any(t => t.IsSelected));
+        SelectAllFileTypesCommand = new RelayCommand(_ => SelectAllFileTypes());
+        ClearFileTypeSelectionCommand = new RelayCommand(_ => ClearFileTypeSelection());
 
         DeleteSelectedFilesCommand = new RelayCommand(_ => DeleteSelectedFiles(), _ => SelectedFileCount > 0);
         MoveSelectedFilesCommand = new RelayCommand(_ => MoveSelectedFiles(), _ => SelectedFileCount > 0);
@@ -1075,7 +1083,13 @@ public class MainViewModel : ViewModelBase
     public string NewFolderSearchPattern
     {
         get => _newFolderSearchPattern;
-        set => SetProperty(ref _newFolderSearchPattern, value);
+        set
+        {
+            if (SetProperty(ref _newFolderSearchPattern, value))
+            {
+                FolderPatternAddStatus = string.Empty;
+            }
+        }
     }
 
     /// <summary>Gets or sets the match type for the next pattern to add.</summary>
@@ -1083,6 +1097,13 @@ public class MainViewModel : ViewModelBase
     {
         get => _newFolderSearchMatchType;
         set => SetProperty(ref _newFolderSearchMatchType, value);
+    }
+
+    /// <summary>Gets or sets transient feedback for the Add action (e.g., duplicate message).</summary>
+    public string FolderPatternAddStatus
+    {
+        get => _folderPatternAddStatus;
+        set => SetProperty(ref _folderPatternAddStatus, value);
     }
 
     /// <summary>Gets or sets a value indicating whether folder search is running.</summary>
@@ -1151,6 +1172,28 @@ public class MainViewModel : ViewModelBase
             ? DiscoveredSubfolders
             : DiscoveredSubfolders.Where(s => s.Name.Contains(SubfolderFilter, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>Gets the discovered file types (by extension) from scanning selected results.</summary>
+    public ObservableCollection<SubfolderItem> DiscoveredFileTypes { get; } = new();
+
+    /// <summary>Gets or sets the file type filter text.</summary>
+    public string FileTypeFilter
+    {
+        get => _fileTypeFilter;
+        set
+        {
+            if (SetProperty(ref _fileTypeFilter, value))
+            {
+                OnPropertyChanged(nameof(FilteredFileTypes));
+            }
+        }
+    }
+
+    /// <summary>Gets the filtered file types based on search text.</summary>
+    public IEnumerable<SubfolderItem> FilteredFileTypes =>
+        string.IsNullOrWhiteSpace(FileTypeFilter)
+            ? DiscoveredFileTypes
+            : DiscoveredFileTypes.Where(s => s.Name.Contains(FileTypeFilter, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Gets or sets the clear subfolder status message.</summary>
     public string ClearSubfolderStatus
     {
@@ -1180,6 +1223,12 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the search folders command.</summary>
     public ICommand SearchFoldersCommand { get; }
 
+    /// <summary>Gets the stop folder search command.</summary>
+    public ICommand StopFolderSearchCommand { get; }
+
+    /// <summary>Gets the clear folder search results command.</summary>
+    public ICommand ClearFolderSearchCommand { get; }
+
     /// <summary>Gets the open folder location command.</summary>
     public ICommand OpenFolderLocationCommand { get; }
 
@@ -1202,6 +1251,15 @@ public class MainViewModel : ViewModelBase
 
     /// <summary>Gets the clear subfolder selection command.</summary>
     public ICommand ClearSubfolderSelectionCommand { get; }
+
+    /// <summary>Gets the clear selected file types command.</summary>
+    public ICommand ClearSelectedFileTypesCommand { get; }
+
+    /// <summary>Gets the select all file types command.</summary>
+    public ICommand SelectAllFileTypesCommand { get; }
+
+    /// <summary>Gets the clear file type selection command.</summary>
+    public ICommand ClearFileTypeSelectionCommand { get; }
 
     // -- Action commands --
 
@@ -1387,6 +1445,7 @@ public class MainViewModel : ViewModelBase
         var settings = new AppSettings
         {
             TargetPaths = TargetPaths.Select(t => t.Value).ToList(),
+            DisabledTargetPaths = TargetPaths.Where(t => !t.IsEnabled).Select(t => t.Value).ToList(),
             IncludeSubdirectories = IncludeSubdirectories,
             IsMiniPreview = IsMiniPreview,
             IsAutoPreview = IsAutoPreview,
@@ -1395,8 +1454,11 @@ public class MainViewModel : ViewModelBase
             Volume = MediaVolume,
             MoveTargetPath = MoveTargetPath,
             ExcludeFolderNames = ExcludeFolderNames.Select(t => t.Value).ToList(),
+            DisabledExcludeFolderNames = ExcludeFolderNames.Where(t => !t.IsEnabled).Select(t => t.Value).ToList(),
             FilterRules = FilterRules.ToList(),
             FolderSearchPatterns = FolderSearchPatterns.ToList(),
+            FolderSearchResultPaths = FolderSearchResults.Select(r => r.FullPath).ToList(),
+            SelectedFolderSearchResultPaths = FolderSearchResults.Where(r => r.IsSelected).Select(r => r.FullPath).ToList(),
             WindowLeft = _windowLeft,
             WindowTop = _windowTop,
             WindowWidth = _windowWidth,
@@ -1418,14 +1480,20 @@ public class MainViewModel : ViewModelBase
         MediaVolume = settings.Volume;
         MoveTargetPath = settings.MoveTargetPath;
 
+        var disabledTargets = new HashSet<string>(settings.DisabledTargetPaths, StringComparer.OrdinalIgnoreCase);
         foreach (var path in settings.TargetPaths)
         {
-            TargetPaths.Add(new ToggleItem(path));
+            var item = new ToggleItem(path) { IsEnabled = !disabledTargets.Contains(path) };
+            item.PropertyChanged += ToggleItem_PropertyChanged;
+            TargetPaths.Add(item);
         }
 
+        var disabledExcludes = new HashSet<string>(settings.DisabledExcludeFolderNames, StringComparer.OrdinalIgnoreCase);
         foreach (var name in settings.ExcludeFolderNames)
         {
-            ExcludeFolderNames.Add(new ToggleItem(name));
+            var item = new ToggleItem(name) { IsEnabled = !disabledExcludes.Contains(name) };
+            item.PropertyChanged += ToggleItem_PropertyChanged;
+            ExcludeFolderNames.Add(item);
         }
 
         foreach (var rule in settings.FilterRules)
@@ -1436,6 +1504,34 @@ public class MainViewModel : ViewModelBase
         foreach (var pattern in settings.FolderSearchPatterns)
         {
             FolderSearchPatterns.Add(pattern);
+        }
+
+        var selectedPaths = new HashSet<string>(settings.SelectedFolderSearchResultPaths, StringComparer.OrdinalIgnoreCase);
+        foreach (var path in settings.FolderSearchResultPaths)
+        {
+            if (!_fileSystem.DirectoryExists(path))
+            {
+                continue;
+            }
+
+            var result = new FolderSearchResult
+            {
+                FullPath = path,
+                FolderName = Path.GetFileName(path),
+                ParentPath = Path.GetDirectoryName(path) ?? string.Empty,
+                IsSelected = selectedPaths.Contains(path),
+            };
+            result.PropertyChanged += FolderResult_PropertyChanged;
+            FolderSearchResults.Add(result);
+        }
+
+        FolderSearchCount = FolderSearchResults.Count;
+        SelectedFolderCount = FolderSearchResults.Count(r => r.IsSelected);
+        _areAllFoldersSelected = FolderSearchResults.Count > 0 && FolderSearchResults.All(r => r.IsSelected);
+        if (FolderSearchCount > 0)
+        {
+            FolderSearchStatus = $"Restored {FolderSearchCount} folders from last session.";
+            _ = ComputeRestoredSizesAsync();
         }
 
         RefreshRulePriorities();
@@ -1520,7 +1616,9 @@ public class MainViewModel : ViewModelBase
 
         if (dialog.ShowDialog() == true && !TargetPaths.Any(t => t.Value == dialog.FolderName))
         {
-            TargetPaths.Add(new ToggleItem(dialog.FolderName));
+            var item = new ToggleItem(dialog.FolderName);
+            item.PropertyChanged += ToggleItem_PropertyChanged;
+            TargetPaths.Add(item);
             SaveSettings();
         }
     }
@@ -1530,7 +1628,9 @@ public class MainViewModel : ViewModelBase
         var path = NewFolderPath.Trim();
         if (!string.IsNullOrEmpty(path) && !TargetPaths.Any(t => t.Value == path))
         {
-            TargetPaths.Add(new ToggleItem(path));
+            var item = new ToggleItem(path);
+            item.PropertyChanged += ToggleItem_PropertyChanged;
+            TargetPaths.Add(item);
             NewFolderPath = string.Empty;
             SaveSettings();
         }
@@ -2256,7 +2356,9 @@ public class MainViewModel : ViewModelBase
         var name = NewExcludeFolderName.Trim();
         if (!string.IsNullOrEmpty(name) && !ExcludeFolderNames.Any(t => t.Value == name))
         {
-            ExcludeFolderNames.Add(new ToggleItem(name));
+            var item = new ToggleItem(name);
+            item.PropertyChanged += ToggleItem_PropertyChanged;
+            ExcludeFolderNames.Add(item);
             NewExcludeFolderName = string.Empty;
             SaveSettings();
         }
@@ -2272,16 +2374,26 @@ public class MainViewModel : ViewModelBase
     }
 
     // ── FOLDER CONTROL METHODS ──
-    private void AddFolderSearchPattern()
+    private void AddFolderSearchPattern(string? input)
     {
-        var pattern = NewFolderSearchPattern.Trim();
-        if (!string.IsNullOrEmpty(pattern) && !FolderSearchPatterns.Any(t => t.Pattern == pattern))
+        var pattern = (input ?? NewFolderSearchPattern ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(pattern))
         {
-            FolderSearchPatterns.Add(new FolderSearchPattern { Pattern = pattern, MatchType = NewFolderSearchMatchType });
-            NewFolderSearchPattern = string.Empty;
-            RefreshSearchPatternPriorities();
-            SaveSettings();
+            FolderPatternAddStatus = "Enter a name first";
+            return;
         }
+
+        if (FolderSearchPatterns.Any(t => t.Pattern == pattern && t.MatchType == NewFolderSearchMatchType))
+        {
+            FolderPatternAddStatus = $"'{pattern}' with {NewFolderSearchMatchType} already in the list";
+            return;
+        }
+
+        FolderSearchPatterns.Add(new FolderSearchPattern { Pattern = pattern, MatchType = NewFolderSearchMatchType });
+        NewFolderSearchPattern = string.Empty;
+        FolderPatternAddStatus = string.Empty;
+        RefreshSearchPatternPriorities();
+        SaveSettings();
     }
 
     private void RemoveFolderSearchPattern(object? param)
@@ -2334,8 +2446,33 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    private void ClearFolderSearch()
+    {
+        foreach (var r in FolderSearchResults)
+        {
+            r.PropertyChanged -= FolderResult_PropertyChanged;
+        }
+
+        FolderSearchResults.Clear();
+        DiscoveredSubfolders.Clear();
+        DiscoveredFileTypes.Clear();
+        OnPropertyChanged(nameof(FilteredSubfolders));
+        OnPropertyChanged(nameof(FilteredFileTypes));
+        FolderSearchCount = 0;
+        SelectedFolderCount = 0;
+        AreAllFoldersSelected = false;
+        FolderSearchStatus = string.Empty;
+        ClearSubfolderStatus = string.Empty;
+        SaveSettings();
+    }
+
     private async void SearchFoldersAsync()
     {
+        _folderSearchCts?.Cancel();
+        _folderSearchCts?.Dispose();
+        _folderSearchCts = new System.Threading.CancellationTokenSource();
+        var token = _folderSearchCts.Token;
+
         IsFolderSearching = true;
         foreach (var r in FolderSearchResults)
         {
@@ -2356,21 +2493,29 @@ public class MainViewModel : ViewModelBase
 
         try
         {
-            var results = await Task.Run(() =>
-            {
-                var found = new List<FolderSearchResult>();
-                foreach (var rootPath in targetPaths)
+            var results = await Task.Run(
+                () =>
                 {
-                    if (!_fileSystem.DirectoryExists(rootPath))
+                    var found = new List<FolderSearchResult>();
+                    foreach (var rootPath in targetPaths)
                     {
-                        continue;
+                        token.ThrowIfCancellationRequested();
+                        if (!_fileSystem.DirectoryExists(rootPath))
+                        {
+                            continue;
+                        }
+
+                        SearchFoldersRecursive(rootPath, patterns, excludeNames, found, recurse, token);
                     }
 
-                    SearchFoldersRecursive(rootPath, patterns, excludeNames, found, recurse);
-                }
+                    foreach (var r in found)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        r.TotalSize = GetDirectorySize(r.FullPath, token);
+                    }
 
-                return found;
-            });
+                    return found;
+                }, token);
 
             foreach (var result in results)
             {
@@ -2384,6 +2529,10 @@ public class MainViewModel : ViewModelBase
                 ? $"Found {results.Count} folders matching {patterns.Count} patterns."
                 : $"Found {results.Count} folders (no filter).";
         }
+        catch (OperationCanceledException)
+        {
+            FolderSearchStatus = $"Search stopped. {FolderSearchResults.Count} folders found so far.";
+        }
         catch (Exception ex)
         {
             FolderSearchStatus = $"Error: {ex.Message}";
@@ -2391,7 +2540,13 @@ public class MainViewModel : ViewModelBase
         finally
         {
             IsFolderSearching = false;
+            SaveSettings();
         }
+    }
+
+    private void StopFolderSearch()
+    {
+        _folderSearchCts?.Cancel();
     }
 
     private void SearchFoldersRecursive(
@@ -2399,7 +2554,8 @@ public class MainViewModel : ViewModelBase
         List<FolderSearchPattern> patterns,
         HashSet<string> excludeNames,
         List<FolderSearchResult> results,
-        bool recurse)
+        bool recurse,
+        System.Threading.CancellationToken token)
     {
         IEnumerable<string> subDirs;
         try
@@ -2413,6 +2569,7 @@ public class MainViewModel : ViewModelBase
 
         foreach (var subDir in subDirs)
         {
+            token.ThrowIfCancellationRequested();
             var dirName = Path.GetFileName(subDir);
 
             if (excludeNames.Contains(dirName))
@@ -2475,7 +2632,7 @@ public class MainViewModel : ViewModelBase
             // Recurse deeper if enabled
             if (recurse)
             {
-                SearchFoldersRecursive(subDir, patterns, excludeNames, results, recurse);
+                SearchFoldersRecursive(subDir, patterns, excludeNames, results, recurse, token);
             }
         }
     }
@@ -2527,6 +2684,14 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    private void ToggleItem_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ToggleItem.IsEnabled))
+        {
+            SaveSettings();
+        }
+    }
+
     // ── FOLDER ACTION METHODS ──
     private void FolderResult_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -2535,6 +2700,7 @@ public class MainViewModel : ViewModelBase
             SelectedFolderCount = FolderSearchResults.Count(r => r.IsSelected);
             _areAllFoldersSelected = FolderSearchResults.Count > 0 && FolderSearchResults.All(r => r.IsSelected);
             OnPropertyChanged(nameof(AreAllFoldersSelected));
+            SaveSettings();
         }
     }
 
@@ -2554,39 +2720,130 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private void ScanSubfolders()
+    private async void ScanSubfolders()
     {
         DiscoveredSubfolders.Clear();
+        DiscoveredFileTypes.Clear();
         SubfolderFilter = string.Empty;
+        FileTypeFilter = string.Empty;
+        OnPropertyChanged(nameof(FilteredSubfolders));
+        OnPropertyChanged(nameof(FilteredFileTypes));
         ClearSubfolderStatus = "Scanning...";
 
         var selectedFolders = FolderSearchResults.Where(r => r.IsSelected).ToList();
-        var subfolderData = new Dictionary<string, List<SubfolderLocation>>(StringComparer.OrdinalIgnoreCase);
         var includeNested = FolderSearchIncludeSubdirectories;
+        var folderPaths = selectedFolders.Select(f => f.FullPath).ToList();
 
-        foreach (var folder in selectedFolders)
+        var (subfolderItems, fileTypeItems) = await Task.Run(() =>
         {
-            ScanSubfoldersIn(folder.FullPath, folder.FullPath, subfolderData, includeNested);
+            var subfolders = new Dictionary<string, List<SubfolderLocation>>(StringComparer.OrdinalIgnoreCase);
+            var fileTypes = new Dictionary<string, List<SubfolderLocation>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var path in folderPaths)
+            {
+                ScanFolderContents(path, path, subfolders, fileTypes, includeNested);
+            }
+
+            var subItems = subfolders
+                .OrderByDescending(k => k.Value.Count)
+                .ThenBy(k => k.Key)
+                .Select(kvp => new SubfolderItem
+                {
+                    Name = kvp.Key,
+                    Count = kvp.Value.Count,
+                    Locations = kvp.Value,
+                    TotalSize = kvp.Value.Sum(loc => GetDirectorySize(loc.FullPath)),
+                })
+                .ToList();
+
+            var typeItems = fileTypes
+                .OrderByDescending(k => k.Value.Count)
+                .ThenBy(k => k.Key)
+                .Select(kvp => new SubfolderItem
+                {
+                    Name = kvp.Key,
+                    Count = kvp.Value.Count,
+                    Locations = kvp.Value,
+                    TotalSize = kvp.Value.Sum(loc => SafeFileSize(loc.FullPath)),
+                })
+                .ToList();
+
+            return (subItems, typeItems);
+        }).ConfigureAwait(true);
+
+        foreach (var item in subfolderItems)
+        {
+            DiscoveredSubfolders.Add(item);
         }
 
-        foreach (var kvp in subfolderData.OrderByDescending(k => k.Value.Count).ThenBy(k => k.Key))
+        foreach (var item in fileTypeItems)
         {
-            DiscoveredSubfolders.Add(new SubfolderItem
-            {
-                Name = kvp.Key,
-                Count = kvp.Value.Count,
-                Locations = kvp.Value,
-            });
+            DiscoveredFileTypes.Add(item);
         }
 
         OnPropertyChanged(nameof(FilteredSubfolders));
-        ClearSubfolderStatus = $"Found {DiscoveredSubfolders.Count} unique subfolder names across {selectedFolders.Count} folders.";
+        OnPropertyChanged(nameof(FilteredFileTypes));
+        var totalSubfolderSize = new SubfolderItem { TotalSize = DiscoveredSubfolders.Sum(s => s.TotalSize) }.TotalSizeDisplay;
+        var totalFileSize = new SubfolderItem { TotalSize = DiscoveredFileTypes.Sum(t => t.TotalSize) }.TotalSizeDisplay;
+        ClearSubfolderStatus = $"Found {DiscoveredSubfolders.Count} subfolder names ({totalSubfolderSize}) and {DiscoveredFileTypes.Count} file types ({totalFileSize}) across {selectedFolders.Count} folders.";
     }
 
-    private void ScanSubfoldersIn(
+    private async System.Threading.Tasks.Task ComputeRestoredSizesAsync()
+    {
+        var snapshot = FolderSearchResults.ToList();
+        var sizes = await System.Threading.Tasks.Task.Run(() =>
+            snapshot.ToDictionary(r => r.FullPath, r => GetDirectorySize(r.FullPath))).ConfigureAwait(true);
+
+        foreach (var r in FolderSearchResults)
+        {
+            if (sizes.TryGetValue(r.FullPath, out var size))
+            {
+                r.TotalSize = size;
+            }
+        }
+    }
+
+    private long SafeFileSize(string path)
+    {
+        try
+        {
+            return _fileSystem.GetFileSize(path);
+        }
+        catch
+        {
+            return 0L;
+        }
+    }
+
+    private long GetDirectorySize(string path) => GetDirectorySize(path, System.Threading.CancellationToken.None);
+
+    private long GetDirectorySize(string path, System.Threading.CancellationToken token)
+    {
+        try
+        {
+            long total = 0;
+            foreach (var file in _fileSystem.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+            {
+                token.ThrowIfCancellationRequested();
+                total += SafeFileSize(file);
+            }
+
+            return total;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return 0L;
+        }
+    }
+
+    private void ScanFolderContents(
         string path,
         string rootParent,
-        Dictionary<string, List<SubfolderLocation>> data,
+        Dictionary<string, List<SubfolderLocation>> subfolderData,
+        Dictionary<string, List<SubfolderLocation>> fileTypeData,
         bool recurse)
     {
         try
@@ -2600,18 +2857,42 @@ public class MainViewModel : ViewModelBase
                     FullPath = subDir,
                 };
 
-                if (data.TryGetValue(name, out var locations))
+                if (subfolderData.TryGetValue(name, out var locations))
                 {
                     locations.Add(location);
                 }
                 else
                 {
-                    data[name] = new List<SubfolderLocation> { location };
+                    subfolderData[name] = new List<SubfolderLocation> { location };
                 }
 
                 if (recurse)
                 {
-                    ScanSubfoldersIn(subDir, rootParent, data, true);
+                    ScanFolderContents(subDir, rootParent, subfolderData, fileTypeData, true);
+                }
+            }
+
+            foreach (var file in _fileSystem.EnumerateFiles(path, "*", SearchOption.TopDirectoryOnly))
+            {
+                var ext = Path.GetExtension(file);
+                if (string.IsNullOrEmpty(ext))
+                {
+                    ext = "(no extension)";
+                }
+
+                var fileLocation = new SubfolderLocation
+                {
+                    ParentPath = rootParent,
+                    FullPath = file,
+                };
+
+                if (fileTypeData.TryGetValue(ext, out var fileLocations))
+                {
+                    fileLocations.Add(fileLocation);
+                }
+                else
+                {
+                    fileTypeData[ext] = new List<SubfolderLocation> { fileLocation };
                 }
             }
         }
@@ -2711,6 +2992,69 @@ public class MainViewModel : ViewModelBase
         {
             s.IsSelected = false;
         }
+    }
+
+    private void SelectAllFileTypes()
+    {
+        foreach (var t in FilteredFileTypes)
+        {
+            t.IsSelected = true;
+        }
+    }
+
+    private void ClearFileTypeSelection()
+    {
+        foreach (var t in DiscoveredFileTypes)
+        {
+            t.IsSelected = false;
+        }
+    }
+
+    private void ClearSelectedFileTypes()
+    {
+        var selected = DiscoveredFileTypes.Where(t => t.IsSelected).ToList();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        var totalFiles = selected.Sum(t => t.Locations.Count);
+        var typeList = string.Join(", ", selected.Select(t => t.Name));
+
+        var result = System.Windows.MessageBox.Show(
+            $"Delete {totalFiles} files of type(s) [{typeList}] from the scanned folders?\n\nThis cannot be undone.",
+            "Confirm Delete Files",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var deleted = 0;
+        var failed = 0;
+        foreach (var type in selected)
+        {
+            foreach (var loc in type.Locations)
+            {
+                try
+                {
+                    File.Delete(loc.FullPath);
+                    deleted++;
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+        }
+
+        ClearSubfolderStatus = failed == 0
+            ? $"Deleted {deleted} files."
+            : $"Deleted {deleted} files. {failed} failed (access denied or in use).";
+
+        ScanSubfolders();
     }
 
     // ── ACTION METHODS ──

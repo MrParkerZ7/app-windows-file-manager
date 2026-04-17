@@ -56,6 +56,16 @@ public class AppSettings
     public List<string> ExcludeFolderNames { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the target paths whose enable toggle is off (persisted across sessions).
+    /// </summary>
+    public List<string> DisabledTargetPaths { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the exclude folder names whose enable toggle is off (persisted across sessions).
+    /// </summary>
+    public List<string> DisabledExcludeFolderNames { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets the dynamic filter rules.
     /// </summary>
     public List<FilterRule> FilterRules { get; set; } = new();
@@ -64,6 +74,16 @@ public class AppSettings
     /// Gets or sets the folder search patterns.
     /// </summary>
     public List<FolderSearchPattern> FolderSearchPatterns { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the last folder search result paths (for restoring the Folder Control result list across sessions).
+    /// </summary>
+    public List<string> FolderSearchResultPaths { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the folder search result paths whose selection checkbox is checked.
+    /// </summary>
+    public List<string> SelectedFolderSearchResultPaths { get; set; } = new();
 
     /// <summary>
     /// Gets or sets the window left position.

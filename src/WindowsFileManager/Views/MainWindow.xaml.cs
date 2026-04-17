@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Threading;
+using WindowsFileManager.Core.Models;
 using WindowsFileManager.ViewModels;
 
 namespace WindowsFileManager.Views;
@@ -221,9 +222,10 @@ public partial class MainWindow : Window
         {
             // For template columns, use the header text as a hint
             var headerText = header.Column.Header as string;
-            sortBy = headerText switch
+            sortBy = headerText?.TrimEnd(' ', '▲', '▼') switch
             {
                 "Full Path" => "FullPath",
+                "Size" => "TotalSize",
                 _ => null,
             };
         }
@@ -265,6 +267,22 @@ public partial class MainWindow : Window
             {
                 header.Column.Header = currentHeader.TrimEnd(' ', '▲', '▼') + arrow;
             }
+        }
+    }
+
+    private void SubfolderPrevPage_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement el && el.DataContext is SubfolderItem item)
+        {
+            item.PrevPage();
+        }
+    }
+
+    private void SubfolderNextPage_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement el && el.DataContext is SubfolderItem item)
+        {
+            item.NextPage();
         }
     }
 
