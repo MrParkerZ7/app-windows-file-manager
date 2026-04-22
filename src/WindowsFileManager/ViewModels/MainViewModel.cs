@@ -31,6 +31,10 @@ public class MainViewModel : ViewModelBase
     private readonly SettingsService _settingsService;
     private readonly DispatcherTimer _resourceTimer;
     private readonly Process _currentProcess;
+    private AppSettings _settings = new();
+    private bool _isSwitchingProfile;
+    private string _activeProfileName = "Default";
+    private string _profileOperationStatus = string.Empty;
     private bool _includeSubdirectories = true;
     private bool _isScanning;
     private int _filesScanned;
@@ -669,6 +673,12 @@ public class MainViewModel : ViewModelBase
         BrowseMoveTargetCommand = new RelayCommand(_ => BrowseMoveTarget());
         SelectAllInGroupCommand = new RelayCommand(p => SelectAllInGroup(p as DuplicateGroup));
         ClearSelectionInGroupCommand = new RelayCommand(p => ClearSelectionInGroup(p as DuplicateGroup));
+
+        // Profile management
+        CreateProfileCommand = new RelayCommand(p => CreateProfile(p as string));
+        SwitchProfileCommand = new RelayCommand(p => SwitchProfile(p as string), p => p is string name && !string.Equals(name, ActiveProfileName, StringComparison.OrdinalIgnoreCase));
+        RenameProfileCommand = new RelayCommand(p => RenameActiveProfile(p as string));
+        DeleteProfileCommand = new RelayCommand(_ => DeleteActiveProfile(), _ => ProfileNames.Count > 1);
 
         FilteredDuplicateGroups = CollectionViewSource.GetDefaultView(DuplicateGroups);
         FilteredDuplicateGroups.Filter = FilterDuplicateGroup;
@@ -1402,6 +1412,55 @@ public class MainViewModel : ViewModelBase
     /// <summary>Gets the select all files in a single group command.</summary>
     public ICommand SelectAllInGroupCommand { get; }
 
+    /// <summary>
+    /// Gets the command to create a new profile. Parameter is the proposed profile name (optional).
+    /// </summary>
+    public ICommand CreateProfileCommand { get; }
+
+    /// <summary>
+    /// Gets the command to switch the active profile. Parameter is the target profile name.
+    /// </summary>
+    public ICommand SwitchProfileCommand { get; }
+
+    /// <summary>
+    /// Gets the command to rename the active profile. Parameter is the new name.
+    /// </summary>
+    public ICommand RenameProfileCommand { get; }
+
+    /// <summary>
+    /// Gets the command to delete the active profile (at least one profile must remain).
+    /// </summary>
+    public ICommand DeleteProfileCommand { get; }
+
+    /// <summary>
+    /// Gets the list of saved profile names, bound to the profile switcher combo box.
+    /// </summary>
+    public ObservableCollection<string> ProfileNames { get; } = new();
+
+    /// <summary>
+    /// Gets or sets the active profile name. Setter via UI drives switching.
+    /// </summary>
+    public string ActiveProfileName
+    {
+        get => _activeProfileName;
+        set
+        {
+            if (!string.Equals(_activeProfileName, value, StringComparison.OrdinalIgnoreCase))
+            {
+                SwitchProfile(value);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the most recent status message from a profile operation (create/rename/delete/switch).
+    /// </summary>
+    public string ProfileOperationStatus
+    {
+        get => _profileOperationStatus;
+        set => SetProperty(ref _profileOperationStatus, value);
+    }
+
     /// <summary>Gets the clear file selection in a single group command.</summary>
     public ICommand ClearSelectionInGroupCommand { get; }
 
@@ -1572,77 +1631,147 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Saves current settings to disk. Called on window close.
+    /// Saves current settings to disk. Writes live UI state into the active profile, then persists the full <see cref="AppSettings"/>.
     /// </summary>
     public void SaveSettings()
     {
-        var settings = new AppSettings
+        if (_isSwitchingProfile)
         {
-            TargetPaths = TargetPaths.Select(t => t.Value).ToList(),
-            DisabledTargetPaths = TargetPaths.Where(t => !t.IsEnabled).Select(t => t.Value).ToList(),
-            IncludeSubdirectories = IncludeSubdirectories,
-            IsMiniPreview = IsMiniPreview,
-            IsAutoPreview = IsAutoPreview,
-            IsAutoPlay = IsAutoPlay,
-            SelectedSortOption = SelectedSortOption,
-            Volume = MediaVolume,
-            MoveTargetPath = MoveTargetPath,
-            ExcludeFolderNames = ExcludeFolderNames.Select(t => t.Value).ToList(),
-            DisabledExcludeFolderNames = ExcludeFolderNames.Where(t => !t.IsEnabled).Select(t => t.Value).ToList(),
-            FilterRules = FilterRules.ToList(),
-            FolderSearchPatterns = FolderSearchPatterns.ToList(),
-            FolderSearchResultPaths = FolderSearchResults.Select(r => r.FullPath).ToList(),
-            SelectedFolderSearchResultPaths = FolderSearchResults.Where(r => r.IsSelected).Select(r => r.FullPath).ToList(),
-            ActionHistory = ActionHistory.ToList(),
-            WindowLeft = _windowLeft,
-            WindowTop = _windowTop,
-            WindowWidth = _windowWidth,
-            WindowHeight = _windowHeight,
-            IsMaximized = _isMaximized,
-        };
-        _settingsService.Save(settings);
+            return;
+        }
+
+        var profile = GetOrCreateActiveProfile();
+        SnapshotLiveStateInto(profile);
+        _settings.ActiveProfileName = ActiveProfileName;
+        _settings.ActionHistory = ActionHistory.ToList();
+        _settings.WindowLeft = _windowLeft;
+        _settings.WindowTop = _windowTop;
+        _settings.WindowWidth = _windowWidth;
+        _settings.WindowHeight = _windowHeight;
+        _settings.IsMaximized = _isMaximized;
+        _settingsService.Save(_settings);
     }
 
     private void LoadSettings()
     {
-        var settings = _settingsService.Load();
-        IncludeSubdirectories = settings.IncludeSubdirectories;
-        IsMiniPreview = settings.IsMiniPreview;
-        IsAutoPreview = settings.IsAutoPreview;
-        IsPreviewVisible = IsAutoPreview;
-        IsAutoPlay = settings.IsAutoPlay;
-        SelectedSortOption = settings.SelectedSortOption;
-        MediaVolume = settings.Volume;
-        MoveTargetPath = settings.MoveTargetPath;
+        _settings = _settingsService.Load();
+        _activeProfileName = _settings.ActiveProfileName;
+        OnPropertyChanged(nameof(ActiveProfileName));
+        RefreshProfileNames();
 
-        var disabledTargets = new HashSet<string>(settings.DisabledTargetPaths, StringComparer.OrdinalIgnoreCase);
-        foreach (var path in settings.TargetPaths)
+        var profile = GetOrCreateActiveProfile();
+        ApplyProfileToLiveState(profile);
+
+        foreach (var entry in _settings.ActionHistory)
+        {
+            ActionHistory.Add(entry);
+        }
+    }
+
+    private ProfileSettings GetOrCreateActiveProfile()
+    {
+        if (_settings.Profiles.Count == 0)
+        {
+            var seed = new ProfileSettings { Name = string.IsNullOrWhiteSpace(ActiveProfileName) ? "Default" : ActiveProfileName };
+            _settings.Profiles.Add(seed);
+            _settings.ActiveProfileName = seed.Name;
+            _activeProfileName = seed.Name;
+        }
+
+        var profile = _settings.Profiles.FirstOrDefault(p => string.Equals(p.Name, ActiveProfileName, StringComparison.OrdinalIgnoreCase));
+        if (profile == null)
+        {
+            profile = _settings.Profiles[0];
+            _activeProfileName = profile.Name;
+            _settings.ActiveProfileName = profile.Name;
+            OnPropertyChanged(nameof(ActiveProfileName));
+        }
+
+        return profile;
+    }
+
+    private void SnapshotLiveStateInto(ProfileSettings profile)
+    {
+        profile.TargetPaths = TargetPaths.Select(t => t.Value).ToList();
+        profile.DisabledTargetPaths = TargetPaths.Where(t => !t.IsEnabled).Select(t => t.Value).ToList();
+        profile.IncludeSubdirectories = IncludeSubdirectories;
+        profile.IsMiniPreview = IsMiniPreview;
+        profile.IsAutoPreview = IsAutoPreview;
+        profile.IsAutoPlay = IsAutoPlay;
+        profile.SelectedSortOption = SelectedSortOption;
+        profile.Volume = MediaVolume;
+        profile.MoveTargetPath = MoveTargetPath;
+        profile.ExcludeFolderNames = ExcludeFolderNames.Select(t => t.Value).ToList();
+        profile.DisabledExcludeFolderNames = ExcludeFolderNames.Where(t => !t.IsEnabled).Select(t => t.Value).ToList();
+        profile.FilterRules = FilterRules.ToList();
+        profile.FolderSearchPatterns = FolderSearchPatterns.ToList();
+        profile.FolderSearchResultPaths = FolderSearchResults.Select(r => r.FullPath).ToList();
+        profile.SelectedFolderSearchResultPaths = FolderSearchResults.Where(r => r.IsSelected).Select(r => r.FullPath).ToList();
+    }
+
+    private void ApplyProfileToLiveState(ProfileSettings profile)
+    {
+        foreach (var t in TargetPaths)
+        {
+            t.PropertyChanged -= ToggleItem_PropertyChanged;
+        }
+
+        foreach (var t in ExcludeFolderNames)
+        {
+            t.PropertyChanged -= ToggleItem_PropertyChanged;
+        }
+
+        foreach (var r in FolderSearchResults)
+        {
+            r.PropertyChanged -= FolderResult_PropertyChanged;
+        }
+
+        TargetPaths.Clear();
+        ExcludeFolderNames.Clear();
+        FilterRules.Clear();
+        FolderSearchPatterns.Clear();
+        FolderSearchResults.Clear();
+        DiscoveredSubfolders.Clear();
+        DiscoveredFileTypes.Clear();
+        DiscoveredFlattenFileTypes.Clear();
+
+        IncludeSubdirectories = profile.IncludeSubdirectories;
+        IsMiniPreview = profile.IsMiniPreview;
+        IsAutoPreview = profile.IsAutoPreview;
+        IsPreviewVisible = IsAutoPreview;
+        IsAutoPlay = profile.IsAutoPlay;
+        SelectedSortOption = profile.SelectedSortOption;
+        MediaVolume = profile.Volume;
+        MoveTargetPath = profile.MoveTargetPath;
+
+        var disabledTargets = new HashSet<string>(profile.DisabledTargetPaths, StringComparer.OrdinalIgnoreCase);
+        foreach (var path in profile.TargetPaths)
         {
             var item = new ToggleItem(path) { IsEnabled = !disabledTargets.Contains(path) };
             item.PropertyChanged += ToggleItem_PropertyChanged;
             TargetPaths.Add(item);
         }
 
-        var disabledExcludes = new HashSet<string>(settings.DisabledExcludeFolderNames, StringComparer.OrdinalIgnoreCase);
-        foreach (var name in settings.ExcludeFolderNames)
+        var disabledExcludes = new HashSet<string>(profile.DisabledExcludeFolderNames, StringComparer.OrdinalIgnoreCase);
+        foreach (var name in profile.ExcludeFolderNames)
         {
             var item = new ToggleItem(name) { IsEnabled = !disabledExcludes.Contains(name) };
             item.PropertyChanged += ToggleItem_PropertyChanged;
             ExcludeFolderNames.Add(item);
         }
 
-        foreach (var rule in settings.FilterRules)
+        foreach (var rule in profile.FilterRules)
         {
             FilterRules.Add(rule);
         }
 
-        foreach (var pattern in settings.FolderSearchPatterns)
+        foreach (var pattern in profile.FolderSearchPatterns)
         {
             FolderSearchPatterns.Add(pattern);
         }
 
-        var selectedPaths = new HashSet<string>(settings.SelectedFolderSearchResultPaths, StringComparer.OrdinalIgnoreCase);
-        foreach (var path in settings.FolderSearchResultPaths)
+        var selectedPaths = new HashSet<string>(profile.SelectedFolderSearchResultPaths, StringComparer.OrdinalIgnoreCase);
+        foreach (var path in profile.FolderSearchResultPaths)
         {
             if (!_fileSystem.DirectoryExists(path))
             {
@@ -1663,19 +1792,192 @@ public class MainViewModel : ViewModelBase
         FolderSearchCount = FolderSearchResults.Count;
         SelectedFolderCount = FolderSearchResults.Count(r => r.IsSelected);
         _areAllFoldersSelected = FolderSearchResults.Count > 0 && FolderSearchResults.All(r => r.IsSelected);
+        OnPropertyChanged(nameof(AreAllFoldersSelected));
+        OnPropertyChanged(nameof(FilteredSubfolders));
+        OnPropertyChanged(nameof(FilteredFileTypes));
+
+        FolderSearchStatus = FolderSearchCount > 0
+            ? $"Restored {FolderSearchCount} folders from profile '{profile.Name}'."
+            : string.Empty;
+        ClearSubfolderStatus = string.Empty;
+
         if (FolderSearchCount > 0)
         {
-            FolderSearchStatus = $"Restored {FolderSearchCount} folders from last session.";
             _ = ComputeRestoredSizesAsync();
-        }
-
-        foreach (var entry in settings.ActionHistory)
-        {
-            ActionHistory.Add(entry);
         }
 
         RefreshRulePriorities();
         RefreshSearchPatternPriorities();
+    }
+
+    private void RefreshProfileNames()
+    {
+        ProfileNames.Clear();
+        foreach (var p in _settings.Profiles)
+        {
+            ProfileNames.Add(p.Name);
+        }
+    }
+
+    private void CreateProfile(string? suggestedName)
+    {
+        var baseName = string.IsNullOrWhiteSpace(suggestedName) ? "New Profile" : suggestedName!.Trim();
+        var name = baseName;
+        var i = 2;
+        while (_settings.Profiles.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            name = $"{baseName} ({i++})";
+        }
+
+        var source = GetOrCreateActiveProfile();
+        SnapshotLiveStateInto(source);
+
+        var profile = CloneProfile(source, name);
+        _settings.Profiles.Add(profile);
+        RefreshProfileNames();
+        ProfileOperationStatus = $"Created profile '{name}' (copied from '{source.Name}').";
+        SwitchProfile(name);
+    }
+
+    private static ProfileSettings CloneProfile(ProfileSettings source, string newName) => new()
+    {
+        Name = newName,
+        TargetPaths = new List<string>(source.TargetPaths),
+        DisabledTargetPaths = new List<string>(source.DisabledTargetPaths),
+        IncludeSubdirectories = source.IncludeSubdirectories,
+        MinimumFileSize = source.MinimumFileSize,
+        IsMiniPreview = source.IsMiniPreview,
+        IsAutoPreview = source.IsAutoPreview,
+        IsAutoPlay = source.IsAutoPlay,
+        SelectedSortOption = source.SelectedSortOption,
+        Volume = source.Volume,
+        MoveTargetPath = source.MoveTargetPath,
+        ExcludeFolderNames = new List<string>(source.ExcludeFolderNames),
+        DisabledExcludeFolderNames = new List<string>(source.DisabledExcludeFolderNames),
+        FilterRules = source.FilterRules.Select(r => new FilterRule
+        {
+            Pattern = r.Pattern,
+            IsRegex = r.IsRegex,
+            IgnoreCase = r.IgnoreCase,
+            Action = r.Action,
+            Target = r.Target,
+            IsEnabled = r.IsEnabled,
+            Priority = r.Priority,
+        }).ToList(),
+        FolderSearchPatterns = source.FolderSearchPatterns.Select(p => new FolderSearchPattern
+        {
+            Pattern = p.Pattern,
+            MatchType = p.MatchType,
+            IsEnabled = p.IsEnabled,
+            Priority = p.Priority,
+        }).ToList(),
+        FolderSearchResultPaths = new List<string>(source.FolderSearchResultPaths),
+        SelectedFolderSearchResultPaths = new List<string>(source.SelectedFolderSearchResultPaths),
+    };
+
+    private void SwitchProfile(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        if (string.Equals(name, ActiveProfileName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var target = _settings.Profiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (target == null)
+        {
+            return;
+        }
+
+        var current = _settings.Profiles.FirstOrDefault(p => string.Equals(p.Name, ActiveProfileName, StringComparison.OrdinalIgnoreCase));
+        if (current != null)
+        {
+            SnapshotLiveStateInto(current);
+        }
+
+        _settings.ActiveProfileName = target.Name;
+        _activeProfileName = target.Name;
+        OnPropertyChanged(nameof(ActiveProfileName));
+
+        _isSwitchingProfile = true;
+        try
+        {
+            ApplyProfileToLiveState(target);
+        }
+        finally
+        {
+            _isSwitchingProfile = false;
+        }
+
+        _settingsService.Save(_settings);
+        ProfileOperationStatus = $"Switched to '{target.Name}'.";
+    }
+
+    private void RenameActiveProfile(string? newName)
+    {
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            return;
+        }
+
+        var trimmed = newName.Trim();
+        if (string.Equals(trimmed, ActiveProfileName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (_settings.Profiles.Any(p => string.Equals(p.Name, trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            ProfileOperationStatus = $"A profile named '{trimmed}' already exists.";
+            return;
+        }
+
+        var profile = GetOrCreateActiveProfile();
+        profile.Name = trimmed;
+        _activeProfileName = trimmed;
+        _settings.ActiveProfileName = trimmed;
+        OnPropertyChanged(nameof(ActiveProfileName));
+        RefreshProfileNames();
+        _settingsService.Save(_settings);
+        ProfileOperationStatus = $"Renamed to '{trimmed}'.";
+    }
+
+    private void DeleteActiveProfile()
+    {
+        if (_settings.Profiles.Count <= 1)
+        {
+            return;
+        }
+
+        var current = _settings.Profiles.FirstOrDefault(p => string.Equals(p.Name, ActiveProfileName, StringComparison.OrdinalIgnoreCase));
+        if (current == null)
+        {
+            return;
+        }
+
+        _settings.Profiles.Remove(current);
+        var next = _settings.Profiles[0];
+        _settings.ActiveProfileName = next.Name;
+        _activeProfileName = next.Name;
+        OnPropertyChanged(nameof(ActiveProfileName));
+        RefreshProfileNames();
+
+        _isSwitchingProfile = true;
+        try
+        {
+            ApplyProfileToLiveState(next);
+        }
+        finally
+        {
+            _isSwitchingProfile = false;
+        }
+
+        _settingsService.Save(_settings);
+        ProfileOperationStatus = $"Deleted profile. Now on '{next.Name}'.";
     }
 
     private bool CanScan() => !IsScanning && TargetPaths.Any(t => t.IsEnabled);

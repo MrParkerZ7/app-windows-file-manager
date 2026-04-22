@@ -312,4 +312,70 @@ public partial class MainWindow : Window
             // Media elements may not be initialized yet
         }
     }
+
+    private void NewProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm)
+        {
+            return;
+        }
+
+        var name = Microsoft.VisualBasic.Interaction.InputBox(
+            "Name for the new profile:",
+            "New Profile",
+            "New Profile");
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        vm.CreateProfileCommand.Execute(name.Trim());
+    }
+
+    private void RenameProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm)
+        {
+            return;
+        }
+
+        var name = Microsoft.VisualBasic.Interaction.InputBox(
+            "New name for this profile:",
+            "Rename Profile",
+            vm.ActiveProfileName);
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        vm.RenameProfileCommand.Execute(name.Trim());
+    }
+
+    private void DeleteProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm)
+        {
+            return;
+        }
+
+        if (vm.ProfileNames.Count <= 1)
+        {
+            MessageBox.Show(
+                "You can't delete the last remaining profile.",
+                "Delete Profile",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Delete profile '{vm.ActiveProfileName}'? This cannot be undone.",
+            "Delete Profile",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (confirm == MessageBoxResult.Yes)
+        {
+            vm.DeleteProfileCommand.Execute(null);
+        }
+    }
 }

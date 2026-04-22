@@ -10,12 +10,9 @@ public class AppSettingsTests
     {
         var settings = new AppSettings();
 
-        settings.TargetPaths.Should().BeEmpty();
-        settings.IncludeSubdirectories.Should().BeTrue();
-        settings.MinimumFileSize.Should().Be(1);
-        settings.ExcludeFolderNames.Should().BeEmpty();
-        settings.FilterRules.Should().BeEmpty();
-        settings.MoveTargetPath.Should().BeEmpty();
+        settings.Profiles.Should().BeEmpty();
+        settings.ActiveProfileName.Should().Be("Default");
+        settings.ActionHistory.Should().BeEmpty();
         settings.WindowLeft.Should().BeNull();
         settings.WindowTop.Should().BeNull();
         settings.WindowWidth.Should().BeNull();
@@ -26,32 +23,31 @@ public class AppSettingsTests
     [Fact]
     public void Properties_ShouldSetAndGet()
     {
-        var rule = new FilterRule
-        {
-            Pattern = "*.txt",
-            IsRegex = true,
-            IgnoreCase = false,
-            Action = FilterAction.Exclude,
-            Target = FilterTarget.Filepath,
-        };
-
+        var profile = new ProfileSettings { Name = "Work" };
         var settings = new AppSettings
         {
-            TargetPaths = new List<string> { @"C:\a", @"C:\b" },
-            IncludeSubdirectories = false,
-            MinimumFileSize = 2048,
-            ExcludeFolderNames = new List<string> { "node_modules", ".git" },
-            FilterRules = new List<FilterRule> { rule },
+            Profiles = new List<ProfileSettings> { profile },
+            ActiveProfileName = "Work",
+            ActionHistory = new List<ActionHistoryEntry>
+            {
+                new() { Kind = ActionHistoryKind.RecycleFiles, Summary = "Recycled 3 files" },
+            },
+            WindowLeft = 120,
+            WindowTop = 80,
+            WindowWidth = 1200,
+            WindowHeight = 800,
+            IsMaximized = true,
         };
 
-        settings.TargetPaths.Should().HaveCount(2);
-        settings.IncludeSubdirectories.Should().BeFalse();
-        settings.MinimumFileSize.Should().Be(2048);
-        settings.ExcludeFolderNames.Should().HaveCount(2);
-        settings.ExcludeFolderNames.Should().Contain("node_modules");
-        settings.FilterRules.Should().HaveCount(1);
-        settings.FilterRules[0].Pattern.Should().Be("*.txt");
-        settings.FilterRules[0].Action.Should().Be(FilterAction.Exclude);
-        settings.FilterRules[0].Target.Should().Be(FilterTarget.Filepath);
+        settings.Profiles.Should().ContainSingle();
+        settings.Profiles[0].Name.Should().Be("Work");
+        settings.ActiveProfileName.Should().Be("Work");
+        settings.ActionHistory.Should().ContainSingle();
+        settings.ActionHistory[0].Summary.Should().Be("Recycled 3 files");
+        settings.WindowLeft.Should().Be(120);
+        settings.WindowTop.Should().Be(80);
+        settings.WindowWidth.Should().Be(1200);
+        settings.WindowHeight.Should().Be(800);
+        settings.IsMaximized.Should().BeTrue();
     }
 }
