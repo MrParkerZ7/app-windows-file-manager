@@ -33,6 +33,7 @@ public class MainViewModel : ViewModelBase
     private readonly Process _currentProcess;
     private AppSettings _settings = new();
     private bool _isSwitchingProfile;
+    private bool _isBulkFolderSelectionUpdate;
     private string _activeProfileName = "Default";
     private string _profileOperationStatus = string.Empty;
     private bool _includeSubdirectories = true;
@@ -675,7 +676,8 @@ public class MainViewModel : ViewModelBase
         ClearSelectionInGroupCommand = new RelayCommand(p => ClearSelectionInGroup(p as DuplicateGroup));
 
         // Profile management
-        CreateProfileCommand = new RelayCommand(p => CreateProfile(p as string));
+        CreateProfileCommand = new RelayCommand(p => CreateBlankProfile(p as string));
+        CloneProfileCommand = new RelayCommand(p => CloneActiveProfile(p as string));
         SwitchProfileCommand = new RelayCommand(p => SwitchProfile(p as string), p => p is string name && !string.Equals(name, ActiveProfileName, StringComparison.OrdinalIgnoreCase));
         RenameProfileCommand = new RelayCommand(p => RenameActiveProfile(p as string));
         DeleteProfileCommand = new RelayCommand(_ => DeleteActiveProfile(), _ => ProfileNames.Count > 1);
@@ -1193,10 +1195,7 @@ public class MainViewModel : ViewModelBase
         {
             if (SetProperty(ref _areAllFoldersSelected, value))
             {
-                foreach (var result in FolderSearchResults)
-                {
-                    result.IsSelected = value;
-                }
+                BulkSetFolderSelection(value);
             }
         }
     }
@@ -1413,9 +1412,14 @@ public class MainViewModel : ViewModelBase
     public ICommand SelectAllInGroupCommand { get; }
 
     /// <summary>
-    /// Gets the command to create a new profile. Parameter is the proposed profile name (optional).
+    /// Gets the command to create a blank new profile. Parameter is the proposed profile name (optional).
     /// </summary>
     public ICommand CreateProfileCommand { get; }
+
+    /// <summary>
+    /// Gets the command to clone the active profile under a new name. Parameter is the proposed profile name (optional).
+    /// </summary>
+    public ICommand CloneProfileCommand { get; }
 
     /// <summary>
     /// Gets the command to switch the active profile. Parameter is the target profile name.
@@ -1819,9 +1823,34 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private void CreateProfile(string? suggestedName)
+    private void CreateBlankProfile(string? suggestedName)
     {
-        var baseName = string.IsNullOrWhiteSpace(suggestedName) ? "New Profile" : suggestedName!.Trim();
+        var name = ResolveUniqueProfileName(suggestedName, "New Profile");
+
+        var current = GetOrCreateActiveProfile();
+        SnapshotLiveStateInto(current);
+
+        _settings.Profiles.Add(new ProfileSettings { Name = name });
+        RefreshProfileNames();
+        ProfileOperationStatus = $"Created blank profile '{name}'.";
+        SwitchProfile(name);
+    }
+
+    private void CloneActiveProfile(string? suggestedName)
+    {
+        var source = GetOrCreateActiveProfile();
+        SnapshotLiveStateInto(source);
+
+        var name = ResolveUniqueProfileName(suggestedName, $"Copy of {source.Name}");
+        _settings.Profiles.Add(CloneProfile(source, name));
+        RefreshProfileNames();
+        ProfileOperationStatus = $"Cloned '{source.Name}' as '{name}'.";
+        SwitchProfile(name);
+    }
+
+    private string ResolveUniqueProfileName(string? suggestedName, string fallback)
+    {
+        var baseName = string.IsNullOrWhiteSpace(suggestedName) ? fallback : suggestedName!.Trim();
         var name = baseName;
         var i = 2;
         while (_settings.Profiles.Any(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)))
@@ -1829,14 +1858,7 @@ public class MainViewModel : ViewModelBase
             name = $"{baseName} ({i++})";
         }
 
-        var source = GetOrCreateActiveProfile();
-        SnapshotLiveStateInto(source);
-
-        var profile = CloneProfile(source, name);
-        _settings.Profiles.Add(profile);
-        RefreshProfileNames();
-        ProfileOperationStatus = $"Created profile '{name}' (copied from '{source.Name}').";
-        SwitchProfile(name);
+        return name;
     }
 
     private static ProfileSettings CloneProfile(ProfileSettings source, string newName) => new()
@@ -3157,6 +3179,11 @@ public class MainViewModel : ViewModelBase
     // ── FOLDER ACTION METHODS ──
     private void FolderResult_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (_isBulkFolderSelectionUpdate)
+        {
+            return;
+        }
+
         if (e.PropertyName == nameof(FolderSearchResult.IsSelected))
         {
             SelectedFolderCount = FolderSearchResults.Count(r => r.IsSelected);
@@ -3166,20 +3193,38 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private void SelectAllFolders()
-    {
-        foreach (var result in FolderSearchResults)
-        {
-            result.IsSelected = true;
-        }
-    }
+    private void SelectAllFolders() => BulkSetFolderSelection(true);
 
-    private void ClearFolderSelection()
+    private void ClearFolderSelection() => BulkSetFolderSelection(false);
+
+    private void BulkSetFolderSelection(bool selected)
     {
-        foreach (var result in FolderSearchResults)
+        if (FolderSearchResults.Count == 0)
         {
-            result.IsSelected = false;
+            return;
         }
+
+        _isBulkFolderSelectionUpdate = true;
+        try
+        {
+            foreach (var result in FolderSearchResults)
+            {
+                result.IsSelected = selected;
+            }
+        }
+        finally
+        {
+            _isBulkFolderSelectionUpdate = false;
+        }
+
+        SelectedFolderCount = selected ? FolderSearchResults.Count : 0;
+        if (_areAllFoldersSelected != selected)
+        {
+            _areAllFoldersSelected = selected;
+            OnPropertyChanged(nameof(AreAllFoldersSelected));
+        }
+
+        SaveSettings();
     }
 
     private async void FlattenSelectedFolders()

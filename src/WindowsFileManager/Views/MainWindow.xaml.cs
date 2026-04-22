@@ -322,8 +322,8 @@ public partial class MainWindow : Window
 
         var dialog = new ProfileNameDialog(
             "New Profile",
-            "Create a new profile",
-            $"Starts as a copy of '{vm.ActiveProfileName}'. You can edit its target folders, filters, and tab state independently.",
+            "Create a blank profile",
+            "Starts empty — no target folders, no exclude folders, no filters. Use this when you want a clean slate.",
             "New Profile",
             vm.ProfileNames)
         {
@@ -333,6 +333,29 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog() == true)
         {
             vm.CreateProfileCommand.Execute(dialog.EnteredName);
+        }
+    }
+
+    private void CloneProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel vm)
+        {
+            return;
+        }
+
+        var dialog = new ProfileNameDialog(
+            "Clone Profile",
+            $"Clone '{vm.ActiveProfileName}'",
+            $"Starts as a copy of '{vm.ActiveProfileName}' — same target folders, filters, and tab state. You can then edit it independently.",
+            $"Copy of {vm.ActiveProfileName}",
+            vm.ProfileNames)
+        {
+            Owner = this,
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            vm.CloneProfileCommand.Execute(dialog.EnteredName);
         }
     }
 

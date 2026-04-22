@@ -79,6 +79,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="{Binding ProfileOperationStatus}"
                            FontSize="10.5" FontStyle="Italic" Foreground="#558B2F"
@@ -94,17 +95,21 @@
                 <Button Grid.Column="3" Content="+ New" Padding="8,3" Margin="8,0,0,0"
                         FontSize="11" Cursor="Hand" Foreground="#1565C0" FontWeight="SemiBold"
                         Click="NewProfile_Click"
-                        ToolTip="Create a new profile (copies current state)" />
-                <Button Grid.Column="4" Content="✎ Rename" Padding="8,3" Margin="4,0,0,0"
+                        ToolTip="Create a blank new profile (no target folders, no filters)" />
+                <Button Grid.Column="4" Content="⎘ Clone" Padding="8,3" Margin="4,0,0,0"
+                        FontSize="11" Cursor="Hand" Foreground="#2E7D32" FontWeight="SemiBold"
+                        Click="CloneProfile_Click"
+                        ToolTip="Clone the active profile (copies current state under a new name)" />
+                <Button Grid.Column="5" Content="✎ Rename" Padding="8,3" Margin="4,0,0,0"
                         FontSize="11" Cursor="Hand" Foreground="#455A64"
                         Click="RenameProfile_Click"
                         ToolTip="Rename the active profile" />
-                <Button Grid.Column="5" Content="🗑 Delete" Padding="8,3" Margin="4,0,0,0"
+                <Button Grid.Column="6" Content="🗑 Delete" Padding="8,3" Margin="4,0,0,0"
                         FontSize="11" Cursor="Hand" Foreground="#C62828"
                         Click="DeleteProfile_Click"
                         ToolTip="Delete the active profile (at least one must remain)" />
-                <ToggleButton Grid.Column="6" Style="{StaticResource HelpButtonStyle}" Margin="8,0,0,0"
-                              Tag="&lt;h&gt;PROFILES&lt;/h&gt;&#x0a;Each profile is a saved workspace — target folders, exclude folders, filters, folder-search patterns, and every per-tab selection.&#x0a;&#x0a;&lt;b&gt;+ New&lt;/b&gt; = create a new profile copied from the current one&#x0a;&lt;b&gt;✎ Rename&lt;/b&gt; = rename the active profile&#x0a;&lt;b&gt;🗑 Delete&lt;/b&gt; = remove the active profile (at least one must remain)&#x0a;&#x0a;&lt;b&gt;Global&lt;/b&gt; (shared across profiles): window geometry, Action History log." />
+                <ToggleButton Grid.Column="7" Style="{StaticResource HelpButtonStyle}" Margin="8,0,0,0"
+                              Tag="&lt;h&gt;PROFILES&lt;/h&gt;&#x0a;Each profile is a saved workspace — target folders, exclude folders, filters, folder-search patterns, and every per-tab selection.&#x0a;&#x0a;&lt;b&gt;+ New&lt;/b&gt; = create a blank profile (empty target folders, no filters)&#x0a;&lt;b&gt;⎘ Clone&lt;/b&gt; = copy the current profile under a new name&#x0a;&lt;b&gt;✎ Rename&lt;/b&gt; = rename the active profile&#x0a;&lt;b&gt;🗑 Delete&lt;/b&gt; = remove the active profile (at least one must remain)&#x0a;&#x0a;&lt;b&gt;Global&lt;/b&gt; (shared across profiles): window geometry, Action History log." />
             </Grid>
         </Border>
 
