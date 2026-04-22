@@ -21,6 +21,9 @@ public enum FolderMatchType
 
     /// <summary>Folder name does NOT exactly match the pattern text (opposite of Match).</summary>
     Mismatch,
+
+    /// <summary>Folder does NOT contain a child item matching the pattern (opposite of Contains).</summary>
+    NotContain,
 }
 
 /// <summary>

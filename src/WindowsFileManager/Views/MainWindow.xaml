@@ -72,37 +72,37 @@
                 BorderThickness="0,0,0,1" Padding="8,4" Margin="0,0,0,4">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Profile:" FontWeight="Bold" FontSize="11"
+                <TextBlock Grid.Column="0" Text="{Binding ProfileOperationStatus}"
+                           FontSize="10.5" FontStyle="Italic" Foreground="#558B2F"
+                           VerticalAlignment="Center" Margin="0,0,12,0" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="1" Text="Profile:" FontWeight="Bold" FontSize="11"
                            VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#37474F" />
-                <ComboBox Grid.Column="1" x:Name="ProfileCombo"
+                <ComboBox Grid.Column="2" x:Name="ProfileCombo"
                           ItemsSource="{Binding ProfileNames}"
                           SelectedItem="{Binding ActiveProfileName, Mode=TwoWay}"
                           MinWidth="180" FontSize="11" Padding="4,2"
                           VerticalAlignment="Center"
                           ToolTip="Switch active profile" />
-                <Button Grid.Column="2" Content="+ New" Padding="8,3" Margin="8,0,0,0"
+                <Button Grid.Column="3" Content="+ New" Padding="8,3" Margin="8,0,0,0"
                         FontSize="11" Cursor="Hand" Foreground="#1565C0" FontWeight="SemiBold"
                         Click="NewProfile_Click"
                         ToolTip="Create a new profile (copies current state)" />
-                <Button Grid.Column="3" Content="✎ Rename" Padding="8,3" Margin="4,0,0,0"
+                <Button Grid.Column="4" Content="✎ Rename" Padding="8,3" Margin="4,0,0,0"
                         FontSize="11" Cursor="Hand" Foreground="#455A64"
                         Click="RenameProfile_Click"
                         ToolTip="Rename the active profile" />
-                <Button Grid.Column="4" Content="🗑 Delete" Padding="8,3" Margin="4,0,0,0"
+                <Button Grid.Column="5" Content="🗑 Delete" Padding="8,3" Margin="4,0,0,0"
                         FontSize="11" Cursor="Hand" Foreground="#C62828"
                         Click="DeleteProfile_Click"
                         ToolTip="Delete the active profile (at least one must remain)" />
-                <TextBlock Grid.Column="5" Text="{Binding ProfileOperationStatus}"
-                           FontSize="10.5" FontStyle="Italic" Foreground="#558B2F"
-                           VerticalAlignment="Center" Margin="16,0,0,0" TextTrimming="CharacterEllipsis" />
                 <ToggleButton Grid.Column="6" Style="{StaticResource HelpButtonStyle}" Margin="8,0,0,0"
                               Tag="&lt;h&gt;PROFILES&lt;/h&gt;&#x0a;Each profile is a saved workspace — target folders, exclude folders, filters, folder-search patterns, and every per-tab selection.&#x0a;&#x0a;&lt;b&gt;+ New&lt;/b&gt; = create a new profile copied from the current one&#x0a;&lt;b&gt;✎ Rename&lt;/b&gt; = rename the active profile&#x0a;&lt;b&gt;🗑 Delete&lt;/b&gt; = remove the active profile (at least one must remain)&#x0a;&#x0a;&lt;b&gt;Global&lt;/b&gt; (shared across profiles): window geometry, Action History log." />
             </Grid>

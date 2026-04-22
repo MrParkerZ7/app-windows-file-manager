@@ -1118,7 +1118,7 @@ public class MainViewModel : ViewModelBase
     public ObservableCollection<FolderSearchPattern> FolderSearchPatterns { get; } = new();
 
     /// <summary>Gets the available match types for folder search.</summary>
-    public List<FolderMatchType> FolderMatchTypes { get; } = new() { FolderMatchType.Include, FolderMatchType.Match, FolderMatchType.Contains, FolderMatchType.Exclude, FolderMatchType.Mismatch };
+    public List<FolderMatchType> FolderMatchTypes { get; } = new() { FolderMatchType.Include, FolderMatchType.Match, FolderMatchType.Contains, FolderMatchType.Exclude, FolderMatchType.Mismatch, FolderMatchType.NotContain };
 
     /// <summary>Gets the folder search results collection.</summary>
     public ObservableCollection<FolderSearchResult> FolderSearchResults { get; } = new();
@@ -3063,6 +3063,7 @@ public class MainViewModel : ViewModelBase
                         FolderMatchType.Contains => FolderContainsItem(subDir, pattern.Pattern),
                         FolderMatchType.Exclude => !dirName.Contains(pattern.Pattern, StringComparison.OrdinalIgnoreCase),
                         FolderMatchType.Mismatch => !dirName.Equals(pattern.Pattern, StringComparison.OrdinalIgnoreCase),
+                        FolderMatchType.NotContain => !FolderContainsItem(subDir, pattern.Pattern),
                         _ => false,
                     };
 

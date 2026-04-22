@@ -320,16 +320,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        var name = Microsoft.VisualBasic.Interaction.InputBox(
-            "Name for the new profile:",
+        var dialog = new ProfileNameDialog(
             "New Profile",
-            "New Profile");
-        if (string.IsNullOrWhiteSpace(name))
+            "Create a new profile",
+            $"Starts as a copy of '{vm.ActiveProfileName}'. You can edit its target folders, filters, and tab state independently.",
+            "New Profile",
+            vm.ProfileNames)
         {
-            return;
-        }
+            Owner = this,
+        };
 
-        vm.CreateProfileCommand.Execute(name.Trim());
+        if (dialog.ShowDialog() == true)
+        {
+            vm.CreateProfileCommand.Execute(dialog.EnteredName);
+        }
     }
 
     private void RenameProfile_Click(object sender, RoutedEventArgs e)
@@ -339,16 +343,21 @@ public partial class MainWindow : Window
             return;
         }
 
-        var name = Microsoft.VisualBasic.Interaction.InputBox(
-            "New name for this profile:",
+        var others = vm.ProfileNames.Where(n => !string.Equals(n, vm.ActiveProfileName, System.StringComparison.OrdinalIgnoreCase));
+        var dialog = new ProfileNameDialog(
             "Rename Profile",
-            vm.ActiveProfileName);
-        if (string.IsNullOrWhiteSpace(name))
+            $"Rename '{vm.ActiveProfileName}'",
+            "Choose a new name for this profile. The profile's target folders, filters, and tab state stay exactly as they are.",
+            vm.ActiveProfileName,
+            others)
         {
-            return;
-        }
+            Owner = this,
+        };
 
-        vm.RenameProfileCommand.Execute(name.Trim());
+        if (dialog.ShowDialog() == true)
+        {
+            vm.RenameProfileCommand.Execute(dialog.EnteredName);
+        }
     }
 
     private void DeleteProfile_Click(object sender, RoutedEventArgs e)

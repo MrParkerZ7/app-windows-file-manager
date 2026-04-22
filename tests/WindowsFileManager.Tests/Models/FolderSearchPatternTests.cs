@@ -74,6 +74,7 @@ public class FolderSearchPatternTests
     [InlineData(FolderMatchType.Contains, 2)]
     [InlineData(FolderMatchType.Exclude, 3)]
     [InlineData(FolderMatchType.Mismatch, 4)]
+    [InlineData(FolderMatchType.NotContain, 5)]
     public void FolderMatchType_Ordinals_Preserved(FolderMatchType type, int expectedOrdinal)
     {
         ((int)type).Should().Be(expectedOrdinal);
