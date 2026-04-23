@@ -1777,11 +1777,6 @@ public class MainViewModel : ViewModelBase
         var selectedPaths = new HashSet<string>(profile.SelectedFolderSearchResultPaths, StringComparer.OrdinalIgnoreCase);
         foreach (var path in profile.FolderSearchResultPaths)
         {
-            if (!_fileSystem.DirectoryExists(path))
-            {
-                continue;
-            }
-
             var result = new FolderSearchResult
             {
                 FullPath = path,
@@ -3613,15 +3608,45 @@ public class MainViewModel : ViewModelBase
     private async System.Threading.Tasks.Task ComputeRestoredSizesAsync()
     {
         var snapshot = FolderSearchResults.ToList();
-        var sizes = await System.Threading.Tasks.Task.Run(() =>
-            snapshot.ToDictionary(r => r.FullPath, r => GetDirectorySize(r.FullPath))).ConfigureAwait(true);
-
-        foreach (var r in FolderSearchResults)
+        var result = await System.Threading.Tasks.Task.Run(() =>
         {
-            if (sizes.TryGetValue(r.FullPath, out var size))
+            var sizes = new Dictionary<string, long>(snapshot.Count);
+            var missing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in snapshot)
+            {
+                if (_fileSystem.DirectoryExists(r.FullPath))
+                {
+                    sizes[r.FullPath] = GetDirectorySize(r.FullPath);
+                }
+                else
+                {
+                    missing.Add(r.FullPath);
+                }
+            }
+
+            return (Sizes: sizes, Missing: missing);
+        }).ConfigureAwait(true);
+
+        for (var i = FolderSearchResults.Count - 1; i >= 0; i--)
+        {
+            var r = FolderSearchResults[i];
+            if (result.Missing.Contains(r.FullPath))
+            {
+                r.PropertyChanged -= FolderResult_PropertyChanged;
+                FolderSearchResults.RemoveAt(i);
+            }
+            else if (result.Sizes.TryGetValue(r.FullPath, out var size))
             {
                 r.TotalSize = size;
             }
+        }
+
+        if (result.Missing.Count > 0)
+        {
+            FolderSearchCount = FolderSearchResults.Count;
+            SelectedFolderCount = FolderSearchResults.Count(r => r.IsSelected);
+            _areAllFoldersSelected = FolderSearchResults.Count > 0 && FolderSearchResults.All(r => r.IsSelected);
+            OnPropertyChanged(nameof(AreAllFoldersSelected));
         }
     }
 

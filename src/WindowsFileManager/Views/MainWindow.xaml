@@ -1551,8 +1551,11 @@
     </Grid>
             </TabItem>
 
-            <!-- Tab 3: History -->
-            <TabItem Header="History">
+            <!-- Tab 3: History (global — gold accent) -->
+            <TabItem Background="#FFF8DC" BorderBrush="#DAA520">
+                <TabItem.Header>
+                    <TextBlock Text="🕘 History" Foreground="#B8860B" FontWeight="Bold" />
+                </TabItem.Header>
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
