@@ -27,6 +27,8 @@ public class ProfileSettingsTests
         profile.FolderSearchPatterns.Should().BeEmpty();
         profile.FolderSearchResultPaths.Should().BeEmpty();
         profile.SelectedFolderSearchResultPaths.Should().BeEmpty();
+        profile.LinkSiblingsLayer.Should().Be(1);
+        profile.LinkSiblingsPrefix.Should().BeEmpty();
     }
 
     [Fact]
@@ -54,6 +56,8 @@ public class ProfileSettingsTests
             FolderSearchPatterns = new List<FolderSearchPattern> { pattern },
             FolderSearchResultPaths = new List<string> { @"C:\a\src" },
             SelectedFolderSearchResultPaths = new List<string> { @"C:\a\src" },
+            LinkSiblingsLayer = 3,
+            LinkSiblingsPrefix = "link-",
         };
 
         profile.Name.Should().Be("Projects");
@@ -73,5 +77,7 @@ public class ProfileSettingsTests
         profile.FolderSearchPatterns.Should().ContainSingle().Which.Pattern.Should().Be("src");
         profile.FolderSearchResultPaths.Should().ContainSingle();
         profile.SelectedFolderSearchResultPaths.Should().ContainSingle();
+        profile.LinkSiblingsLayer.Should().Be(3);
+        profile.LinkSiblingsPrefix.Should().Be("link-");
     }
 }

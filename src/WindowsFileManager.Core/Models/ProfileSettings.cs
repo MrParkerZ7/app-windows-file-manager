@@ -89,4 +89,14 @@ public class ProfileSettings
     /// Gets or sets the folder search result paths whose selection checkbox is checked.
     /// </summary>
     public List<string> SelectedFolderSearchResultPaths { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets how many layers deep the Link Siblings action descends. Minimum 1.
+    /// </summary>
+    public int LinkSiblingsLayer { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets an optional prefix prepended to every .lnk filename created by Link Siblings (empty = no prefix).
+    /// </summary>
+    public string LinkSiblingsPrefix { get; set; } = string.Empty;
 }

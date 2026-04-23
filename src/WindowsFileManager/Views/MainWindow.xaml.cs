@@ -225,22 +225,18 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Determine the sort property from the column binding
-        string? sortBy = null;
-        if (header.Column?.DisplayMemberBinding is Binding binding)
+        // Determine the sort property. Known columns override the binding path so that
+        // formatted display strings (e.g. "500 KB" / "2 GB") don't get sorted lexicographically.
+        string? sortBy = (header.Column?.Header as string)?.TrimEnd(' ', '▲', '▼') switch
+        {
+            "Size" => nameof(FolderSearchResult.TotalSize),
+            "Full Path" => nameof(FolderSearchResult.FullPath),
+            _ => null,
+        };
+
+        if (sortBy == null && header.Column?.DisplayMemberBinding is Binding binding)
         {
             sortBy = binding.Path.Path;
-        }
-        else if (header.Column?.CellTemplate != null)
-        {
-            // For template columns, use the header text as a hint
-            var headerText = header.Column.Header as string;
-            sortBy = headerText?.TrimEnd(' ', '▲', '▼') switch
-            {
-                "Full Path" => "FullPath",
-                "Size" => "TotalSize",
-                _ => null,
-            };
         }
 
         if (sortBy == null)
@@ -408,6 +404,18 @@ public partial class MainWindow : Window
         if (confirm == MessageBoxResult.Yes)
         {
             vm.DeleteProfileCommand.Execute(null);
+        }
+    }
+
+    private void IntegerTextBox_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+    {
+        foreach (var ch in e.Text)
+        {
+            if (!char.IsDigit(ch))
+            {
+                e.Handled = true;
+                return;
+            }
         }
     }
 }

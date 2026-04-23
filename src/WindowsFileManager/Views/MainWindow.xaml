@@ -113,6 +113,86 @@
             </Grid>
         </Border>
 
+        <!-- Global status bar (always visible): icon → status → progress + count → spacer → RAM/CPU/Threads -->
+        <Border DockPanel.Dock="Bottom" Background="#ECEFF1" BorderBrush="#CFD8DC"
+                BorderThickness="0,1,0,0" Padding="10,4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Status indicator dot: green (idle) / blue (busy) -->
+                <TextBlock Grid.Column="0" FontSize="13" VerticalAlignment="Center" Margin="0,0,8,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="●" />
+                            <Setter Property="Foreground" Value="#66BB6A" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                    <Setter Property="Text" Value="⏳" />
+                                    <Setter Property="Foreground" Value="#1565C0" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <!-- Status text: BusyStatus when busy, otherwise general StatusMessage -->
+                <TextBlock Grid.Column="1" FontSize="11" VerticalAlignment="Center"
+                           MaxWidth="420" TextTrimming="CharacterEllipsis" Margin="0,0,8,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="{Binding StatusMessage}" />
+                            <Setter Property="Foreground" Value="#666666" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                    <Setter Property="Text" Value="{Binding BusyStatus}" />
+                                    <Setter Property="Foreground" Value="#1565C0" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <!-- Progress bar: determinate when BusyTotal>0, indeterminate otherwise. Visible only while busy. -->
+                <ProgressBar Grid.Column="2" Height="8" Width="160"
+                             Minimum="0"
+                             Maximum="{Binding BusyTotal, Mode=OneWay}"
+                             Value="{Binding BusyCurrent, Mode=OneWay}"
+                             IsIndeterminate="{Binding BusyIsIndeterminate, Mode=OneWay}"
+                             Foreground="#1565C0" Background="#CFD8DC" BorderThickness="0"
+                             VerticalAlignment="Center" Margin="0,0,8,0"
+                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+
+                <!-- Count text: "500 / 1,000 subfolders" -->
+                <TextBlock Grid.Column="3" Text="{Binding BusyCountText}"
+                           Foreground="#1565C0" FontSize="11" FontWeight="SemiBold"
+                           VerticalAlignment="Center" Margin="0,0,8,0" />
+
+                <!-- ETA text: "~3m 15s left" (empty when not computable) -->
+                <TextBlock Grid.Column="4" Text="{Binding BusyEta}"
+                           Foreground="#666666" FontSize="11" FontStyle="Italic"
+                           VerticalAlignment="Center" Margin="0,0,12,0" />
+
+                <!-- Live resource readouts (RAM / CPU / Threads) on far right -->
+                <StackPanel Grid.Column="6" Orientation="Horizontal">
+                    <TextBlock Text="{Binding ResourceMemory}" Foreground="#1565C0" FontSize="11"
+                               Margin="0,0,12,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ResourceCpu}" Foreground="#E65100" FontSize="11"
+                               Margin="0,0,12,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ResourceThreads}" Foreground="#666666" FontSize="11"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- Main 3-column layout fills remaining space -->
         <Grid>
         <Grid.ColumnDefinitions>
@@ -428,11 +508,6 @@
                                             Padding="8,3" Margin="8,0,0,0" FontSize="11" Cursor="Hand"
                                             FontWeight="SemiBold" Foreground="#C62828"
                                             ToolTip="Clear search results and discovered subfolders" />
-                                    <ProgressBar Width="120" Height="8" Margin="8,0,0,0"
-                                                 IsIndeterminate="{Binding IsFolderSearching}"
-                                                 Visibility="{Binding IsFolderSearching, Converter={StaticResource BoolToVisibility}}"
-                                                 Foreground="#1565C0" Background="#E3F2FD"
-                                                 BorderThickness="0" VerticalAlignment="Center" />
                                     <TextBlock FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
@@ -1921,12 +1996,6 @@
                                               Tag="&lt;h&gt;SCAN FOLDERS&lt;/h&gt;&#x0a;Inspects the folders you &lt;b&gt;checked&lt;/b&gt; in the Folder Search results and builds two inventories:&#x0a;&#x0a;&lt;b&gt;Subfolders&lt;/b&gt; — unique subfolder names, ranked by how many result folders contain them.&#x0a;Example: &lt;b&gt;node_modules (in 14 folders)&lt;/b&gt;&#x0a;&#x0a;&lt;b&gt;File Types&lt;/b&gt; — unique file extensions, ranked by total file count.&#x0a;Example: &lt;b&gt;.log (237 files)&lt;/b&gt;&#x0a;&#x0a;&lt;b&gt;Scope:&lt;/b&gt;&#x0a;• &lt;b&gt;Include Subdirectories&lt;/b&gt; off — only immediate children of each selected folder&#x0a;• &lt;b&gt;Include Subdirectories&lt;/b&gt; on — recurses through every nested level&#x0a;&#x0a;&lt;b&gt;Expand any item&lt;/b&gt; to see the exact paths it was found in.&#x0a;&#x0a;&lt;h&gt;Next:&lt;/h&gt; Check items then click &lt;b&gt;Clear Selected Subfolders&lt;/b&gt; or &lt;b&gt;Clear Selected Files&lt;/b&gt; to delete them." />
                             </Grid>
 
-                            <!-- Scan progress bar -->
-                            <ProgressBar Height="4" Margin="0,0,0,4"
-                                         IsIndeterminate="{Binding IsScanningFolders}"
-                                         Visibility="{Binding IsScanningFolders, Converter={StaticResource BoolToVisibility}}"
-                                         Foreground="#1565C0" Background="#E3F2FD"
-                                         BorderThickness="0" />
 
                             <!-- Scan status -->
                             <TextBlock FontSize="10" TextWrapping="Wrap" Margin="0,0,0,8">
@@ -2076,6 +2145,51 @@
                                 <ToggleButton Grid.Column="2" Style="{StaticResource HelpButtonStyle}"
                                               Margin="6,0,0,0"
                                               Tag="&lt;h&gt;CLEAR SELECTED SUBFOLDERS&lt;/h&gt;&#x0a;Sends every checked subfolder to the Recycle Bin from inside each selected result folder.&#x0a;&#x0a;&lt;b&gt;What it removes:&lt;/b&gt;&#x0a;• The subfolder itself and all its contents (files and nested subfolders)&#x0a;&#x0a;&lt;b&gt;Common uses:&lt;/b&gt;&#x0a;• Clean &lt;b&gt;node_modules&lt;/b&gt; from many projects at once&#x0a;• Wipe &lt;b&gt;bin&lt;/b&gt;, &lt;b&gt;obj&lt;/b&gt;, &lt;b&gt;.vs&lt;/b&gt; from .NET solutions&#x0a;• Remove &lt;b&gt;__pycache__&lt;/b&gt; across Python repos&#x0a;&#x0a;&lt;b&gt;Safety:&lt;/b&gt;&#x0a;• Confirmation dialog shows affected folder count&#x0a;• Skips subfolders that are locked or access-denied&#x0a;&#x0a;&lt;h&gt;Sent to Recycle Bin — restorable from there.&lt;/h&gt;" />
+                            </Grid>
+
+                            <!-- Link Sibling Folders (checked items in Subfolders list = optional filter) -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="60" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Layers deep:" FontSize="11"
+                                           Foreground="#333333" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBox Grid.Column="1" Text="{Binding LinkSiblingsLayer, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="6,3" FontSize="11"
+                                         VerticalContentAlignment="Center"
+                                         PreviewTextInput="IntegerTextBox_PreviewTextInput"
+                                         ToolTip="How many layers deep to cross-link. 1 = only immediate children of each selected folder. Minimum 1." />
+                                <TextBlock Grid.Column="2" Text="Prefix:" FontSize="11"
+                                           Foreground="#333333" VerticalAlignment="Center" Margin="12,0,8,0" />
+                                <TextBox Grid.Column="3" Width="110"
+                                         Text="{Binding LinkSiblingsPrefix, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="6,3" FontSize="11"
+                                         VerticalContentAlignment="Center" HorizontalAlignment="Left"
+                                         ToolTip="Optional prefix prepended to every .lnk filename (e.g. 'link-' produces 'link-sibling.lnk'). Leave empty for no prefix." />
+                            </Grid>
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Content="🔗 Link Sibling Subfolders"
+                                        Command="{Binding LinkSiblingFoldersCommand}"
+                                        Padding="10,6" FontSize="11" Cursor="Hand"
+                                        Foreground="#6A1B9A" FontWeight="SemiBold"
+                                        HorizontalAlignment="Stretch"
+                                        ToolTip="Create .lnk shortcuts linking sibling subfolders inside each selected folder" />
+                                <Button Grid.Column="1" Content="↶" Command="{Binding UndoLastActionCommand}"
+                                        ToolTip="{Binding UndoTooltip}"
+                                        Padding="6,3" Margin="4,0,0,0" FontSize="13" Cursor="Hand"
+                                        FontWeight="Bold" Foreground="#388E3C" />
+                                <ToggleButton Grid.Column="2" Style="{StaticResource HelpButtonStyle}"
+                                              Margin="6,0,0,0"
+                                              Tag="&lt;h&gt;LINK SIBLING FOLDERS&lt;/h&gt;&#x0a;Creates Windows shortcuts (.lnk) inside each subfolder pointing to its siblings under the same parent.&#x0a;&#x0a;&lt;b&gt;Optional filter:&lt;/b&gt; Check items in the Subfolders list above to narrow linking to those names only. Unchecked = link all siblings.&#x0a;&#x0a;&lt;b&gt;Example (Layers deep = 1):&lt;/b&gt;&#x0a;Before:&#x0a;  some-folder\1\&#x0a;  some-folder\2\&#x0a;  some-folder\3\&#x0a;&#x0a;After:&#x0a;  some-folder\1\2.lnk&#x0a;  some-folder\1\3.lnk&#x0a;  some-folder\2\1.lnk&#x0a;  some-folder\2\3.lnk&#x0a;  some-folder\3\1.lnk&#x0a;  some-folder\3\2.lnk&#x0a;&#x0a;&lt;b&gt;Layers deep:&lt;/b&gt; How many levels to descend while cross-linking. Shortcuts never cross parent folders — only siblings under the SAME parent get linked.&#x0a;&#x0a;&lt;b&gt;Safety:&lt;/b&gt;&#x0a;• Existing shortcuts with the same name are skipped&#x0a;• Undo (↶) deletes the created .lnk files" />
                             </Grid>
 
                             <!-- ── File Types section ── -->
@@ -2255,11 +2369,6 @@
                                     </Button.Style>
                                 </Button>
                             </Grid>
-                            <ProgressBar Height="3" Margin="0,0,0,4"
-                                         IsIndeterminate="{Binding IsScanningFlattenTypes}"
-                                         Visibility="{Binding IsScanningFlattenTypes, Converter={StaticResource BoolToVisibility}}"
-                                         Foreground="#1565C0" Background="#E3F2FD" BorderThickness="0" />
-
                             <Grid Margin="0,4,0,4">
                                 <TextBox Text="{Binding FlattenFileTypeFilter, UpdateSourceTrigger=PropertyChanged}"
                                          x:Name="FlattenFileTypeFilterBox"

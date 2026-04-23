@@ -16,6 +16,9 @@ public enum ActionHistoryKind
 
     /// <summary>Directories sent to Recycle Bin (reversible via Shell Restore).</summary>
     RecycleDirectories,
+
+    /// <summary>.lnk shortcut files created by the Link Siblings action (reversible by deleting the .lnk files).</summary>
+    CreateShortcuts,
 }
 
 /// <summary>A (source → destination) pair for a move that can be reversed.</summary>
@@ -43,6 +46,9 @@ public class ActionHistoryEntry
     /// <summary>Gets or sets the original paths sent to Recycle Bin (for recycle kinds).</summary>
     public List<string> RecycledPaths { get; set; } = new();
 
+    /// <summary>Gets or sets the full paths of .lnk shortcut files created by <see cref="ActionHistoryKind.CreateShortcuts"/>.</summary>
+    public List<string> CreatedShortcuts { get; set; } = new();
+
     /// <summary>Gets or sets the human-readable summary, e.g., "Recycled 47 .log files".</summary>
     public string Summary { get; set; } = string.Empty;
 
@@ -50,5 +56,10 @@ public class ActionHistoryEntry
     public DateTime Timestamp { get; set; } = DateTime.Now;
 
     /// <summary>Gets the item count in this action.</summary>
-    public int ItemCount => Kind == ActionHistoryKind.MoveFiles ? Moves.Count : RecycledPaths.Count;
+    public int ItemCount => Kind switch
+    {
+        ActionHistoryKind.MoveFiles => Moves.Count,
+        ActionHistoryKind.CreateShortcuts => CreatedShortcuts.Count,
+        _ => RecycledPaths.Count,
+    };
 }

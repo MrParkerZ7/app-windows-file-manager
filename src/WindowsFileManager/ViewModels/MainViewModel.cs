@@ -104,6 +104,15 @@ public class MainViewModel : ViewModelBase
     private bool _folderSearchIncludeSubdirectories = true;
     private bool _flattenRemoveEmptyFolders = true;
     private string _flattenFileTypeFilter = string.Empty;
+    private int _linkSiblingsLayer = 1;
+    private string _linkSiblingsPrefix = string.Empty;
+    private int _busyDepth;
+    private string _busyStatus = string.Empty;
+    private int _busyCurrent;
+    private int _busyTotal;
+    private string _busyUnit = string.Empty;
+    private DateTime _busyStartTime;
+    private DispatcherTimer? _busyTickTimer;
     private bool _isScanningFlattenTypes;
     private TimeSpan _lastCpuTime;
     private DateTime _lastCheckTime;
@@ -659,6 +668,7 @@ public class MainViewModel : ViewModelBase
         ClearFolderSelectionCommand = new RelayCommand(_ => ClearFolderSelection(), _ => SelectedFolderCount > 0);
         ScanSubfoldersCommand = new RelayCommand(_ => ScanSubfolders(), _ => SelectedFolderCount > 0 && !IsScanningFolders);
         FlattenSelectedFoldersCommand = new RelayCommand(_ => FlattenSelectedFolders(), _ => SelectedFolderCount > 0);
+        LinkSiblingFoldersCommand = new RelayCommand(_ => LinkSiblingFolders(), _ => SelectedFolderCount > 0 && LinkSiblingsLayer >= 1);
         ScanFlattenFileTypesCommand = new RelayCommand(_ => ScanFlattenFileTypes(), _ => SelectedFolderCount > 0 && !IsScanningFlattenTypes);
         SelectAllFlattenFileTypesCommand = new RelayCommand(_ => SelectAllFlattenFileTypes());
         ClearFlattenFileTypeSelectionCommand = new RelayCommand(_ => ClearFlattenFileTypeSelection());
@@ -1265,6 +1275,93 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _flattenRemoveEmptyFolders, value);
     }
 
+    /// <summary>Gets or sets the depth (in layers) the Link Siblings action descends while cross-linking sibling subfolders. Minimum 1.</summary>
+    public int LinkSiblingsLayer
+    {
+        get => _linkSiblingsLayer;
+        set => SetProperty(ref _linkSiblingsLayer, value < 1 ? 1 : value);
+    }
+
+    /// <summary>Gets or sets an optional prefix prepended to every .lnk filename created by Link Siblings (empty = no prefix).</summary>
+    public string LinkSiblingsPrefix
+    {
+        get => _linkSiblingsPrefix;
+        set => SetProperty(ref _linkSiblingsPrefix, value ?? string.Empty);
+    }
+
+    /// <summary>Gets a value indicating whether a background action is running (drives the bottom busy bar).</summary>
+    public bool IsBusy => _busyDepth > 0;
+
+    /// <summary>Gets the current busy-bar status message (e.g. "Recycling 500 subfolders...").</summary>
+    public string BusyStatus
+    {
+        get => _busyStatus;
+        private set => SetProperty(ref _busyStatus, value);
+    }
+
+    /// <summary>Gets the number of items completed in the current busy task (0 when indeterminate).</summary>
+    public int BusyCurrent
+    {
+        get => _busyCurrent;
+        private set
+        {
+            if (SetProperty(ref _busyCurrent, value))
+            {
+                OnPropertyChanged(nameof(BusyCountText));
+                OnPropertyChanged(nameof(BusyEta));
+            }
+        }
+    }
+
+    /// <summary>Gets the total item count for the current busy task (0 when the total is unknown — renders indeterminate).</summary>
+    public int BusyTotal
+    {
+        get => _busyTotal;
+        private set
+        {
+            if (SetProperty(ref _busyTotal, value))
+            {
+                OnPropertyChanged(nameof(BusyCountText));
+                OnPropertyChanged(nameof(BusyIsIndeterminate));
+            }
+        }
+    }
+
+    /// <summary>Gets the formatted count text shown next to the progress bar, e.g. "500 / 1,000 subfolders". Empty when no total is known.</summary>
+    public string BusyCountText => BusyTotal > 0
+        ? $"{BusyCurrent:N0} / {BusyTotal:N0}" + (string.IsNullOrEmpty(_busyUnit) ? string.Empty : $" {_busyUnit}")
+        : string.Empty;
+
+    /// <summary>Gets a value indicating whether the progress bar should animate indeterminately (busy with no known total).</summary>
+    public bool BusyIsIndeterminate => IsBusy && BusyTotal <= 0;
+
+    /// <summary>Gets the estimated time remaining for the current busy task, e.g. "~3m 15s left". Empty when not computable (indeterminate, not enough data, or done).</summary>
+    public string BusyEta
+    {
+        get
+        {
+            if (!IsBusy || BusyTotal <= 0 || BusyCurrent <= 0 || BusyCurrent >= BusyTotal)
+            {
+                return string.Empty;
+            }
+
+            var elapsed = DateTime.UtcNow - _busyStartTime;
+            if (elapsed.TotalMilliseconds < 500)
+            {
+                return string.Empty;
+            }
+
+            var rate = BusyCurrent / elapsed.TotalSeconds;
+            if (rate <= 0)
+            {
+                return string.Empty;
+            }
+
+            var etaSeconds = (BusyTotal - BusyCurrent) / rate;
+            return $"~{FormatDuration(etaSeconds)} left";
+        }
+    }
+
     /// <summary>Gets the file types discovered inside subfolders only (root-level files excluded) — for Flatten filtering.</summary>
     public ObservableCollection<SubfolderItem> DiscoveredFlattenFileTypes { get; } = new();
 
@@ -1369,6 +1466,9 @@ public class MainViewModel : ViewModelBase
 
     /// <summary>Gets the flatten (move all files to root) command.</summary>
     public ICommand FlattenSelectedFoldersCommand { get; }
+
+    /// <summary>Gets the link-sibling-folders command (creates .lnk shortcuts between sibling subfolders).</summary>
+    public ICommand LinkSiblingFoldersCommand { get; }
 
     /// <summary>Gets the scan-subfolder-file-types command for Flatten.</summary>
     public ICommand ScanFlattenFileTypesCommand { get; }
@@ -1637,6 +1737,73 @@ public class MainViewModel : ViewModelBase
     /// <summary>
     /// Saves current settings to disk. Writes live UI state into the active profile, then persists the full <see cref="AppSettings"/>.
     /// </summary>
+    private void BeginBusy(string status, int total = 0, string unit = "")
+    {
+        _busyDepth++;
+        BusyStatus = status;
+        _busyUnit = unit;
+        BusyCurrent = 0;
+        BusyTotal = total;
+        _busyStartTime = DateTime.UtcNow;
+        OnPropertyChanged(nameof(IsBusy));
+        OnPropertyChanged(nameof(BusyIsIndeterminate));
+        OnPropertyChanged(nameof(BusyEta));
+
+        if (_busyTickTimer == null)
+        {
+            _busyTickTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _busyTickTimer.Tick += (_, _) => OnPropertyChanged(nameof(BusyEta));
+        }
+
+        _busyTickTimer.Start();
+    }
+
+    private void EndBusy()
+    {
+        if (_busyDepth > 0)
+        {
+            _busyDepth--;
+        }
+
+        if (_busyDepth == 0)
+        {
+            _busyTickTimer?.Stop();
+            BusyStatus = string.Empty;
+            BusyCurrent = 0;
+            BusyTotal = 0;
+            _busyUnit = string.Empty;
+            OnPropertyChanged(nameof(IsBusy));
+            OnPropertyChanged(nameof(BusyIsIndeterminate));
+            OnPropertyChanged(nameof(BusyEta));
+        }
+    }
+
+    private IProgress<int> CreateBusyProgress() => new Progress<int>(n => BusyCurrent = n);
+
+    private static string FormatDuration(double totalSeconds)
+    {
+        if (totalSeconds < 1)
+        {
+            return "<1s";
+        }
+
+        if (totalSeconds < 60)
+        {
+            return $"{(int)totalSeconds}s";
+        }
+
+        if (totalSeconds < 3600)
+        {
+            var mins = (int)(totalSeconds / 60);
+            var secs = (int)(totalSeconds % 60);
+            return secs > 0 ? $"{mins}m {secs}s" : $"{mins}m";
+        }
+
+        var hours = (int)(totalSeconds / 3600);
+        var remainMins = (int)((totalSeconds % 3600) / 60);
+        return remainMins > 0 ? $"{hours}h {remainMins}m" : $"{hours}h";
+    }
+
     public void SaveSettings()
     {
         if (_isSwitchingProfile)
@@ -1711,6 +1878,8 @@ public class MainViewModel : ViewModelBase
         profile.FolderSearchPatterns = FolderSearchPatterns.ToList();
         profile.FolderSearchResultPaths = FolderSearchResults.Select(r => r.FullPath).ToList();
         profile.SelectedFolderSearchResultPaths = FolderSearchResults.Where(r => r.IsSelected).Select(r => r.FullPath).ToList();
+        profile.LinkSiblingsLayer = LinkSiblingsLayer;
+        profile.LinkSiblingsPrefix = LinkSiblingsPrefix;
     }
 
     private void ApplyProfileToLiveState(ProfileSettings profile)
@@ -1747,6 +1916,8 @@ public class MainViewModel : ViewModelBase
         SelectedSortOption = profile.SelectedSortOption;
         MediaVolume = profile.Volume;
         MoveTargetPath = profile.MoveTargetPath;
+        LinkSiblingsLayer = profile.LinkSiblingsLayer < 1 ? 1 : profile.LinkSiblingsLayer;
+        LinkSiblingsPrefix = profile.LinkSiblingsPrefix ?? string.Empty;
 
         var disabledTargets = new HashSet<string>(profile.DisabledTargetPaths, StringComparer.OrdinalIgnoreCase);
         foreach (var path in profile.TargetPaths)
@@ -1890,6 +2061,8 @@ public class MainViewModel : ViewModelBase
         }).ToList(),
         FolderSearchResultPaths = new List<string>(source.FolderSearchResultPaths),
         SelectedFolderSearchResultPaths = new List<string>(source.SelectedFolderSearchResultPaths),
+        LinkSiblingsLayer = source.LinkSiblingsLayer,
+        LinkSiblingsPrefix = source.LinkSiblingsPrefix,
     };
 
     private void SwitchProfile(string? name)
@@ -2969,6 +3142,7 @@ public class MainViewModel : ViewModelBase
         var patterns = FolderSearchPatterns.Where(t => t.IsEnabled).ToList();
         var recurse = true;
 
+        BeginBusy($"Searching {targetPaths.Count} target path(s) for folders…");
         try
         {
             var results = await Task.Run(
@@ -3018,6 +3192,7 @@ public class MainViewModel : ViewModelBase
         finally
         {
             IsFolderSearching = false;
+            EndBusy();
             SaveSettings();
         }
     }
@@ -3274,17 +3449,30 @@ public class MainViewModel : ViewModelBase
 
         ClearSubfolderStatus = "Moving files...";
         var moves = new List<ActionHistoryMove>();
-        var failed = await System.Threading.Tasks.Task.Run(() =>
-        {
-            int f = 0;
-            foreach (var folder in selected)
-            {
-                (int mv, int fl) = FlattenFolder(folder.FullPath, moves, extensionFilter, removeEmpty);
-                f += fl;
-            }
 
-            return f;
-        });
+        BeginBusy("Flattening folders…", selected.Count, "folders");
+        var progress = CreateBusyProgress();
+
+        int failed;
+        try
+        {
+            failed = await System.Threading.Tasks.Task.Run(() =>
+            {
+                int f = 0, done = 0;
+                foreach (var folder in selected)
+                {
+                    (int mv, int fl) = FlattenFolder(folder.FullPath, moves, extensionFilter, removeEmpty);
+                    f += fl;
+                    progress.Report(++done);
+                }
+
+                return f;
+            });
+        }
+        finally
+        {
+            EndBusy();
+        }
 
         if (moves.Count > 0)
         {
@@ -3305,6 +3493,158 @@ public class MainViewModel : ViewModelBase
         {
             ScanFlattenFileTypes();
         }
+    }
+
+    private async void LinkSiblingFolders()
+    {
+        var selected = FolderSearchResults.Where(r => r.IsSelected).ToList();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        var maxLayer = LinkSiblingsLayer < 1 ? 1 : LinkSiblingsLayer;
+        var prefix = LinkSiblingsPrefix ?? string.Empty;
+        var checkedNames = DiscoveredSubfolders.Where(s => s.IsSelected).Select(s => s.Name).ToList();
+        HashSet<string>? nameFilter = checkedNames.Count > 0
+            ? new HashSet<string>(checkedNames, StringComparer.OrdinalIgnoreCase)
+            : null;
+
+        var filterDesc = nameFilter != null
+            ? $"\n• Only subfolders named: {string.Join(", ", checkedNames)}"
+            : "\n• All sibling subfolders (no name filter — check items in the Subfolders list above to narrow)";
+        var prefixDesc = prefix.Length > 0 ? $"\n• Shortcut name prefix: '{prefix}'" : string.Empty;
+
+        var result = System.Windows.MessageBox.Show(
+            $"Create sibling shortcuts inside the subfolders of {selected.Count} selected folder(s), down {maxLayer} layer(s)?\n\n" +
+            $"Each subfolder will receive .lnk shortcuts pointing to its siblings under the same parent. Shortcuts never cross parent folders.{filterDesc}{prefixDesc}\n\n" +
+            "Existing shortcuts with the same name are skipped. Undo is available in the History tab.",
+            "Confirm Link Sibling Folders",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Question);
+
+        if (result != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        ClearSubfolderStatus = "Creating shortcuts...";
+        var created = new List<string>();
+
+        BeginBusy($"Linking siblings, {maxLayer} layer(s) deep…", selected.Count, "folders");
+        var progress = CreateBusyProgress();
+
+        (int failed, int skipped) outcome;
+        try
+        {
+            outcome = await System.Threading.Tasks.Task.Run(() =>
+            {
+                int f = 0, s = 0, done = 0;
+                foreach (var folder in selected)
+                {
+                    var (sf, ss) = LinkSiblingsRecursive(folder.FullPath, currentLayer: 1, maxLayer, nameFilter, prefix, created);
+                    f += sf;
+                    s += ss;
+                    progress.Report(++done);
+                }
+
+                return (f, s);
+            });
+        }
+        finally
+        {
+            EndBusy();
+        }
+
+        var (failed, skipped) = outcome;
+
+        if (created.Count > 0)
+        {
+            PushHistory(new ActionHistoryEntry
+            {
+                Kind = ActionHistoryKind.CreateShortcuts,
+                CreatedShortcuts = created,
+                Summary = $"Created {created.Count} sibling shortcut(s)",
+            });
+        }
+
+        var parts = new List<string> { $"Created {created.Count} shortcut(s)" };
+        if (skipped > 0)
+        {
+            parts.Add($"{skipped} already existed");
+        }
+
+        if (failed > 0)
+        {
+            parts.Add($"{failed} failed");
+        }
+
+        ClearSubfolderStatus = string.Join(", ", parts) + ".";
+    }
+
+    private static (int Failed, int Skipped) LinkSiblingsRecursive(string parentPath, int currentLayer, int maxLayer, HashSet<string>? nameFilter, string prefix, List<string> created)
+    {
+        if (currentLayer > maxLayer)
+        {
+            return (0, 0);
+        }
+
+        string[] allChildren;
+        try
+        {
+            allChildren = Directory.GetDirectories(parentPath);
+        }
+        catch
+        {
+            return (1, 0);
+        }
+
+        var candidates = nameFilter == null
+            ? allChildren
+            : allChildren.Where(c => nameFilter.Contains(Path.GetFileName(c))).ToArray();
+
+        int failed = 0, skipped = 0;
+
+        if (candidates.Length >= 2)
+        {
+            foreach (var child in candidates)
+            {
+                foreach (var sibling in candidates)
+                {
+                    if (ReferenceEquals(child, sibling))
+                    {
+                        continue;
+                    }
+
+                    var siblingName = Path.GetFileName(sibling);
+                    var shortcutPath = Path.Combine(child, prefix + siblingName + ".lnk");
+                    if (File.Exists(shortcutPath))
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    try
+                    {
+                        ShortcutHelper.CreateFolderShortcut(shortcutPath, sibling);
+                        created.Add(shortcutPath);
+                    }
+                    catch
+                    {
+                        failed++;
+                    }
+                }
+            }
+        }
+
+        foreach (var child in allChildren)
+        {
+            var (f, s) = LinkSiblingsRecursive(child, currentLayer + 1, maxLayer, nameFilter, prefix, created);
+            failed += f;
+            skipped += s;
+        }
+
+        return (failed, skipped);
     }
 
     private void SelectAllFlattenFileTypes()
@@ -3337,6 +3677,7 @@ public class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(FilteredFlattenFileTypes));
         var folderPaths = selected.Select(f => f.FullPath).ToList();
 
+        BeginBusy($"Scanning subfolder file types in {folderPaths.Count} folder(s)…");
         try
         {
             var items = await System.Threading.Tasks.Task.Run(() =>
@@ -3370,6 +3711,7 @@ public class MainViewModel : ViewModelBase
         finally
         {
             IsScanningFlattenTypes = false;
+            EndBusy();
         }
     }
 
@@ -3545,6 +3887,7 @@ public class MainViewModel : ViewModelBase
         var includeNested = FolderSearchIncludeSubdirectories;
         var folderPaths = selectedFolders.Select(f => f.FullPath).ToList();
 
+        BeginBusy($"Scanning {folderPaths.Count} selected folder(s) for subfolders + file types…");
         try
         {
             var (subfolderItems, fileTypeItems) = await Task.Run(() =>
@@ -3602,6 +3945,7 @@ public class MainViewModel : ViewModelBase
         finally
         {
             IsScanningFolders = false;
+            EndBusy();
         }
     }
 
@@ -3742,6 +4086,32 @@ public class MainViewModel : ViewModelBase
                 StatusMessage = failed == 0
                     ? $"Undone: restored {restored} item(s) from Recycle Bin."
                     : $"Undone: {restored} restored, {failed} not found in Recycle Bin (may have been emptied).";
+                break;
+
+            case ActionHistoryKind.CreateShortcuts:
+                foreach (var path in entry.CreatedShortcuts)
+                {
+                    try
+                    {
+                        if (File.Exists(path))
+                        {
+                            File.Delete(path);
+                            restored++;
+                        }
+                        else
+                        {
+                            failed++;
+                        }
+                    }
+                    catch
+                    {
+                        failed++;
+                    }
+                }
+
+                StatusMessage = failed == 0
+                    ? $"Undone: deleted {restored} shortcut(s)."
+                    : $"Undone: {restored} deleted, {failed} missing or locked.";
                 break;
         }
 
@@ -3937,7 +4307,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private void ClearSelectedSubfolders()
+    private async void ClearSelectedSubfolders()
     {
         var selectedSubs = DiscoveredSubfolders.Where(s => s.IsSelected).Select(s => s.Name).ToList();
         var selectedFolders = FolderSearchResults.Where(r => r.IsSelected).ToList();
@@ -3947,19 +4317,24 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        // Count how many will be affected
-        int totalToDelete = 0;
-        foreach (var folder in selectedFolders)
+        var folderPaths = selectedFolders.Select(f => f.FullPath).ToList();
+
+        var totalToDelete = await Task.Run(() =>
         {
-            foreach (var subName in selectedSubs)
+            int count = 0;
+            foreach (var folderPath in folderPaths)
             {
-                var subPath = Path.Combine(folder.FullPath, subName);
-                if (Directory.Exists(subPath))
+                foreach (var subName in selectedSubs)
                 {
-                    totalToDelete++;
+                    if (Directory.Exists(Path.Combine(folderPath, subName)))
+                    {
+                        count++;
+                    }
                 }
             }
-        }
+
+            return count;
+        });
 
         if (totalToDelete == 0)
         {
@@ -3978,50 +4353,67 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        int deleted = 0;
-        int failed = 0;
-        var recycled = new List<string>();
-        foreach (var folder in selectedFolders)
+        ClearSubfolderStatus = $"Recycling {totalToDelete} subfolders...";
+        BeginBusy("Recycling subfolders…", totalToDelete, "subfolders");
+        var progress = CreateBusyProgress();
+
+        (int Deleted, int Failed, List<string> Recycled) outcome;
+        try
         {
-            foreach (var subName in selectedSubs)
+            outcome = await Task.Run(() =>
             {
-                var subPath = Path.Combine(folder.FullPath, subName);
-                if (!Directory.Exists(subPath))
+                int deleted = 0, failed = 0, done = 0, lastReported = 0;
+                var recycled = new List<string>();
+                foreach (var folderPath in folderPaths)
                 {
-                    continue;
+                    foreach (var subName in selectedSubs)
+                    {
+                        var subPath = Path.Combine(folderPath, subName);
+                        if (!Directory.Exists(subPath))
+                        {
+                            continue;
+                        }
+
+                        try
+                        {
+                            RecycleDirectory(subPath);
+                            recycled.Add(subPath);
+                            deleted++;
+                        }
+                        catch
+                        {
+                            failed++;
+                        }
+
+                        done++;
+                        if (done - lastReported >= Math.Max(1, totalToDelete / 100) || done == totalToDelete)
+                        {
+                            lastReported = done;
+                            progress.Report(done);
+                        }
+                    }
                 }
 
-                try
-                {
-                    RecycleDirectory(subPath);
-                    recycled.Add(subPath);
-                    deleted++;
-                }
-                catch (Exception ex)
-                {
-                    failed++;
-                    System.Windows.MessageBox.Show(
-                        $"Failed to recycle '{subPath}':\n{ex.Message}",
-                        "Delete Error",
-                        System.Windows.MessageBoxButton.OK,
-                        System.Windows.MessageBoxImage.Error);
-                }
-            }
+                return (Deleted: deleted, Failed: failed, Recycled: recycled);
+            });
+        }
+        finally
+        {
+            EndBusy();
         }
 
-        if (recycled.Count > 0)
+        if (outcome.Recycled.Count > 0)
         {
             PushHistory(new ActionHistoryEntry
             {
                 Kind = ActionHistoryKind.RecycleDirectories,
-                RecycledPaths = recycled,
-                Summary = $"Recycled {recycled.Count} subfolders ({string.Join(", ", selectedSubs)})",
+                RecycledPaths = outcome.Recycled,
+                Summary = $"Recycled {outcome.Recycled.Count} subfolders ({string.Join(", ", selectedSubs)})",
             });
         }
 
-        ClearSubfolderStatus = $"Cleared {deleted} subfolders." + (failed > 0 ? $" {failed} failed." : string.Empty);
+        ClearSubfolderStatus = $"Cleared {outcome.Deleted} subfolders." + (outcome.Failed > 0 ? $" {outcome.Failed} failed (locked or access-denied)." : string.Empty);
 
-        // Re-scan to update counts
         ScanSubfolders();
     }
 
@@ -4057,7 +4449,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private void ClearSelectedFileTypes()
+    private async void ClearSelectedFileTypes()
     {
         var selected = DiscoveredFileTypes.Where(t => t.IsSelected).ToList();
         if (selected.Count == 0)
@@ -4079,46 +4471,68 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        var deleted = 0;
-        var failed = 0;
-        var recycled = new List<string>();
-        foreach (var type in selected)
+        ClearSubfolderStatus = $"Recycling {totalFiles} files...";
+        var paths = selected.SelectMany(t => t.Locations.Select(l => l.FullPath)).ToList();
+
+        BeginBusy("Recycling files…", paths.Count, "files");
+        var progress = CreateBusyProgress();
+
+        (int Deleted, int Failed, List<string> Recycled) outcome;
+        try
         {
-            foreach (var loc in type.Locations)
+            outcome = await Task.Run(() =>
             {
-                try
+                int deleted = 0, failed = 0, done = 0, lastReported = 0;
+                var recycled = new List<string>();
+                foreach (var path in paths)
                 {
-                    RecycleFile(loc.FullPath);
-                    recycled.Add(loc.FullPath);
-                    deleted++;
+                    try
+                    {
+                        RecycleFile(path);
+                        recycled.Add(path);
+                        deleted++;
+                    }
+                    catch
+                    {
+                        failed++;
+                    }
+
+                    done++;
+                    if (done - lastReported >= Math.Max(1, paths.Count / 100) || done == paths.Count)
+                    {
+                        lastReported = done;
+                        progress.Report(done);
+                    }
                 }
-                catch
-                {
-                    failed++;
-                }
-            }
+
+                return (Deleted: deleted, Failed: failed, Recycled: recycled);
+            });
+        }
+        finally
+        {
+            EndBusy();
         }
 
-        if (recycled.Count > 0)
+        if (outcome.Recycled.Count > 0)
         {
             var recycledTypeList = string.Join(", ", selected.Select(t => t.Name));
             PushHistory(new ActionHistoryEntry
             {
                 Kind = ActionHistoryKind.RecycleFiles,
-                RecycledPaths = recycled,
-                Summary = $"Recycled {recycled.Count} files ({recycledTypeList})",
+                RecycledPaths = outcome.Recycled,
+                Summary = $"Recycled {outcome.Recycled.Count} files ({recycledTypeList})",
             });
         }
 
-        ClearSubfolderStatus = failed == 0
-            ? $"Sent {deleted} files to Recycle Bin."
-            : $"Sent {deleted} files to Recycle Bin. {failed} failed (access denied or in use).";
+        ClearSubfolderStatus = outcome.Failed == 0
+            ? $"Sent {outcome.Deleted} files to Recycle Bin."
+            : $"Sent {outcome.Deleted} files to Recycle Bin. {outcome.Failed} failed (access denied or in use).";
 
         ScanSubfolders();
     }
 
     // ── ACTION METHODS ──
-    private void DeleteSelectedFiles()
+    private async void DeleteSelectedFiles()
     {
         var filesToDelete = DuplicateGroups
             .SelectMany(g => g.Files.Where(f => f.IsFileSelected).Select(f => new { Group = g, File = f }))
@@ -4140,47 +4554,77 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        var deleted = 0;
-        var failed = 0;
+        StatusMessage = $"Recycling {filesToDelete.Count} files...";
+        var paths = filesToDelete.Select(i => i.File.FilePath).ToList();
 
-        var recycled = new List<string>();
+        BeginBusy("Recycling duplicate files…", paths.Count, "files");
+        var progress = CreateBusyProgress();
+
+        (int Deleted, int Failed, HashSet<string> Succeeded) outcome;
+        try
+        {
+            outcome = await Task.Run(() =>
+            {
+                int deleted = 0, failed = 0, done = 0, lastReported = 0;
+                var succeeded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var path in paths)
+                {
+                    try
+                    {
+                        RecycleFile(path);
+                        succeeded.Add(path);
+                        deleted++;
+                    }
+                    catch
+                    {
+                        failed++;
+                    }
+
+                    done++;
+                    if (done - lastReported >= Math.Max(1, paths.Count / 100) || done == paths.Count)
+                    {
+                        lastReported = done;
+                        progress.Report(done);
+                    }
+                }
+
+                return (Deleted: deleted, Failed: failed, Succeeded: succeeded);
+            });
+        }
+        finally
+        {
+            EndBusy();
+        }
+
         foreach (var item in filesToDelete)
         {
-            try
+            if (outcome.Succeeded.Contains(item.File.FilePath))
             {
-                RecycleFile(item.File.FilePath);
-                recycled.Add(item.File.FilePath);
                 item.Group.Files.Remove(item.File);
-                deleted++;
-            }
-            catch
-            {
-                failed++;
             }
         }
 
-        // Remove groups with 0 or 1 file left
         foreach (var group in DuplicateGroups.Where(g => g.Files.Count <= 1).ToList())
         {
             DuplicateGroups.Remove(group);
         }
 
-        if (recycled.Count > 0)
+        if (outcome.Succeeded.Count > 0)
         {
             PushHistory(new ActionHistoryEntry
             {
                 Kind = ActionHistoryKind.RecycleFiles,
-                RecycledPaths = recycled,
-                Summary = $"Recycled {recycled.Count} duplicate files",
+                RecycledPaths = outcome.Succeeded.ToList(),
+                Summary = $"Recycled {outcome.Succeeded.Count} duplicate files",
             });
         }
 
         ClosePreview();
         RefreshSelectedFileCount();
-        StatusMessage = $"Sent {deleted} files to Recycle Bin" + (failed > 0 ? $", {failed} failed" : string.Empty);
+        StatusMessage = $"Sent {outcome.Deleted} files to Recycle Bin" + (outcome.Failed > 0 ? $", {outcome.Failed} failed" : string.Empty);
     }
 
-    private void MoveSelectedFiles()
+    private async void MoveSelectedFiles()
     {
         if (string.IsNullOrWhiteSpace(MoveTargetPath))
         {
@@ -4213,24 +4657,66 @@ public class MainViewModel : ViewModelBase
             return;
         }
 
-        var failed = 0;
-        var moves = new List<ActionHistoryMove>();
+        StatusMessage = $"Moving {filesToMove.Count} files...";
+        var paths = filesToMove.Select(i => i.File.FilePath).ToList();
+        var targetDir = MoveTargetPath;
 
+        BeginBusy("Moving files…", paths.Count, "files");
+        var progress = CreateBusyProgress();
+
+        (int Failed, Dictionary<string, string> Destinations) outcome;
+        try
+        {
+            outcome = await Task.Run(() =>
+            {
+                int failed = 0, done = 0, lastReported = 0;
+                var destinations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var src in paths)
+                {
+                    try
+                    {
+                        var destPath = Path.Combine(targetDir, Path.GetFileName(src));
+                        if (File.Exists(destPath))
+                        {
+                            var name = Path.GetFileNameWithoutExtension(src);
+                            var ext = Path.GetExtension(src);
+                            destPath = Path.Combine(targetDir, $"{name}_{DateTime.Now:HHmmss}{ext}");
+                        }
+
+                        File.Move(src, destPath);
+                        destinations[src] = destPath;
+                    }
+                    catch
+                    {
+                        failed++;
+                    }
+
+                    done++;
+                    if (done - lastReported >= Math.Max(1, paths.Count / 100) || done == paths.Count)
+                    {
+                        lastReported = done;
+                        progress.Report(done);
+                    }
+                }
+
+                return (Failed: failed, Destinations: destinations);
+            });
+        }
+        finally
+        {
+            EndBusy();
+        }
+
+        var moves = new List<ActionHistoryMove>();
         foreach (var item in filesToMove)
         {
-            var destPath = MoveFileToTarget(item.File.FilePath);
-            if (destPath != null)
+            if (outcome.Destinations.TryGetValue(item.File.FilePath, out var destPath))
             {
                 moves.Add(new ActionHistoryMove { Source = item.File.FilePath, Destination = destPath });
                 item.Group.Files.Remove(item.File);
             }
-            else
-            {
-                failed++;
-            }
         }
 
-        // Remove groups with 0 or 1 file left
         foreach (var group in DuplicateGroups.Where(g => g.Files.Count <= 1).ToList())
         {
             DuplicateGroups.Remove(group);
@@ -4248,7 +4734,7 @@ public class MainViewModel : ViewModelBase
 
         ClosePreview();
         RefreshSelectedFileCount();
-        StatusMessage = $"Moved {moves.Count} files to {MoveTargetPath}" + (failed > 0 ? $", {failed} failed" : string.Empty);
+        StatusMessage = $"Moved {moves.Count} files to {MoveTargetPath}" + (outcome.Failed > 0 ? $", {outcome.Failed} failed" : string.Empty);
     }
 
     private void BrowseMoveTarget()
@@ -4280,28 +4766,6 @@ public class MainViewModel : ViewModelBase
         {
             StatusMessage = $"Cannot create target folder: {ex.Message}";
             return false;
-        }
-    }
-
-    private string? MoveFileToTarget(string sourcePath)
-    {
-        try
-        {
-            var destPath = Path.Combine(MoveTargetPath, Path.GetFileName(sourcePath));
-
-            if (File.Exists(destPath))
-            {
-                var name = Path.GetFileNameWithoutExtension(sourcePath);
-                var ext = Path.GetExtension(sourcePath);
-                destPath = Path.Combine(MoveTargetPath, $"{name}_{DateTime.Now:HHmmss}{ext}");
-            }
-
-            File.Move(sourcePath, destPath);
-            return destPath;
-        }
-        catch
-        {
-            return null;
         }
     }
 

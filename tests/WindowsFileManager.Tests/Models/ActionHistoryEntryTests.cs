@@ -13,6 +13,7 @@ public class ActionHistoryEntryTests
         entry.Kind.Should().Be(ActionHistoryKind.MoveFiles);
         entry.Moves.Should().BeEmpty();
         entry.RecycledPaths.Should().BeEmpty();
+        entry.CreatedShortcuts.Should().BeEmpty();
         entry.Summary.Should().BeEmpty();
         entry.Timestamp.Should().BeCloseTo(DateTime.Now, TimeSpan.FromSeconds(2));
         entry.ItemCount.Should().Be(0);
@@ -77,6 +78,42 @@ public class ActionHistoryEntryTests
 
         m.Source.Should().Be(@"C:\src\a.txt");
         m.Destination.Should().Be(@"D:\dst\a.txt");
+    }
+
+    [Fact]
+    public void ItemCount_CreateShortcuts_ShouldReturnCreatedShortcutsCount()
+    {
+        var entry = new ActionHistoryEntry
+        {
+            Kind = ActionHistoryKind.CreateShortcuts,
+            CreatedShortcuts = new List<string> { @"C:\1\2.lnk", @"C:\1\3.lnk", @"C:\2\1.lnk" },
+            RecycledPaths = new List<string> { "unused" },
+        };
+
+        entry.ItemCount.Should().Be(3);
+    }
+
+    [Fact]
+    public void CreatedShortcuts_RoundTrip_ShouldPreserveValues()
+    {
+        var entry = new ActionHistoryEntry
+        {
+            Kind = ActionHistoryKind.CreateShortcuts,
+            CreatedShortcuts = new List<string> { @"C:\a\b.lnk", @"C:\a\c.lnk" },
+            Summary = "Created 2 shortcuts",
+        };
+
+        entry.Kind.Should().Be(ActionHistoryKind.CreateShortcuts);
+        entry.CreatedShortcuts.Should().BeEquivalentTo(new[] { @"C:\a\b.lnk", @"C:\a\c.lnk" });
+    }
+
+    [Fact]
+    public void ActionHistoryKind_Ordinals_Preserved()
+    {
+        ((int)ActionHistoryKind.MoveFiles).Should().Be(0);
+        ((int)ActionHistoryKind.RecycleFiles).Should().Be(1);
+        ((int)ActionHistoryKind.RecycleDirectories).Should().Be(2);
+        ((int)ActionHistoryKind.CreateShortcuts).Should().Be(3);
     }
 
     [Fact]
