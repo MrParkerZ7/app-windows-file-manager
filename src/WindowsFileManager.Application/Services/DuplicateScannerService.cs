@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using WindowsFileManager.Core.Models;
 using WindowsFileManager.Core.Services;
 
@@ -113,12 +114,32 @@ public class DuplicateScannerService
         // Report final count
         progress?.Invoke(filesScanned);
 
-        // Step 2: Group by size — unique sizes cannot be duplicates
+        // Step 2 + 3: group either by name regex (no size/hash check) or by size + content hash
+        var duplicateGroups = !string.IsNullOrWhiteSpace(options.MatchRegex)
+            ? GroupByNameRegex(scannedFiles, options.MatchRegex, cancellationToken)
+            : GroupBySizeAndHash(scannedFiles, cancellationToken);
+
+        stopwatch.Stop();
+
+        // Sort by wasted space descending
+        duplicateGroups = duplicateGroups.OrderByDescending(g => g.WastedBytes).ToList();
+
+        return new ScanResult
+        {
+            TotalFilesScanned = filesScanned,
+            TotalDuplicates = duplicateGroups.Sum(g => g.Count),
+            TotalWastedBytes = duplicateGroups.Sum(g => g.WastedBytes),
+            DuplicateGroups = duplicateGroups,
+            Duration = stopwatch.Elapsed,
+        };
+    }
+
+    private List<DuplicateGroup> GroupBySizeAndHash(List<ScannedFile> scannedFiles, CancellationToken cancellationToken)
+    {
         var sizeGroups = scannedFiles
             .GroupBy(f => f.FileSize)
             .Where(g => g.Count() > 1);
 
-        // Step 3: For same-size files, compute hash and group
         var duplicateGroups = new List<DuplicateGroup>();
 
         foreach (var sizeGroup in sizeGroups)
@@ -145,19 +166,96 @@ public class DuplicateScannerService
             }
         }
 
-        stopwatch.Stop();
+        return duplicateGroups;
+    }
 
-        // Sort by wasted space descending
-        duplicateGroups = duplicateGroups.OrderByDescending(g => g.WastedBytes).ToList();
-
-        return new ScanResult
+    private static List<DuplicateGroup> GroupByNameRegex(List<ScannedFile> scannedFiles, string pattern, CancellationToken cancellationToken)
+    {
+        // Pattern is honored as-is — caller is responsible for inline flags like (?i) for case insensitivity.
+        Regex regex;
+        try
         {
-            TotalFilesScanned = filesScanned,
-            TotalDuplicates = duplicateGroups.Sum(g => g.Count),
-            TotalWastedBytes = duplicateGroups.Sum(g => g.WastedBytes),
-            DuplicateGroups = duplicateGroups,
-            Duration = stopwatch.Elapsed,
-        };
+            // 1-second per-match timeout guards against catastrophic backtracking from user typos
+            // like `(.+)*` — without it the worker thread would hang since the cancellation token
+            // is only checked between files, not inside Match itself.
+            regex = new Regex(pattern, RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+        }
+        catch (ArgumentException ex)
+        {
+            throw new ArgumentException($"Invalid duplicate-match regex: {ex.Message}", nameof(pattern), ex);
+        }
+
+        var keyGroups = new Dictionary<string, List<ScannedFile>>(StringComparer.Ordinal);
+
+        foreach (var file in scannedFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            Match match;
+            try
+            {
+                match = regex.Match(file.FileName);
+            }
+            catch (RegexMatchTimeoutException ex)
+            {
+                throw new ArgumentException(
+                    $"Duplicate-match regex timed out on '{file.FileName}'. The pattern likely backtracks catastrophically — try a more specific regex.",
+                    nameof(pattern),
+                    ex);
+            }
+
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            var key = BuildRegexKey(match);
+
+            if (!keyGroups.TryGetValue(key, out var bucket))
+            {
+                bucket = new List<ScannedFile>();
+                keyGroups[key] = bucket;
+            }
+
+            bucket.Add(file);
+        }
+
+        var duplicateGroups = new List<DuplicateGroup>();
+        foreach (var (key, files) in keyGroups)
+        {
+            if (files.Count < 2)
+            {
+                continue;
+            }
+
+            var orderedFiles = files.OrderBy(f => f.FilePath).ToList();
+            duplicateGroups.Add(new DuplicateGroup
+            {
+                Hash = key,
+                FileSize = orderedFiles.Max(f => f.FileSize),
+                Files = orderedFiles,
+            });
+        }
+
+        return duplicateGroups;
+    }
+
+    private static string BuildRegexKey(Match match)
+    {
+        // groups[0] = full match. Use captures verbatim — the user controls case via inline regex
+        // flags like (?i). Captures joined with SOH (0x01) so ('ab','c') and ('a','bc') stay distinct.
+        if (match.Groups.Count > 1)
+        {
+            var parts = new string[match.Groups.Count - 1];
+            for (var i = 1; i < match.Groups.Count; i++)
+            {
+                parts[i - 1] = match.Groups[i].Value;
+            }
+
+            return string.Join("", parts);
+        }
+
+        return match.Value;
     }
 
     private IEnumerable<string> EnumerateFilesExcluding(string rootPath, HashSet<string> excludeNames)

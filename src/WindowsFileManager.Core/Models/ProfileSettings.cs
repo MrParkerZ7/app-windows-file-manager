@@ -81,6 +81,12 @@ public class ProfileSettings
     public List<FolderSearchPattern> FolderSearchPatterns { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the maximum subfolder depth the folder search descends into.
+    /// Null means unlimited (full recursion). 1 = only direct children of the target paths.
+    /// </summary>
+    public int? FolderSearchMaxDepth { get; set; }
+
+    /// <summary>
     /// Gets or sets the last folder search result paths.
     /// </summary>
     public List<string> FolderSearchResultPaths { get; set; } = new();
@@ -99,4 +105,17 @@ public class ProfileSettings
     /// Gets or sets an optional prefix prepended to every .lnk filename created by Link Siblings (empty = no prefix).
     /// </summary>
     public string LinkSiblingsPrefix { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the duplicate scan groups files by name regex captures
+    /// instead of by content hash. When true and <see cref="DuplicateMatchRegex"/> is non-empty, files
+    /// with equal regex captures are treated as duplicates regardless of size or content.
+    /// </summary>
+    public bool DuplicateMatchByRegex { get; set; }
+
+    /// <summary>
+    /// Gets or sets the regex pattern applied to file names when <see cref="DuplicateMatchByRegex"/> is true.
+    /// Empty disables the regex matcher (falls back to hash mode).
+    /// </summary>
+    public string DuplicateMatchRegex { get; set; } = string.Empty;
 }

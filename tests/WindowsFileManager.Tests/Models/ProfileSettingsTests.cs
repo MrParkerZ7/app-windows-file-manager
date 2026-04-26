@@ -25,10 +25,13 @@ public class ProfileSettingsTests
         profile.DisabledExcludeFolderNames.Should().BeEmpty();
         profile.FilterRules.Should().BeEmpty();
         profile.FolderSearchPatterns.Should().BeEmpty();
+        profile.FolderSearchMaxDepth.Should().BeNull();
         profile.FolderSearchResultPaths.Should().BeEmpty();
         profile.SelectedFolderSearchResultPaths.Should().BeEmpty();
         profile.LinkSiblingsLayer.Should().Be(1);
         profile.LinkSiblingsPrefix.Should().BeEmpty();
+        profile.DuplicateMatchByRegex.Should().BeFalse();
+        profile.DuplicateMatchRegex.Should().BeEmpty();
     }
 
     [Fact]
@@ -54,10 +57,13 @@ public class ProfileSettingsTests
             DisabledExcludeFolderNames = new List<string> { "node_modules" },
             FilterRules = new List<FilterRule> { rule },
             FolderSearchPatterns = new List<FolderSearchPattern> { pattern },
+            FolderSearchMaxDepth = 3,
             FolderSearchResultPaths = new List<string> { @"C:\a\src" },
             SelectedFolderSearchResultPaths = new List<string> { @"C:\a\src" },
             LinkSiblingsLayer = 3,
             LinkSiblingsPrefix = "link-",
+            DuplicateMatchByRegex = true,
+            DuplicateMatchRegex = "(?i)(abc).*?(\\d{8})",
         };
 
         profile.Name.Should().Be("Projects");
@@ -75,9 +81,12 @@ public class ProfileSettingsTests
         profile.DisabledExcludeFolderNames.Should().ContainSingle();
         profile.FilterRules.Should().ContainSingle().Which.Pattern.Should().Be("*.txt");
         profile.FolderSearchPatterns.Should().ContainSingle().Which.Pattern.Should().Be("src");
+        profile.FolderSearchMaxDepth.Should().Be(3);
         profile.FolderSearchResultPaths.Should().ContainSingle();
         profile.SelectedFolderSearchResultPaths.Should().ContainSingle();
         profile.LinkSiblingsLayer.Should().Be(3);
         profile.LinkSiblingsPrefix.Should().Be("link-");
+        profile.DuplicateMatchByRegex.Should().BeTrue();
+        profile.DuplicateMatchRegex.Should().Be("(?i)(abc).*?(\\d{8})");
     }
 }

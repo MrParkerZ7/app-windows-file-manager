@@ -414,6 +414,139 @@ public class DuplicateScannerServiceTests
         result.TotalFilesScanned.Should().Be(0);
     }
 
+    [Fact]
+    public void Scan_RegexMode_GroupsFilesByCaptures_IgnoringSize()
+    {
+        SetupDirectory(@"C:\test", new[]
+        {
+            ("abc-12345678.jpg", 100L, "totally different content"),
+            ("bla bla abc 12345678.png", 9999L, "also different content"),
+            ("abc-87654321.jpg", 100L, "different key"),
+            ("xyz-99999999.jpg", 50L, "no abc"),
+        });
+
+        var options = new ScanOptions
+        {
+            TargetPaths = new List<string> { @"C:\test" },
+            MatchRegex = "(?i)(abc).*?(\\d{8})",
+        };
+        var result = _service.Scan(options);
+
+        result.DuplicateGroups.Should().HaveCount(1);
+        result.DuplicateGroups[0].Files.Should().HaveCount(2);
+        result.DuplicateGroups[0].Files.Select(f => f.FileName)
+            .Should().BeEquivalentTo(new[] { "abc-12345678.jpg", "bla bla abc 12345678.png" });
+
+        // FileSize = max of group; WastedBytes = sum - max = 9999+100 - 9999 = 100
+        result.DuplicateGroups[0].FileSize.Should().Be(9999);
+        result.DuplicateGroups[0].WastedBytes.Should().Be(100);
+    }
+
+    [Fact]
+    public void Scan_RegexMode_NoCaptureGroups_UsesFullMatchAsKey()
+    {
+        SetupDirectory(@"C:\test", new[]
+        {
+            ("invoice-2026.pdf", 100L, "x"),
+            ("backup_invoice-2026.pdf.bak", 9999L, "y"),
+            ("invoice-2025.pdf", 100L, "z"),
+        });
+
+        var options = new ScanOptions
+        {
+            TargetPaths = new List<string> { @"C:\test" },
+            MatchRegex = "invoice-2026",
+        };
+        var result = _service.Scan(options);
+
+        result.DuplicateGroups.Should().HaveCount(1);
+        result.DuplicateGroups[0].Files.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void Scan_RegexMode_CaseSensitiveByDefault()
+    {
+        SetupDirectory(@"C:\test", new[]
+        {
+            ("ABC-1.txt", 100L, "x"),
+            ("abc-1.txt", 100L, "y"),
+        });
+
+        var options = new ScanOptions
+        {
+            TargetPaths = new List<string> { @"C:\test" },
+            MatchRegex = "(abc)",
+        };
+        var result = _service.Scan(options);
+
+        // Without (?i), 'ABC-1.txt' does not match 'abc' → only one file matches → no group
+        result.DuplicateGroups.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Scan_RegexMode_InvalidPattern_ShouldThrowArgumentException()
+    {
+        SetupDirectory(@"C:\test", new[]
+        {
+            ("a.txt", 100L, "x"),
+            ("b.txt", 100L, "y"),
+        });
+
+        var options = new ScanOptions
+        {
+            TargetPaths = new List<string> { @"C:\test" },
+            MatchRegex = "[unclosed",
+        };
+
+        var act = () => _service.Scan(options);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*Invalid duplicate-match regex*");
+    }
+
+    [Fact]
+    public void Scan_RegexMode_CatastrophicBacktracking_ShouldThrowArgumentException()
+    {
+        // 60-char input with no terminating 'X' → classic catastrophic backtracking trigger
+        // for nested-quantifier patterns like (a+)+. Without the 1s MatchTimeout the scan would hang.
+        var bigName = new string('a', 60) + ".txt";
+        SetupDirectory(@"C:\test", new[]
+        {
+            (bigName, 100L, "x"),
+            ("other.txt", 100L, "y"),
+        });
+
+        var options = new ScanOptions
+        {
+            TargetPaths = new List<string> { @"C:\test" },
+            MatchRegex = "(a+)+X",
+        };
+
+        var act = () => _service.Scan(options);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*timed out*");
+    }
+
+    [Fact]
+    public void Scan_RegexMode_FilesNotMatching_ShouldBeSkipped()
+    {
+        SetupDirectory(@"C:\test", new[]
+        {
+            ("abc-1.txt", 100L, "x"),
+            ("abc-1-copy.txt", 100L, "y"),
+            ("readme.md", 100L, "z"),
+        });
+
+        var options = new ScanOptions
+        {
+            TargetPaths = new List<string> { @"C:\test" },
+            MatchRegex = "(abc-\\d+)",
+        };
+        var result = _service.Scan(options);
+
+        result.DuplicateGroups.Should().HaveCount(1);
+        result.DuplicateGroups[0].Files.Should().HaveCount(2);
+    }
+
     private void SetupDirectory(string path, (string name, long size, string content)[] files)
     {
         _mockFileSystem.Setup(fs => fs.DirectoryExists(path)).Returns(true);

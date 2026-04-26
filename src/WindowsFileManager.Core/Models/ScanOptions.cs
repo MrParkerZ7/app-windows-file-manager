@@ -29,4 +29,11 @@ public class ScanOptions
     /// Gets or sets folder names to exclude from scanning (e.g. "node_modules", ".git").
     /// </summary>
     public List<string> ExcludeFolderNames { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets a regex pattern applied to file names. When non-empty, the scanner groups files
+    /// whose regex captures (or full match if no capture groups) are equal — file size and content hash
+    /// are NOT considered. When empty, the scanner falls back to size + hash matching.
+    /// </summary>
+    public string MatchRegex { get; set; } = string.Empty;
 }

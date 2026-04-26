@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -102,6 +103,7 @@ public class MainViewModel : ViewModelBase
     private string _fileTypeFilter = string.Empty;
     private string _clearSubfolderStatus = string.Empty;
     private bool _folderSearchIncludeSubdirectories = true;
+    private string _folderSearchMaxDepthText = string.Empty;
     private bool _flattenRemoveEmptyFolders = true;
     private string _flattenFileTypeFilter = string.Empty;
     private int _linkSiblingsLayer = 1;
@@ -119,6 +121,8 @@ public class MainViewModel : ViewModelBase
     private DuplicateGroup? _selectedDuplicateGroup;
     private string _selectedSortOption = "Size (largest)";
     private int _minDuplicateCount = 2;
+    private bool _duplicateMatchByRegex;
+    private string _duplicateMatchRegex = string.Empty;
     private System.Threading.CancellationTokenSource? _folderSearchCts;
 
     private static readonly List<string> SortOptionsList = new()
@@ -915,6 +919,38 @@ public class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Gets or sets a value indicating whether the next scan should match files by name regex
+    /// captures instead of by size + content hash. When true but <see cref="DuplicateMatchRegex"/>
+    /// is empty, the scanner falls back to hash mode.
+    /// </summary>
+    public bool DuplicateMatchByRegex
+    {
+        get => _duplicateMatchByRegex;
+        set
+        {
+            if (SetProperty(ref _duplicateMatchByRegex, value))
+            {
+                SaveSettings();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the regex pattern applied to file names when <see cref="DuplicateMatchByRegex"/> is true.
+    /// </summary>
+    public string DuplicateMatchRegex
+    {
+        get => _duplicateMatchRegex;
+        set
+        {
+            if (SetProperty(ref _duplicateMatchRegex, value ?? string.Empty))
+            {
+                SaveSettings();
+            }
+        }
+    }
+
+    /// <summary>
     /// Gets or sets the filtered group count display.
     /// </summary>
     public int FilteredGroupCount
@@ -1266,6 +1302,21 @@ public class MainViewModel : ViewModelBase
     {
         get => _folderSearchIncludeSubdirectories;
         set => SetProperty(ref _folderSearchIncludeSubdirectories, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the folder-search depth as a free-form string. Empty/whitespace/non-numeric/&lt;=0 = unlimited; otherwise the parsed positive int.
+    /// </summary>
+    public string FolderSearchMaxDepthText
+    {
+        get => _folderSearchMaxDepthText;
+        set
+        {
+            if (SetProperty(ref _folderSearchMaxDepthText, value ?? string.Empty))
+            {
+                SaveSettings();
+            }
+        }
     }
 
     /// <summary>Gets or sets a value indicating whether gets or sets whether flatten removes empty subfolders after moving files.</summary>
@@ -1780,6 +1831,22 @@ public class MainViewModel : ViewModelBase
 
     private IProgress<int> CreateBusyProgress() => new Progress<int>(n => BusyCurrent = n);
 
+    private int? ParseFolderSearchMaxDepth()
+    {
+        var text = _folderSearchMaxDepthText?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) && n >= 1)
+        {
+            return n;
+        }
+
+        return null;
+    }
+
     private static string FormatDuration(double totalSeconds)
     {
         if (totalSeconds < 1)
@@ -1876,10 +1943,13 @@ public class MainViewModel : ViewModelBase
         profile.DisabledExcludeFolderNames = ExcludeFolderNames.Where(t => !t.IsEnabled).Select(t => t.Value).ToList();
         profile.FilterRules = FilterRules.ToList();
         profile.FolderSearchPatterns = FolderSearchPatterns.ToList();
+        profile.FolderSearchMaxDepth = ParseFolderSearchMaxDepth();
         profile.FolderSearchResultPaths = FolderSearchResults.Select(r => r.FullPath).ToList();
         profile.SelectedFolderSearchResultPaths = FolderSearchResults.Where(r => r.IsSelected).Select(r => r.FullPath).ToList();
         profile.LinkSiblingsLayer = LinkSiblingsLayer;
         profile.LinkSiblingsPrefix = LinkSiblingsPrefix;
+        profile.DuplicateMatchByRegex = DuplicateMatchByRegex;
+        profile.DuplicateMatchRegex = DuplicateMatchRegex;
     }
 
     private void ApplyProfileToLiveState(ProfileSettings profile)
@@ -1918,6 +1988,10 @@ public class MainViewModel : ViewModelBase
         MoveTargetPath = profile.MoveTargetPath;
         LinkSiblingsLayer = profile.LinkSiblingsLayer < 1 ? 1 : profile.LinkSiblingsLayer;
         LinkSiblingsPrefix = profile.LinkSiblingsPrefix ?? string.Empty;
+        _duplicateMatchByRegex = profile.DuplicateMatchByRegex;
+        OnPropertyChanged(nameof(DuplicateMatchByRegex));
+        _duplicateMatchRegex = profile.DuplicateMatchRegex ?? string.Empty;
+        OnPropertyChanged(nameof(DuplicateMatchRegex));
 
         var disabledTargets = new HashSet<string>(profile.DisabledTargetPaths, StringComparer.OrdinalIgnoreCase);
         foreach (var path in profile.TargetPaths)
@@ -1944,6 +2018,9 @@ public class MainViewModel : ViewModelBase
         {
             FolderSearchPatterns.Add(pattern);
         }
+
+        _folderSearchMaxDepthText = profile.FolderSearchMaxDepth is int d && d >= 1 ? d.ToString(CultureInfo.InvariantCulture) : string.Empty;
+        OnPropertyChanged(nameof(FolderSearchMaxDepthText));
 
         var selectedPaths = new HashSet<string>(profile.SelectedFolderSearchResultPaths, StringComparer.OrdinalIgnoreCase);
         foreach (var path in profile.FolderSearchResultPaths)
@@ -2059,10 +2136,13 @@ public class MainViewModel : ViewModelBase
             IsEnabled = p.IsEnabled,
             Priority = p.Priority,
         }).ToList(),
+        FolderSearchMaxDepth = source.FolderSearchMaxDepth,
         FolderSearchResultPaths = new List<string>(source.FolderSearchResultPaths),
         SelectedFolderSearchResultPaths = new List<string>(source.SelectedFolderSearchResultPaths),
         LinkSiblingsLayer = source.LinkSiblingsLayer,
         LinkSiblingsPrefix = source.LinkSiblingsPrefix,
+        DuplicateMatchByRegex = source.DuplicateMatchByRegex,
+        DuplicateMatchRegex = source.DuplicateMatchRegex,
     };
 
     private void SwitchProfile(string? name)
@@ -2187,11 +2267,16 @@ public class MainViewModel : ViewModelBase
 
         try
         {
+            var matchRegex = _duplicateMatchByRegex && !string.IsNullOrWhiteSpace(_duplicateMatchRegex)
+                ? _duplicateMatchRegex
+                : string.Empty;
+
             var options = new ScanOptions
             {
                 TargetPaths = TargetPaths.Where(t => t.IsEnabled).Select(t => t.Value).ToList(),
                 IncludeSubdirectories = IncludeSubdirectories,
                 ExcludeFolderNames = ExcludeFolderNames.Where(t => t.IsEnabled).Select(t => t.Value).ToList(),
+                MatchRegex = matchRegex,
             };
 
             var result = await Task.Run(
@@ -2223,6 +2308,10 @@ public class MainViewModel : ViewModelBase
             StatusMessage = "Scan cancelled.";
         }
         catch (DirectoryNotFoundException ex)
+        {
+            StatusMessage = ex.Message;
+        }
+        catch (ArgumentException ex)
         {
             StatusMessage = ex.Message;
         }
@@ -3140,9 +3229,10 @@ public class MainViewModel : ViewModelBase
             ExcludeFolderNames.Where(t => t.IsEnabled).Select(t => t.Value),
             StringComparer.OrdinalIgnoreCase);
         var patterns = FolderSearchPatterns.Where(t => t.IsEnabled).ToList();
-        var recurse = true;
+        var maxDepth = ParseFolderSearchMaxDepth();
+        var depthSuffix = maxDepth.HasValue ? $" (depth ≤ {maxDepth.Value})" : string.Empty;
 
-        BeginBusy($"Searching {targetPaths.Count} target path(s) for folders…");
+        BeginBusy($"Searching {targetPaths.Count} target path(s) for folders{depthSuffix}…");
         try
         {
             var results = await Task.Run(
@@ -3157,7 +3247,7 @@ public class MainViewModel : ViewModelBase
                             continue;
                         }
 
-                        SearchFoldersRecursive(rootPath, patterns, excludeNames, found, recurse, token);
+                        SearchFoldersRecursive(rootPath, patterns, excludeNames, found, 1, maxDepth, token);
                     }
 
                     foreach (var r in found)
@@ -3207,7 +3297,8 @@ public class MainViewModel : ViewModelBase
         List<FolderSearchPattern> patterns,
         HashSet<string> excludeNames,
         List<FolderSearchResult> results,
-        bool recurse,
+        int currentDepth,
+        int? maxDepth,
         System.Threading.CancellationToken token)
     {
         IEnumerable<string> subDirs;
@@ -3283,10 +3374,10 @@ public class MainViewModel : ViewModelBase
                 }
             }
 
-            // Recurse deeper if enabled
-            if (recurse)
+            // Recurse deeper unless we've hit the configured depth cap
+            if (!maxDepth.HasValue || currentDepth < maxDepth.Value)
             {
-                SearchFoldersRecursive(subDir, patterns, excludeNames, results, recurse, token);
+                SearchFoldersRecursive(subDir, patterns, excludeNames, results, currentDepth + 1, maxDepth, token);
             }
         }
     }

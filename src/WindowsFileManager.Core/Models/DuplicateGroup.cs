@@ -48,9 +48,29 @@ public class DuplicateGroup
         : string.Empty;
 
     /// <summary>
-    /// Gets the wasted space (all copies except one).
+    /// Gets the wasted space (all copies except the largest).
+    /// When files have individual sizes (hash mode + regex mode), uses the actual sum-minus-largest
+    /// — for hash mode this matches FileSize * (Count - 1) since all sizes are equal. Falls back to
+    /// FileSize * (Count - 1) when individual file sizes are unavailable (legacy / test fixtures).
     /// </summary>
-    public long WastedBytes => FileSize * (Count - 1);
+    public long WastedBytes
+    {
+        get
+        {
+            if (Files.Count <= 1)
+            {
+                return 0;
+            }
+
+            var totalSize = Files.Sum(f => f.FileSize);
+            if (totalSize > 0)
+            {
+                return totalSize - Files.Max(f => f.FileSize);
+            }
+
+            return FileSize * (Count - 1);
+        }
+    }
 
     /// <summary>
     /// Gets the human-readable wasted space.

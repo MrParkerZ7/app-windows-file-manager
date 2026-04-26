@@ -52,6 +52,25 @@ public class DuplicateGroupTests
     }
 
     [Fact]
+    public void WastedBytes_MixedSizes_UsesSumMinusLargest()
+    {
+        // Regex-mode groups have files with different sizes. Wasted = sum of all but largest.
+        var group = new DuplicateGroup
+        {
+            FileSize = 0,
+            Files = new List<ScannedFile>
+            {
+                new() { FilePath = "small.txt", FileSize = 100 },
+                new() { FilePath = "medium.txt", FileSize = 200 },
+                new() { FilePath = "large.txt", FileSize = 1000 },
+            },
+        };
+
+        // sum=1300, max=1000 → wasted=300
+        group.WastedBytes.Should().Be(300);
+    }
+
+    [Fact]
     public void FormattedWastedSize_ShouldFormatCorrectly()
     {
         var group = new DuplicateGroup
