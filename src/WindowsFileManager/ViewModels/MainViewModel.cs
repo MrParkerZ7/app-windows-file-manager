@@ -633,6 +633,7 @@ public class MainViewModel : ViewModelBase
         ApplyFileSizeFilterCommand = new RelayCommand(_ => ApplyFilters());
         ToggleFilterCommand = new RelayCommand(_ => IsFilterVisible = !IsFilterVisible);
         ToggleActionsCommand = new RelayCommand(_ => IsActionsVisible = !IsActionsVisible);
+        ToggleDuplicateMatchModeCommand = new RelayCommand(_ => DuplicateMatchByRegex = !DuplicateMatchByRegex);
 
         SelectAllFilesCommand = new RelayCommand(_ => SelectAllFiles(), _ => DuplicateGroups.Count > 0);
         SelectNewerFilesCommand = new RelayCommand(_ => SelectNewerFiles(), _ => DuplicateGroups.Count > 0);
@@ -1057,6 +1058,9 @@ public class MainViewModel : ViewModelBase
 
     /// <summary>Gets the toggle actions panel command.</summary>
     public ICommand ToggleActionsCommand { get; }
+
+    /// <summary>Gets the command that flips between Base Filters and Match by Name Regex modes.</summary>
+    public ICommand ToggleDuplicateMatchModeCommand { get; }
 
     // -- Selection commands --
 

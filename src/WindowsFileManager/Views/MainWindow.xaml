@@ -921,41 +921,6 @@
                     </ToggleButton>
                 </StackPanel>
 
-                <!-- Match-by-name-regex layer (mirrors the Base Filters styling) -->
-                <Border Background="#FFF3E0" CornerRadius="4" Padding="8,2" Margin="0,6,0,0"
-                        BorderBrush="#FFB74D" BorderThickness="1">
-                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Title -->
-                        <StackPanel Orientation="Horizontal" Margin="0,2,8,2" VerticalAlignment="Center">
-                            <TextBlock Text="Match by Name Regex" FontWeight="Bold" FontSize="11"
-                                       Foreground="#E65100" VerticalAlignment="Center" Margin="0,0,4,0" />
-                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
-                                          Tag="&lt;h&gt;MATCH BY NAME REGEX&lt;/h&gt;&#x0a;Group files by regex captures from their name instead of by content hash. Files do NOT need to be the same size.&#x0a;&#x0a;&lt;b&gt;How it works&lt;/b&gt;&#x0a;Each file name is matched against the regex. Files whose captured groups (or full match if no groups) are equal land in the same duplicate group.&#x0a;&#x0a;&lt;b&gt;Example&lt;/b&gt;&#x0a;Pattern: &lt;code&gt;(?i)(abc).*?(\d{7,8})&lt;/code&gt;&#x0a;Captures (abc, 12345678) from both &lt;code&gt;abc-12345678.jpg&lt;/code&gt; and &lt;code&gt;bla bla abc 12345678.png&lt;/code&gt; → grouped together.&#x0a;&#x0a;&lt;b&gt;Notes&lt;/b&gt;&#x0a;• Toggle OFF or empty pattern = feature disabled (falls back to hash mode)&#x0a;• Files not matching the pattern are skipped&#x0a;• Use &lt;code&gt;(?i)&lt;/code&gt; for case-insensitive matching" />
-                            <Border Width="1" Background="#FFB74D" Margin="8,2" />
-                        </StackPanel>
-
-                        <!-- Enable toggle -->
-                        <StackPanel Orientation="Horizontal" Margin="0,2,8,2" VerticalAlignment="Center">
-                            <CheckBox IsChecked="{Binding DuplicateMatchByRegex}"
-                                      Content="Enable"
-                                      VerticalAlignment="Center" FontSize="11" Margin="0,0,4,0"
-                                      ToolTip="When ON and a regex is provided, files are grouped by their regex captures — file size and content hash are ignored." />
-                            <Border Width="1" Background="#D0D0D0" Margin="8,2" />
-                        </StackPanel>
-
-                        <!-- Pattern -->
-                        <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
-                            <TextBlock Text="Pattern:" FontWeight="SemiBold" FontSize="11"
-                                       Foreground="#E65100" VerticalAlignment="Center" Margin="0,0,4,0" />
-                            <TextBox Text="{Binding DuplicateMatchRegex, UpdateSourceTrigger=PropertyChanged}"
-                                     Width="380" Padding="4,3" FontSize="11" VerticalContentAlignment="Center"
-                                     FontFamily="Consolas"
-                                     IsEnabled="{Binding DuplicateMatchByRegex}"
-                                     ToolTip="Regex applied to each file name. Use capture groups to define the match key — files with equal captures form a group. Inline flags supported (e.g. (?i) for case-insensitive). Empty = feature disabled." />
-                        </StackPanel>
-                    </WrapPanel>
-                </Border>
-
                 <ProgressBar Height="6" Margin="0,6,0,0"
                              IsIndeterminate="{Binding IsScanning}"
                              Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}}" />
@@ -973,10 +938,16 @@
 
                 <!-- Row 0: Base Filters (inline — sort + file type controls + size/dup filters) -->
                 <Border Grid.Row="0" Background="#F0F4FF" CornerRadius="4" Padding="8,2" Margin="0,0,0,4"
-                        BorderBrush="#C5CAE9" BorderThickness="1">
+                        BorderBrush="#C5CAE9" BorderThickness="1"
+                        Visibility="{Binding DuplicateMatchByRegex, Converter={StaticResource InverseBoolToVisibility}}">
                     <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <!-- Title -->
                         <StackPanel Orientation="Horizontal" Margin="0,2,8,2" VerticalAlignment="Center">
+                            <Button Content="🔄 Use Regex"
+                                    Command="{Binding ToggleDuplicateMatchModeCommand}"
+                                    Padding="6,2" Margin="0,0,8,0" FontSize="10" Cursor="Hand"
+                                    Foreground="#E65100" BorderBrush="#FFB74D" Background="#FFF8E1"
+                                    ToolTip="Switch to Match by Name Regex mode (group files by regex captures from their name — files don't need to be identical)" />
                             <TextBlock Text="Base Filters" FontWeight="Bold" FontSize="11"
                                        Foreground="#1565C0" VerticalAlignment="Center" Margin="0,0,4,0" />
                             <ToggleButton Style="{StaticResource HelpButtonStyle}"
@@ -1037,6 +1008,37 @@
                                      Width="35" Padding="4,3" FontSize="11" VerticalContentAlignment="Center" />
                             <Button Content="Apply" Command="{Binding ApplyFileSizeFilterCommand}"
                                     Padding="6,3" Margin="8,0,0,0" FontSize="11" Cursor="Hand" />
+                        </StackPanel>
+                    </WrapPanel>
+                </Border>
+
+                <!-- Row 0 alt: Match by Name Regex (mutually exclusive with Base Filters) -->
+                <Border Grid.Row="0" Background="#FFF3E0" CornerRadius="4" Padding="8,2" Margin="0,0,0,4"
+                        BorderBrush="#FFB74D" BorderThickness="1"
+                        Visibility="{Binding DuplicateMatchByRegex, Converter={StaticResource BoolToVisibility}}">
+                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Title -->
+                        <StackPanel Orientation="Horizontal" Margin="0,2,8,2" VerticalAlignment="Center">
+                            <Button Content="🔄 Use Base Filters"
+                                    Command="{Binding ToggleDuplicateMatchModeCommand}"
+                                    Padding="6,2" Margin="0,0,8,0" FontSize="10" Cursor="Hand"
+                                    Foreground="#1565C0" BorderBrush="#C5CAE9" Background="#F0F4FF"
+                                    ToolTip="Switch back to Base Filters mode (size + content hash matching)" />
+                            <TextBlock Text="Match by Name Regex" FontWeight="Bold" FontSize="11"
+                                       Foreground="#E65100" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <ToggleButton Style="{StaticResource HelpButtonStyle}"
+                                          Tag="&lt;h&gt;MATCH BY NAME REGEX&lt;/h&gt;&#x0a;Group files by regex captures from their name instead of by content hash. Files do NOT need to be the same size.&#x0a;&#x0a;&lt;b&gt;How it works&lt;/b&gt;&#x0a;Each file name is matched against the regex. Files whose captured groups (or full match if no groups) are equal land in the same duplicate group.&#x0a;&#x0a;&lt;b&gt;Example&lt;/b&gt;&#x0a;Pattern: &lt;code&gt;(?i)(abc).*?(\d{7,8})&lt;/code&gt;&#x0a;Captures (abc, 12345678) from both &lt;code&gt;abc-12345678.jpg&lt;/code&gt; and &lt;code&gt;bla bla abc 12345678.png&lt;/code&gt; → grouped together.&#x0a;&#x0a;&lt;b&gt;Notes&lt;/b&gt;&#x0a;• Files not matching the pattern are skipped&#x0a;• Use &lt;code&gt;(?i)&lt;/code&gt; for case-insensitive matching&#x0a;• Switch back to Base Filters to restore size+hash matching" />
+                            <Border Width="1" Background="#FFB74D" Margin="8,2" />
+                        </StackPanel>
+
+                        <!-- Pattern -->
+                        <StackPanel Orientation="Horizontal" Margin="0,2,0,2" VerticalAlignment="Center">
+                            <TextBlock Text="Pattern:" FontWeight="SemiBold" FontSize="11"
+                                       Foreground="#E65100" VerticalAlignment="Center" Margin="0,0,4,0" />
+                            <TextBox Text="{Binding DuplicateMatchRegex, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="380" Padding="4,3" FontSize="11" VerticalContentAlignment="Center"
+                                     FontFamily="Consolas"
+                                     ToolTip="Regex applied to each file name. Use capture groups to define the match key — files with equal captures form a group. Inline flags supported (e.g. (?i) for case-insensitive)." />
                         </StackPanel>
                     </WrapPanel>
                 </Border>
@@ -1634,26 +1636,48 @@
                                     <ItemsControl ItemsSource="{Binding Files}" Margin="16,0,0,0">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Margin="0,2">
-                                                    <CheckBox IsChecked="{Binding IsFileSelected}"
-                                                              VerticalAlignment="Center" Margin="0,0,4,0" />
-                                                    <Button Content="📂 Open"
-                                                            Command="{Binding DataContext.OpenFileLocationCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding FilePath}"
-                                                            Padding="6,2" Margin="0,0,4,0"
-                                                            FontSize="11" Cursor="Hand" />
-                                                    <Button Content="🗑 Delete"
-                                                            Command="{Binding DataContext.DeleteFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}"
-                                                            Padding="6,2" Margin="0,0,8,0"
-                                                            FontSize="11" Cursor="Hand"
-                                                            Foreground="#C62828" />
-                                                    <TextBlock Text="{Binding FilePath}"
+                                                <Grid Margin="0,2">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <CheckBox IsChecked="{Binding IsFileSelected}"
+                                                                  VerticalAlignment="Center" Margin="0,0,4,0" />
+                                                        <Button Content="📂 Open"
+                                                                Command="{Binding DataContext.OpenFileLocationCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding FilePath}"
+                                                                Padding="6,2" Margin="0,0,4,0"
+                                                                FontSize="11" Cursor="Hand"
+                                                                ToolTip="Open this file's folder in Explorer" />
+                                                        <Button Content="👁 Preview"
+                                                                Command="{Binding DataContext.PreviewFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding FilePath}"
+                                                                Padding="6,2" Margin="0,0,4,0"
+                                                                FontSize="11" Cursor="Hand"
+                                                                Foreground="#1565C0"
+                                                                ToolTip="Show this file in the File Preview panel" />
+                                                        <Button Content="🗑 Delete"
+                                                                Command="{Binding DataContext.DeleteFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}"
+                                                                Padding="6,2" Margin="0,0,8,0"
+                                                                FontSize="11" Cursor="Hand"
+                                                                Foreground="#C62828"
+                                                                ToolTip="Move this file to the Recycle Bin" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding FilePath}"
                                                                Foreground="#333333" FontSize="12"
                                                                VerticalAlignment="Center"
                                                                TextTrimming="CharacterEllipsis"
                                                                ToolTip="{Binding FilePath}" />
-                                                </StackPanel>
+                                                    <TextBlock Grid.Column="2" Text="{Binding FormattedSize}"
+                                                               Foreground="#1565C0" FontSize="11" FontWeight="SemiBold"
+                                                               VerticalAlignment="Center"
+                                                               Margin="12,0,4,0"
+                                                               MinWidth="60" TextAlignment="Right"
+                                                               ToolTip="File size on disk" />
+                                                </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
